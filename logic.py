@@ -2,6 +2,7 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import datetime
 import streamlit as st
 
 def evaluate_pdf_metrics(info):
@@ -33,28 +34,38 @@ def evaluate_pdf_metrics(info):
     except: pass
     return score, details
 
+def get_ai_logic(price, fv, score, currency):
+    if not fv or fv <= 0: return "בבדיקה 🔍", "חסרים נתוני תזרים."
+    gap = (fv - price) / price if price > 0 else 0
+    if score >= 5:
+        if gap > 0.05: return "קנייה חזקה 💎", f"מניית 'זהב'. נסחרת בהנחה משוויה ההוגן ({currency}{fv:,.2f})."
+        return "קנייה 📈", "חברה איכותית ביותר במחיר הוגן."
+    elif score >= 3:
+        if gap > 0.10: return "איסוף 🛒", f"חברה טובה במחיר 'מבצע'."
+        return "החזק ⚖️", "המחיר משקף את השווי האמיתי."
+    return "מכירה 🔴", "ציון איכות נמוך יחסית לסיכון."
+
 @st.cache_data(ttl=600)
 def fetch_master_data(tickers):
     rows = []
+    now = datetime.datetime.now()
+    
     for t in tickers:
         try:
             s = yf.Ticker(t)
             inf = s.info
             
-            # שליפת היסטוריה חצי שנה אחורה לחישובים טכניים
             h = s.history(period="6mo")
             if h.empty or len(h) < 20: continue 
             
             px = h['Close'].iloc[-1]
             
-            # חישוב RSI (14 ימים)
+            # טכני
             delta = h['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
             rs = gain / loss
             rsi = 100 - (100 / (1 + rs.iloc[-1])) if not np.isnan(rs.iloc[-1]) else 50
-            
-            # חישוב ממוצע נע 50 ימים (50MA)
             ma50 = h['Close'].rolling(window=50).mean().iloc[-1]
             
             score, details = evaluate_pdf_metrics(inf)
@@ -64,23 +75,43 @@ def fetch_master_data(tickers):
             
             currency = "אג'" if str(t).endswith(".TA") else "$"
             price_str = f"{currency}{px:,.2f}"
+            action, logic = get_ai_logic(px, fv, score, currency)
             
+            # דיבידנדים לעומק
+            div_yield = (inf.get('dividendYield') or 0) * 100
+            div_rate = inf.get('dividendRate') or 0
+            five_yr_div = (inf.get('fiveYearAvgDividendYield') or 0)
             payout_ratio = (inf.get('payoutRatio', 0) or 0) * 100
             
+            # משיכת תאריכי דוחות (Earnings) וחישוב מרחק
+            earning_date_str = "לא ידוע"
+            days_to_earnings = -1
+            try:
+                cal = s.calendar
+                if isinstance(cal, dict) and 'Earnings Date' in cal and len(cal['Earnings Date']) > 0:
+                    edate = cal['Earnings Date'][0]
+                    # מוודא שזה פורמט תאריך נכון
+                    if hasattr(edate, 'date'):
+                        earning_date_str = edate.strftime('%d/%m/%Y')
+                        # חישוב הימים שנותרו
+                        days_to_earnings = (edate.date() - now.date()).days
+            except: pass
+
             rows.append({
                 "Symbol": t, "Price": px, "PriceStr": price_str, "Currency": currency,
                 "FairValue": fv, "Change": ((px / h['Close'].iloc[-2]) - 1) * 100,
-                "Score": score, 
-                "RSI": rsi, "MA50": ma50, # נתונים טכניים חדשים לסוכנים!
+                "Score": score, "RSI": rsi, "MA50": ma50, "Action": action, "AI_Logic": logic,
                 "RevGrowth": details.get('RevGrowth', 0), "EarnGrowth": details.get('EarnGrowth', 0),
                 "Margin": details.get('Margin', 0), "ROE": details.get('ROE', 0),
                 "CashVsDebt": "✅" if details.get('Cash', 0) > details.get('Debt', 0) else "❌",
                 "ZeroDebt": "✅" if details.get('Debt', 0) == 0 else "❌",
-                "DivYield": (inf.get('dividendYield') or 0) * 100, "ExDate": inf.get('exDividendDate'), 
-                "PayoutRatio": payout_ratio, "Info": inf
+                "DivYield": div_yield, "DivRate": div_rate, "FiveYrDiv": five_yr_div, 
+                "PayoutRatio": payout_ratio, "ExDate": inf.get('exDividendDate'),
+                "EarningsDate": earning_date_str, "DaysToEarnings": days_to_earnings,
+                "Info": inf
             })
         except: continue
     
     if not rows:
-        return pd.DataFrame(columns=["Symbol", "Price", "PriceStr", "Currency", "FairValue", "Change", "Score", "RSI", "MA50", "RevGrowth", "EarnGrowth", "Margin", "ROE", "CashVsDebt", "ZeroDebt", "DivYield", "ExDate", "PayoutRatio", "Info"])
+        return pd.DataFrame(columns=["Symbol", "Price", "PriceStr", "Currency", "FairValue", "Change", "Score", "RSI", "MA50", "Action", "AI_Logic", "RevGrowth", "EarnGrowth", "Margin", "ROE", "CashVsDebt", "ZeroDebt", "DivYield", "DivRate", "FiveYrDiv", "PayoutRatio", "ExDate", "EarningsDate", "DaysToEarnings", "Info"])
     return pd.DataFrame(rows)
