@@ -4,44 +4,33 @@ import pandas as pd
 import streamlit as st
 
 def evaluate_pdf_metrics(info):
-    """
-    חישוב 6 הקריטריונים בדיוק לפי ה-PDF של אלון הזה.
-    """
     score = 0
     details = {}
-    
     try:
-        # 1. צמיחת מכירות מעל 10%
         rev_growth = info.get('revenueGrowth')
         if rev_growth is not None and rev_growth >= 0.10: score += 1
         details['RevGrowth'] = rev_growth if rev_growth else 0
         
-        # 2. צמיחת רווחים מעל 10%
         earn_growth = info.get('earningsGrowth')
         if earn_growth is not None and earn_growth >= 0.10: score += 1
         details['EarnGrowth'] = earn_growth if earn_growth else 0
         
-        # 3. שולי רווח נקי מעל 10%
         margin = info.get('profitMargins')
         if margin is not None and margin >= 0.10: score += 1
         details['Margin'] = margin if margin else 0
         
-        # 4+5. ROIC ורווחיות (נשתמש ב-ROE כאינדיקציה לאיכות הנהלה > 15%)
         roe = info.get('returnOnEquity')
         if roe is not None and roe >= 0.15: score += 1
         details['ROE'] = roe if roe else 0
         
-        # 6. מזומן מול חוב
         cash = info.get('totalCash', 0) or 0
         debt = info.get('totalDebt', 0) or 0
         if cash > debt: score += 1
         if debt == 0: score += 1
         details['Cash'] = cash
         details['Debt'] = debt
-        
     except Exception as e:
         pass
-        
     return score, details
 
 def get_ai_logic(price, fv, score):
@@ -62,29 +51,30 @@ def fetch_master_data(tickers):
         try:
             s = yf.Ticker(t)
             inf = s.info
-            
-            # שליפת מחיר בטוחה יותר נגד קריסות של יאהו
             px = inf.get('currentPrice') or inf.get('regularMarketPrice')
             if not px:
                 h = s.history(period="1d")
                 if not h.empty: px = h['Close'].iloc[-1]
                 else: px = 0.0
                 
-            if px == 0.0: continue # מדלג רק אם באמת אין מחיר בכלל
+            if px == 0.0: continue 
             
-            # חישוב ה-PDF
             score, details = evaluate_pdf_metrics(inf)
-            
-            # שווי הוגן בסיסי (DCF)
             fcf = inf.get('freeCashflow', 0) or 0
             shares = inf.get('sharesOutstanding', 1) or 1
             fv = (fcf * 15) / shares if shares > 0 else 0
-            
             action, logic = get_ai_logic(px, fv, score)
+            
+            # מנגנון זיהוי המטבעות שביקשת
+            currency = "אג'" if str(t).endswith(".TA") else "$"
+            price_str = f"{currency}{px:,.2f}"
             
             rows.append({
                 "Symbol": t, 
                 "Price": px,
+                "PriceStr": price_str,
+                "Currency": currency,
+                "FairValue": fv,
                 "Score": score, 
                 "Action": action, 
                 "AI_Logic": logic,
@@ -99,10 +89,8 @@ def fetch_master_data(tickers):
                 "Info": inf
             })
         except Exception as e:
-            # אם יש שגיאה במניה ספציפית, נדלג עליה ולא נקריס את האתר
             continue
             
-    # מחזיר טבלה מלאה, או מבנה ריק תקין אם אין נתונים בכלל
     if not rows:
-        return pd.DataFrame(columns=["Symbol", "Price", "Score", "Action", "AI_Logic", "RevGrowth", "EarnGrowth", "Margin", "ROE", "CashVsDebt", "ZeroDebt", "DivYield", "ExDate", "Info"])
+        return pd.DataFrame(columns=["Symbol", "Price", "PriceStr", "Currency", "FairValue", "Score", "Action", "AI_Logic", "RevGrowth", "EarnGrowth", "Margin", "ROE", "CashVsDebt", "ZeroDebt", "DivYield", "ExDate", "Info"])
     return pd.DataFrame(rows)
