@@ -2,19 +2,19 @@
 import streamlit as st
 import pandas as pd
 
-def render_paper_trading(df_all):
-    st.markdown('<div class="ai-card"><b>🤖 מנהל התיקים האישי שלך (AI Portfolio Manager):</b><br>הפקדנו עבורך 5,000 ש"ח וירטואליים. הסוכן סורק את השוק, מרכיב תיק מבוסס ערך (PDF), ומפיק <b>דוח אנליזה מפורט</b> לכל רכישה.</div>', unsafe_allow_html=True)
+def render_value_agent(df_all):
+    st.markdown('<div class="ai-card" style="border-right-color: #2e7d32;"><b>💼 סוכן השקעות ערך (לטווח ארוך):</b> מחפש חברות חזקות לפי ה-PDF. המטרה: לקנות בזול ולהמתין לבשלות תוך ניהול סיכונים מחושב.</div>', unsafe_allow_html=True)
     
-    if 'cash_ils' not in st.session_state:
-        st.session_state.cash_ils = 5000.0
-        st.session_state.ai_portfolio = []
+    if 'val_cash_ils' not in st.session_state:
+        st.session_state.val_cash_ils = 5000.0
+        st.session_state.val_portfolio = []
 
     usd_rate = 3.8 
-    cash_usd = st.session_state.cash_ils / usd_rate
+    cash_usd = st.session_state.val_cash_ils / usd_rate
     
     port_value_usd = 0
-    if st.session_state.ai_portfolio:
-        for p in st.session_state.ai_portfolio:
+    if st.session_state.val_portfolio:
+        for p in st.session_state.val_portfolio:
             curr_row = df_all[df_all['Symbol'] == p['Symbol']]
             current_price = curr_row['Price'].iloc[0] if not curr_row.empty else p['Raw_Buy_Price']
             currency = curr_row['Currency'].iloc[0] if not curr_row.empty else "$"
@@ -22,60 +22,129 @@ def render_paper_trading(df_all):
             port_value_usd += price_usd * p['Qty']
 
     c1, c2, c3 = st.columns(3)
-    c1.metric("💵 יתרת מזומן", f"₪{st.session_state.cash_ils:,.2f}")
+    c1.metric("💵 יתרת מזומן", f"₪{st.session_state.val_cash_ils:,.2f}")
     c2.metric("💼 שווי התיק (בדולרים)", f"${port_value_usd:,.2f}")
     yield_pct = ((port_value_usd / (5000 / usd_rate)) - 1) * 100 if port_value_usd > 0 else 0.0
     c3.metric("📈 תשואת הסוכן", f"{yield_pct:.1f}%")
 
-    if st.button("🚀 הפעל סוכן AI לבניית תיק (5,000 ₪)"):
-        if st.session_state.cash_ils > 100:
+    if st.button("🚀 הפעל סוכן ערך (השקע 5,000 ₪)"):
+        if st.session_state.val_cash_ils > 100:
             gold_stocks = df_all[df_all['Score'] >= 5]
             if not gold_stocks.empty:
-                st.success("הסוכן בנה עבורך תיק השקעות! גלול למטה לקריאת דוחות האנליזה.")
+                st.success("נרכשו מניות איכותיות! גלול לדוחות האנליזה.")
                 invest_per_stock_usd = cash_usd / len(gold_stocks)
                 new_portfolio = []
                 for _, row in gold_stocks.iterrows():
                     price_usd = row['Price'] if row['Currency'] == "$" else (row['Price'] / 100) / usd_rate
                     qty = invest_per_stock_usd / price_usd if price_usd > 0 else 0
                     
-                    if row['FairValue'] > row['Price']:
-                        exp_profit = ((row['FairValue'] / row['Price']) - 1) * 100
-                        timeframe = "1.5 עד 3 שנים" if exp_profit > 30 else "12 עד 18 חודשים"
-                    else:
-                        exp_profit = 12.0 
-                        timeframe = "1 עד 2 שנים"
-                        
+                    exp_profit = ((row['FairValue'] / row['Price']) - 1) * 100 if row['FairValue'] > row['Price'] else 15.0
+                    timeframe = "1.5 עד 3 שנים" if exp_profit > 30 else "1 עד 2 שנים"
+                    
+                    # ניהול סיכונים חכם
+                    stop_loss = row['Price'] * 0.85 # עצירת הפסד ב-15% ירידה
+                    take_profit = row['FairValue'] if row['FairValue'] > row['Price'] else row['Price'] * 1.15
+                    
                     new_portfolio.append({
                         "Symbol": row['Symbol'], "Raw_Buy_Price": row['Price'], 
                         "Buy_Price": row['PriceStr'], "Qty": round(qty, 2), 
                         "Expected_Profit": exp_profit, "Timeframe": timeframe,
-                        "Score": row['Score'], "RevG": row['RevGrowth']
+                        "Score": row['Score'], "StopLoss": f"{row['Currency']}{stop_loss:.2f}",
+                        "TakeProfit": f"{row['Currency']}{take_profit:.2f}"
                     })
-                st.session_state.ai_portfolio = new_portfolio
-                st.session_state.cash_ils = 0
+                st.session_state.val_portfolio = new_portfolio
+                st.session_state.val_cash_ils = 0
                 st.rerun()
             else:
-                st.error("ה-AI לא מצא כרגע חברות שעומדות בציון 5 או 6.")
+                st.error("לא נמצאו מניות שעומדות במדריכי ה-PDF.")
 
-    if st.session_state.ai_portfolio:
-        st.markdown("### 📊 התיק הפעיל:")
-        display_df = pd.DataFrame(st.session_state.ai_portfolio)[["Symbol", "Buy_Price", "Qty", "Expected_Profit", "Timeframe"]]
-        st.dataframe(display_df, column_config={"Symbol": "סימול", "Buy_Price": "מחיר קנייה", "Qty": "כמות", "Expected_Profit": st.column_config.NumberColumn("יעד רווח %", format="+%.1f%%"), "Timeframe": "זמן יעד (AI)"}, use_container_width=True, hide_index=True)
-        
-        st.markdown("### 🧠 דוחות עומק של מנהל התיקים (למה קניתי?):")
-        for p in st.session_state.ai_portfolio:
-            with st.expander(f"דוח השקעה: {p['Symbol']} | יעד רווח: +{p['Expected_Profit']:.1f}%"):
+    if st.session_state.val_portfolio:
+        st.markdown("### 🧠 דוחות עומק של סוכן הערך:")
+        for p in st.session_state.val_portfolio:
+            with st.expander(f"דוח השקעה: {p['Symbol']} | יעד: +{p['Expected_Profit']:.1f}%"):
                 st.markdown(f"""
-                **1. הצדקת איכות (PDF):** החברה קיבלה ציון עלית של {p['Score']}/6. היא מציגה צמיחת מכירות עקבית של {p['RevG']:.1%} וניהול חוב מצוין, מה שהופך אותה ל"עסק מעולה" על פי המדריך.
-                
-                **2. תמחור ופוטנציאל:** המניה נרכשה ב-{p['Buy_Price']}. מודל ה-DCF (תזרים מזומנים מהוון) מראה שהמניה נסחרת בהנחה. יעד הרווח נקבע ל-**+{p['Expected_Profit']:.1f}%**.
-                
-                **3. מסגרת זמן (Timeframe):** בהתבסס על השקעות ערך קלאסיות, השוק דורש זמן כדי לתקן עיוותי תמחור. צפי הגעה ליעד הוא בין **{p['Timeframe']}**.
-                
-                **4. ניהול סיכונים:** הסוכן ימשיך לעקוב אחרי דוחות הרבעון הקרוב. אם צמיחת הרווחים תרד מתחת ל-10%, תישקל מכירה מוקדמת.
+                **1. הצדקת רכישה (PDF):** החברה עומדת ב-{p['Score']}/6 קריטריוני איכות מחמירים.
+                **2. יעד וזמן:** צפי רווח של **+{p['Expected_Profit']:.1f}%**. זמן הבשלות המוערך הוא **{p['Timeframe']}**.
+                **3. ניהול סיכונים מתקדם (חשוב!):**
+                * 🟢 **Take Profit (לקיחת רווח):** המערכת תמכור ותממש רווח כשהמחיר יגיע ל-{p['TakeProfit']}.
+                * 🔴 **Stop Loss (הגנת הון):** כדי לא להיתקע עם הפסד ענק, פקודת מכירה אוטומטית ממוקמת ב-{p['StopLoss']} (סיכון של 15% בלבד).
                 """)
+        if st.button("💸 ממש הכל והחזר למזומן (סוכן ערך)"):
+            st.session_state.val_cash_ils = port_value_usd * usd_rate
+            st.session_state.val_portfolio = []
+            st.rerun()
+
+def render_day_trade_agent(df_all):
+    st.markdown('<div class="ai-card" style="border-right-color: #d32f2f;"><b>⚡ סוכן מסחר יומי (Day Trader):</b> מחפש מומנטום, תנודתיות, וחדשות. המטרה: רווחים מהירים בימים ספורים עם חיתוך הפסדים קפדני.</div>', unsafe_allow_html=True)
+    
+    if 'day_cash_ils' not in st.session_state:
+        st.session_state.day_cash_ils = 5000.0
+        st.session_state.day_portfolio = []
+
+    usd_rate = 3.8 
+    cash_usd = st.session_state.day_cash_ils / usd_rate
+    
+    port_value_usd = 0
+    if st.session_state.day_portfolio:
+        for p in st.session_state.day_portfolio:
+            curr_row = df_all[df_all['Symbol'] == p['Symbol']]
+            current_price = curr_row['Price'].iloc[0] if not curr_row.empty else p['Raw_Buy_Price']
+            currency = curr_row['Currency'].iloc[0] if not curr_row.empty else "$"
+            price_usd = current_price if currency == "$" else (current_price / 100) / usd_rate
+            port_value_usd += price_usd * p['Qty']
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("💵 יתרת מזומן למסחר יומי", f"₪{st.session_state.day_cash_ils:,.2f}")
+    c2.metric("💼 שווי התיק היומי (דולר)", f"${port_value_usd:,.2f}")
+    yield_pct = ((port_value_usd / (5000 / usd_rate)) - 1) * 100 if port_value_usd > 0 else 0.0
+    c3.metric("📈 תשואת הסוכן היומי", f"{yield_pct:.1f}%")
+
+    if st.button("⚡ הפעל סוכן יומי (הכנס 5,000 ₪ למסחר)"):
+        if st.session_state.day_cash_ils > 100:
+            # לוגיקת סוכן יומי: מחפש מניות שזזות חזק היום (למעלה או למטה)
+            volatile_stocks = df_all[(df_all['Change'] > 2.0) | (df_all['Change'] < -2.0)].sort_values(by='Change', key=abs, ascending=False).head(3)
+            
+            if volatile_stocks.empty:
+                volatile_stocks = df_all.head(2) # גיבוי אם השוק רגוע
                 
-        if st.button("💸 ממש רווחים עכשיו והחזר למזומן"):
-            st.session_state.cash_ils = port_value_usd * usd_rate
-            st.session_state.ai_portfolio = []
+            st.success("הסוכן היומי זיהה מומנטום ונכנס לפוזיציות!")
+            invest_per_stock_usd = cash_usd / len(volatile_stocks)
+            new_portfolio = []
+            
+            for _, row in volatile_stocks.iterrows():
+                price_usd = row['Price'] if row['Currency'] == "$" else (row['Price'] / 100) / usd_rate
+                qty = invest_per_stock_usd / price_usd if price_usd > 0 else 0
+                
+                # סטופ-לוס צמוד מאוד (3%) וטייק פרופיט מהיר (5%)
+                stop_loss = row['Price'] * 0.97
+                take_profit = row['Price'] * 1.05
+                
+                reason = "זיהוי תנודתיות חריגה ומחזור מסחר גבוה." if row['Change'] > 0 else "קניית תיקון (Bounce) אחרי ירידה חדה."
+                
+                new_portfolio.append({
+                    "Symbol": row['Symbol'], "Raw_Buy_Price": row['Price'], 
+                    "Buy_Price": row['PriceStr'], "Qty": round(qty, 2), 
+                    "Expected_Profit": "+5.0%", "Timeframe": "מספר שעות עד 3 ימים",
+                    "StopLoss": f"{row['Currency']}{stop_loss:.2f}",
+                    "TakeProfit": f"{row['Currency']}{take_profit:.2f}",
+                    "Logic": reason
+                })
+            st.session_state.day_portfolio = new_portfolio
+            st.session_state.day_cash_ils = 0
+            st.rerun()
+
+    if st.session_state.day_portfolio:
+        st.markdown("### ⚡ פעולות הסוכן היומי בתיק:")
+        for p in st.session_state.day_portfolio:
+            with st.expander(f"טרייד יומי: {p['Symbol']} | מחיר כניסה: {p['Buy_Price']}"):
+                st.markdown(f"""
+                **1. אסטרטגיה:** {p['Logic']}
+                **2. טווח זמן:** {p['Timeframe']}.
+                **3. פקודות מסחר אוטומטיות (חובה במסחר יומי!):**
+                * 🟢 **Take Profit:** מימוש מהיר ב-{p['TakeProfit']} (רווח של 5%).
+                * 🔴 **Stop Loss קשיח:** חיתוך הפסד מיידי ב-{p['StopLoss']} (הפסד מקסימלי של 3%).
+                """)
+        if st.button("💸 סגור את כל הפוזיציות היומיות עכשיו"):
+            st.session_state.day_cash_ils = port_value_usd * usd_rate
+            st.session_state.day_portfolio = []
             st.rerun()
