@@ -16,6 +16,7 @@ import crypto_ai
 import news_ai        
 import telegram_ai    
 import analytics_ai   
+import pro_tools_ai # המודול החדש שיצרנו!
 
 st.set_page_config(page_title="Investment Hub Elite", layout="wide", initial_sidebar_state="collapsed")
 st.markdown("""<script>setInterval(function(){ window.location.reload(); }, 900000);</script>""", unsafe_allow_html=True)
@@ -28,7 +29,7 @@ st.markdown("""
     .block-container { padding-top: 1rem !important; }
     [data-testid="stDataFrame"] td, [data-testid="stDataFrame"] th { padding: 4px 8px !important; font-size: 14px !important; }
     .ai-card { background: white; padding: 15px; border-radius: 12px; border-right: 6px solid #1a73e8; box-shadow: 0 4px 8px rgba(0,0,0,0.05); margin-bottom: 15px; }
-    div[data-testid="stTabs"] button { font-weight: bold; font-size: 14px; }
+    div[data-testid="stTabs"] button { font-weight: bold; font-size: 13px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -39,17 +40,18 @@ c1, c2, c3 = st.columns(3)
 try: vix = yf.Ticker("^VIX").history(period="1d")['Close'].iloc[-1]
 except: vix = 0.0
 c1.metric("📊 VIX (מדד הפחד)", f"{vix:.2f}")
-c2.metric("🏆 מניות 'זהב' (ציון 5-6)", len(df_all[df_all["Score"] >= 5]) if not df_all.empty else 0)
+c2.metric("🏆 מניות 'זהב' בסורק ה-PDF", len(df_all[df_all["Score"] >= 5]) if not df_all.empty else 0)
 c3.metric("🕒 עדכון אחרון", datetime.now().strftime("%H:%M"))
 
-tab1, tab2, tab_fin, tab3, tab_alerts, tab_val, tab_day, tab_pod, tab_mac, tab_bb, tab_cryp, tab_news, tab_tg, tab_analytics = st.tabs([
-    "📌 התיק", "🔍 סורק מורחב", "📚 דוחות", "💰 דיבידנדים", "🔔 התראות", 
-    "💼 ערך", "⚡ יומי", "🎧 פודקאסטים", "🌍 מאקרו", "⚖️ שור/דוב", 
+# הוספנו את טאב ה-Pro Tools בלי למחוק את הסורק!
+tab1, tab2, tab_pro, tab_fin, tab3, tab_alerts, tab_val, tab_day, tab_pod, tab_mac, tab_bb, tab_cryp, tab_news, tab_tg, tab_analytics = st.tabs([
+    "📌 התיק", "🔍 סורק PDF", "💼 כסף חכם ורנטגן", "📚 דוחות", "💰 דיבידנדים", "🔔 התראות", 
+    "📈 סוכן ערך", "⚡ יומי", "🎧 פודקאסטים", "🌍 מאקרו", "⚖️ שור/דוב", 
     "₿ קריפטו", "📰 חדשות", "📱 טלגרם", "📊 אנליטיקה"
 ])
 
 with tab1:
-    st.markdown('<div class="ai-card"><b>התיק שלי (Mega-Table):</b> לחץ פעמיים על מחיר קנייה וכמות כדי לעדכן.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ai-card"><b>התיק שלי (Mega-Table):</b> לחץ פעמיים על מחיר קנייה וכמות כדי לעדכן. המערכת תשמור את הנתונים לחישוב הרנטגן.</div>', unsafe_allow_html=True)
     if 'portfolio' not in st.session_state:
         gold_from_scan = df_all[(df_all['Score'] >= 5) & (df_all['Symbol'].isin(SCAN_LIST))]['Symbol'].tolist() if not df_all.empty else []
         initial_list = list(set(MY_STOCKS_BASE + gold_from_scan))
@@ -69,7 +71,7 @@ with tab1:
                 "Qty": st.column_config.NumberColumn("כמות ✏️"),
                 "PL": st.column_config.NumberColumn("P/L", format="%.2f", disabled=True),
                 "Yield": st.column_config.NumberColumn("תשואה %", format="%.1f%%", disabled=True),
-                "Score": st.column_config.NumberColumn("⭐ ציון", disabled=True),
+                "Score": st.column_config.NumberColumn("⭐ ציון PDF", disabled=True),
                 "RevGrowth": st.column_config.NumberColumn("צמיחת מכירות", format="%.1f%%", disabled=True),
                 "EarnGrowth": st.column_config.NumberColumn("צמיחת רווחים", format="%.1f%%", disabled=True),
                 "Margin": st.column_config.NumberColumn("שולי רווח", format="%.1f%%", disabled=True),
@@ -81,17 +83,23 @@ with tab1:
         st.session_state.portfolio = edited[["Symbol", "BuyPrice", "Qty"]]
 
 with tab2:
-    st.markdown('<div class="ai-card"><b>סורק מניות מורחב:</b> התווסף קונצנזוס אנליסטים עולמי (צפי לעלייה) ומעקב אחזקות בעלי עניין (Insiders).</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ai-card"><b>סורק ה-PDF המקורי:</b> מציג רק את חברות העלית שעברו את הסינון המדוקדק של המדריך (ציון 4 ומעלה).</div>', unsafe_allow_html=True)
     if not df_all.empty:
         scanner = df_all[(df_all['Symbol'].isin(SCAN_LIST)) & (df_all['Score'] >= 4)].sort_values(by="Score", ascending=False)
-        st.dataframe(scanner[["Symbol", "PriceStr", "Score", "TargetUpside", "InsiderHeld", "RevGrowth", "Margin"]], 
+        st.dataframe(scanner[["Symbol", "PriceStr", "Score", "RevGrowth", "Margin", "RSI", "MA50", "Action"]], 
         column_config={
-            "PriceStr": "מחיר", "Score": "⭐ ציון PDF", 
-            "TargetUpside": st.column_config.NumberColumn("קונצנזוס יעד שוק 🎯", format="+%.1f%%", help="צפי העלייה למחיר היעד של האנליסטים בוול סטריט לשנה הקרובה."),
-            "InsiderHeld": st.column_config.NumberColumn("אחזקות בעלי עניין 🕵️‍♂️", format="%.2f%%", help="אחוז המניות שמוחזק על ידי ההנהלה עצמה."),
+            "PriceStr": "מחיר", "Score": "⭐ ציון", 
             "RevGrowth": st.column_config.NumberColumn("צמיחת מכירות", format="%.1f%%"), 
-            "Margin": st.column_config.NumberColumn("שולי רווח", format="%.1f%%")
+            "Margin": st.column_config.NumberColumn("שולי רווח", format="%.1f%%"), 
+            "RSI": st.column_config.NumberColumn("RSI", format="%.1f"), 
+            "MA50": st.column_config.NumberColumn("MA50", format="%.2f"),
+            "Action": "המלצת AI"
         }, use_container_width=True, hide_index=True)
+
+# קריאה לטאב ה-PRO החדש שיצרנו!
+with tab_pro:
+    if 'portfolio' in st.session_state and not df_all.empty:
+        pro_tools_ai.render_pro_tools(df_all, st.session_state.portfolio)
 
 with tab_fin: financials_ai.render_financial_reports(df_all)
 
