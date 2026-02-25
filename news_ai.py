@@ -10,7 +10,7 @@ def advanced_ai_analysis(title, sym):
     elif any(word in t for word in ["ai", "chip", "tech", "intelligence", "cloud", "software", "launch"]):
         return f"**📝 תמצית:** חדשנות או השקת מוצר.\n\n**🔍 ניתוח AI:** התפתחות טכנולוגית מחזקת את ה'חפיר הכלכלי' (Moat) של החברה, מה שעשוי למשוך הון מוסדי ולתמוך בצמיחה ארוכת טווח."
     elif any(word in t for word in ["buy", "upgrade", "bull", "target", "soar", "jump", "rally", "high"]):
-        return f"**📝 תמצית:** סנטימנט חיובי (שור).\n\n**🔍 ניתוח AI:** שדרוג המלצות בוול-סטריט. אזהרה למשקיעי ערך: יש להיזהר מ-FOMO ולוודא שהמחיר הנוכחי עדיין נמוך מהשווי ההוגן."
+        return f"**📝 תמצית:** סנטימנט חיובי (שור).\n\n**🔍 ניתוח AI:** שדרוג המלצות בוול-סטריט. למשקיעי ערך: יש להיזהר מ-FOMO ולוודא שהמחיר הנוכחי עדיין נמוך מהשווי ההוגן."
     elif any(word in t for word in ["sell", "downgrade", "bear", "drop", "lawsuit", "sue", "fall", "plunge", "risk"]):
         return f"**📝 תמצית:** סנטימנט שלילי או משבר.\n\n**🔍 ניתוח AI:** פאניקה זמנית בשוק. למשקיע הערך זו עשויה להיות הזדמנות פז לאיסוף סחורה בזול, במידה ומאזן החברה נותר חזק."
     elif any(word in t for word in ["dividend", "payout", "yield", "shareholder"]):
@@ -19,7 +19,7 @@ def advanced_ai_analysis(title, sym):
         return f"**📝 תמצית:** עדכון שוטף.\n\n**🔍 ניתוח AI:** חדשות מאקרו או רעשי רקע רגילים. מומלץ להמשיך לדבוק באסטרטגיית ה-PDF ללא פעולה פזיזה."
 
 def render_live_news(symbols_list):
-    st.markdown('<div class="ai-card" style="border-right-color: #f50057;"><b>📰 דסק חדשות וניתוח AI:</b> כותרות מהעולם, ללא באגים עיצוביים, עם ניתוח סנטימנט נקי וברור.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ai-card" style="border-right-color: #f50057;"><b>📰 דסק חדשות וניתוח AI:</b> המערכת שואבת כותרות בזמן אמת ומייצרת מבזקון סנטימנט בעברית ללא הפרעות ויזואליות.</div>', unsafe_allow_html=True)
     
     top_symbols = symbols_list[:4]
     cols = st.columns(2)
@@ -42,12 +42,12 @@ def render_live_news(symbols_list):
                         
                         ai_report = advanced_ai_analysis(title, sym)
                         
-                        # שימוש ברכיבי Streamlit מובנים למניעת באג ה- </div>
+                        # שימוש נקי ברכיבי קונטיינר של Streamlit למניעת באגים
                         with st.container(border=True):
-                            st.caption(f"מקור: {publisher} | [קרא את המקור באנגלית]({link})")
+                            st.caption(f"מקור: {publisher} | [לכתבה המקורית ({sym})]({link})")
                             st.markdown(f"##### {title}")
                             st.info(ai_report)
                 else:
                     st.info(f"אין חדשות דרמטיות עבור {sym} כעת.")
             except:
-                st.error("חיבור למקור החדשות עמוס.")
+                st.error("חיבור למקור החדשות עמוס כעת.")
