@@ -16,6 +16,17 @@ def evaluate_pdf_metrics(info):
     except: pass
     return score
 
+def get_ai_logic(price, fv, score):
+    if not fv or fv == 0: return "בבדיקה 🔍", "חסרים נתונים לחישוב שווי הוגן."
+    gap = (fv - price) / price
+    if score >= 5:
+        if gap > 0.05: return "קנייה חזקה 💎", f"מניית זהב (ציון {score}). הנחה של {abs(gap):.1%} משוויה."
+        return "קנייה 📈", "חברה איכותית ביותר במחיר הוגן."
+    elif score >= 3:
+        if gap > 0.10: return "איסוף 🛒", "חברה טובה במחיר 'מבצע'."
+        return "החזק ⚖️", "מחיר משקף שווי אמיתי."
+    return "מכירה/המתנה 🔴", "ציון איכות נמוך יחסית לסיכון."
+
 @st.cache_data(ttl=600)
 def fetch_master_data(tickers):
     rows = []
@@ -28,13 +39,17 @@ def fetch_master_data(tickers):
             px = h['Close'].iloc[-1]
             score = evaluate_pdf_metrics(inf)
             
-            # עמודות ה-PDF הספציפיות שביקשת להחזיר
+            fcf = inf.get('freeCashflow', 0) or 0
+            shares = inf.get('sharesOutstanding', 1) or 1
+            fv = (fcf * 15) / shares
+            action, logic = get_ai_logic(px, fv, score)
+            
             cash = inf.get('totalCash', 0) or 0
             debt = inf.get('totalDebt', 0) or 0
             
             rows.append({
                 "Symbol": t, "Price": px, "Change": ((px / h['Close'].iloc[-2]) - 1) * 100,
-                "Score": score, 
+                "Score": score, "Action": action, "AI_Logic": logic,
                 "RevGrowth": (inf.get('revenueGrowth', 0) or 0),
                 "EarnGrowth": (inf.get('earningsGrowth', 0) or 0),
                 "Margins": (inf.get('profitMargins', 0) or 0),
@@ -48,5 +63,5 @@ def fetch_master_data(tickers):
         except: continue
         
     if not rows:
-        return pd.DataFrame(columns=["Symbol", "Price", "Change", "Score", "RevGrowth", "EarnGrowth", "Margins", "ROE", "CashVsDebt", "ZeroDebt"])
+        return pd.DataFrame(columns=["Symbol", "Price", "Change", "Score", "Action", "AI_Logic", "RevGrowth", "EarnGrowth", "Margins", "ROE", "CashVsDebt", "ZeroDebt", "DivYield", "ExDate", "Info"])
     return pd.DataFrame(rows)
