@@ -38,7 +38,7 @@ def get_ai_logic(price, fv, score, currency):
     if not fv or fv <= 0: return "בבדיקה 🔍", "חסרים נתוני תזרים."
     gap = (fv - price) / price if price > 0 else 0
     if score >= 5:
-        if gap > 0.05: return "קנייה חזקה 💎", f"מניית 'זהב'. נסחרת בהנחה משוויה ההוגן ({currency}{fv:,.2f})."
+        if gap > 0.05: return "קנייה חזקה 💎", f"מניית 'זהב'. נסחרת בהנחה."
         return "קנייה 📈", "חברה איכותית ביותר במחיר הוגן."
     elif score >= 3:
         if gap > 0.10: return "איסוף 🛒", f"חברה טובה במחיר 'מבצע'."
@@ -60,7 +60,6 @@ def fetch_master_data(tickers):
             
             px = h['Close'].iloc[-1]
             
-            # טכני
             delta = h['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
@@ -77,26 +76,13 @@ def fetch_master_data(tickers):
             price_str = f"{currency}{px:,.2f}"
             action, logic = get_ai_logic(px, fv, score, currency)
             
-            # דיבידנדים לעומק
-            div_yield = (inf.get('dividendYield') or 0) * 100
-            div_rate = inf.get('dividendRate') or 0
-            five_yr_div = (inf.get('fiveYearAvgDividendYield') or 0)
-            payout_ratio = (inf.get('payoutRatio', 0) or 0) * 100
+            # --- הנתונים החדשים למשקיע המקצועי ---
+            target_price = inf.get('targetMeanPrice', 0)
+            target_upside = ((target_price / px) - 1) * 100 if target_price > 0 else 0
             
-            # משיכת תאריכי דוחות (Earnings) וחישוב מרחק
-            earning_date_str = "לא ידוע"
-            days_to_earnings = -1
-            try:
-                cal = s.calendar
-                if isinstance(cal, dict) and 'Earnings Date' in cal and len(cal['Earnings Date']) > 0:
-                    edate = cal['Earnings Date'][0]
-                    # מוודא שזה פורמט תאריך נכון
-                    if hasattr(edate, 'date'):
-                        earning_date_str = edate.strftime('%d/%m/%Y')
-                        # חישוב הימים שנותרו
-                        days_to_earnings = (edate.date() - now.date()).days
-            except: pass
-
+            # זיהוי פעולות בעלי עניין (Insiders)
+            insider_percent = inf.get('heldPercentInsiders', 0) * 100
+            
             rows.append({
                 "Symbol": t, "Price": px, "PriceStr": price_str, "Currency": currency,
                 "FairValue": fv, "Change": ((px / h['Close'].iloc[-2]) - 1) * 100,
@@ -105,13 +91,14 @@ def fetch_master_data(tickers):
                 "Margin": details.get('Margin', 0), "ROE": details.get('ROE', 0),
                 "CashVsDebt": "✅" if details.get('Cash', 0) > details.get('Debt', 0) else "❌",
                 "ZeroDebt": "✅" if details.get('Debt', 0) == 0 else "❌",
-                "DivYield": div_yield, "DivRate": div_rate, "FiveYrDiv": five_yr_div, 
-                "PayoutRatio": payout_ratio, "ExDate": inf.get('exDividendDate'),
-                "EarningsDate": earning_date_str, "DaysToEarnings": days_to_earnings,
+                "DivYield": (inf.get('dividendYield') or 0) * 100, "DivRate": inf.get('dividendRate') or 0,
+                "FiveYrDiv": inf.get('fiveYearAvgDividendYield') or 0, 
+                "PayoutRatio": (inf.get('payoutRatio', 0) or 0) * 100, "ExDate": inf.get('exDividendDate'),
+                "TargetUpside": target_upside, "InsiderHeld": insider_percent, # העמודות החדשות
                 "Info": inf
             })
         except: continue
     
     if not rows:
-        return pd.DataFrame(columns=["Symbol", "Price", "PriceStr", "Currency", "FairValue", "Change", "Score", "RSI", "MA50", "Action", "AI_Logic", "RevGrowth", "EarnGrowth", "Margin", "ROE", "CashVsDebt", "ZeroDebt", "DivYield", "DivRate", "FiveYrDiv", "PayoutRatio", "ExDate", "EarningsDate", "DaysToEarnings", "Info"])
+        return pd.DataFrame(columns=["Symbol", "Price", "PriceStr", "Currency", "FairValue", "Change", "Score", "RSI", "MA50", "Action", "AI_Logic", "RevGrowth", "EarnGrowth", "Margin", "ROE", "CashVsDebt", "ZeroDebt", "DivYield", "DivRate", "FiveYrDiv", "PayoutRatio", "ExDate", "TargetUpside", "InsiderHeld", "Info"])
     return pd.DataFrame(rows)
