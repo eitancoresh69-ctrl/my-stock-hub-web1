@@ -16,7 +16,8 @@ import crypto_ai
 import news_ai        
 import telegram_ai    
 import analytics_ai   
-import pro_tools_ai # המודול החדש שיצרנו!
+import pro_tools_ai 
+import premium_agents_ai # המודול המטורף החדש!
 
 st.set_page_config(page_title="Investment Hub Elite", layout="wide", initial_sidebar_state="collapsed")
 st.markdown("""<script>setInterval(function(){ window.location.reload(); }, 900000);</script>""", unsafe_allow_html=True)
@@ -43,10 +44,10 @@ c1.metric("📊 VIX (מדד הפחד)", f"{vix:.2f}")
 c2.metric("🏆 מניות 'זהב' בסורק ה-PDF", len(df_all[df_all["Score"] >= 5]) if not df_all.empty else 0)
 c3.metric("🕒 עדכון אחרון", datetime.now().strftime("%H:%M"))
 
-# הוספנו את טאב ה-Pro Tools בלי למחוק את הסורק!
-tab1, tab2, tab_pro, tab_fin, tab3, tab_alerts, tab_val, tab_day, tab_pod, tab_mac, tab_bb, tab_cryp, tab_news, tab_tg, tab_analytics = st.tabs([
-    "📌 התיק", "🔍 סורק PDF", "💼 כסף חכם ורנטגן", "📚 דוחות", "💰 דיבידנדים", "🔔 התראות", 
-    "📈 סוכן ערך", "⚡ יומי", "🎧 פודקאסטים", "🌍 מאקרו", "⚖️ שור/דוב", 
+# 15 טאבים עוצמתיים מבלי לפגוע בכלום!
+tab1, tab2, tab_pro, tab_fin, tab3, tab_alerts, tab_val, tab_day, tab_prem, tab_pod, tab_mac, tab_bb, tab_cryp, tab_news, tab_tg, tab_analytics = st.tabs([
+    "📌 התיק", "🔍 סורק PDF", "💼 רנטגן וכסף חכם", "📚 דוחות", "💰 דיבידנדים", "🔔 התראות", 
+    "📈 סוכן ערך", "⚡ סוכן יומי", "🤖 סוכני פרימיום", "🎧 פודקאסטים", "🌍 מאקרו", "⚖️ שור/דוב", 
     "₿ קריפטו", "📰 חדשות", "📱 טלגרם", "📊 אנליטיקה"
 ])
 
@@ -83,7 +84,6 @@ with tab1:
         st.session_state.portfolio = edited[["Symbol", "BuyPrice", "Qty"]]
 
 with tab2:
-    st.markdown('<div class="ai-card"><b>סורק ה-PDF המקורי:</b> מציג רק את חברות העלית שעברו את הסינון המדוקדק של המדריך (ציון 4 ומעלה).</div>', unsafe_allow_html=True)
     if not df_all.empty:
         scanner = df_all[(df_all['Symbol'].isin(SCAN_LIST)) & (df_all['Score'] >= 4)].sort_values(by="Score", ascending=False)
         st.dataframe(scanner[["Symbol", "PriceStr", "Score", "RevGrowth", "Margin", "RSI", "MA50", "Action"]], 
@@ -96,7 +96,6 @@ with tab2:
             "Action": "המלצת AI"
         }, use_container_width=True, hide_index=True)
 
-# קריאה לטאב ה-PRO החדש שיצרנו!
 with tab_pro:
     if 'portfolio' in st.session_state and not df_all.empty:
         pro_tools_ai.render_pro_tools(df_all, st.session_state.portfolio)
@@ -125,6 +124,7 @@ with tab3:
 with tab_alerts: alerts_ai.render_smart_alerts(df_all)
 with tab_val: simulator.render_value_agent(df_all)
 with tab_day: simulator.render_day_trade_agent(df_all)
+with tab_prem: premium_agents_ai.render_premium_agents(df_all) # קריאה לסוכנים החדשים!
 with tab_pod: podcasts_ai.render_podcasts_analysis()
 with tab_mac: market_ai.render_market_intelligence()
 with tab_bb:
