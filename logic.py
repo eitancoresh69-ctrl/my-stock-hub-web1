@@ -7,7 +7,6 @@ def evaluate_pdf_metrics(info):
     score = 0
     details = {}
     try:
-        # לפי ה-PDF
         rev_growth = info.get('revenueGrowth')
         if rev_growth and rev_growth >= 0.10: score += 1
         details['RevGrowth'] = rev_growth or 0
@@ -20,7 +19,6 @@ def evaluate_pdf_metrics(info):
         if margin and margin >= 0.10: score += 1
         details['Margin'] = margin or 0
         
-        # שימוש ב-ROE כחלופה מקובלת ל-ROIC כשחסר
         roe = info.get('returnOnEquity')
         if roe and roe >= 0.15: score += 1
         details['ROE'] = roe or 0
@@ -69,6 +67,9 @@ def fetch_master_data(tickers):
             
             action, logic = get_ai_logic(px, fv, score, currency)
             
+            # תוספת נתוני עומק לדיבידנדים
+            payout_ratio = inf.get('payoutRatio', 0) or 0
+            
             rows.append({
                 "Symbol": t, "Price": px, "PriceStr": price_str, "Currency": currency,
                 "FairValue": fv, "Change": ((px / (inf.get('previousClose') or px)) - 1) * 100,
@@ -77,10 +78,11 @@ def fetch_master_data(tickers):
                 "Margin": details.get('Margin', 0), "ROE": details.get('ROE', 0),
                 "CashVsDebt": "✅" if details.get('Cash', 0) > details.get('Debt', 0) else "❌",
                 "ZeroDebt": "✅" if details.get('Debt', 0) == 0 else "❌",
-                "DivYield": inf.get('dividendYield') or 0, "ExDate": inf.get('exDividendDate'), "Info": inf
+                "DivYield": inf.get('dividendYield') or 0, "ExDate": inf.get('exDividendDate'), 
+                "PayoutRatio": payout_ratio, "Info": inf
             })
         except: continue
     
     if not rows:
-        return pd.DataFrame(columns=["Symbol", "Price", "PriceStr", "Currency", "FairValue", "Change", "Score", "Action", "AI_Logic", "RevGrowth", "EarnGrowth", "Margin", "ROE", "CashVsDebt", "ZeroDebt", "DivYield", "ExDate", "Info"])
+        return pd.DataFrame(columns=["Symbol", "Price", "PriceStr", "Currency", "FairValue", "Change", "Score", "Action", "AI_Logic", "RevGrowth", "EarnGrowth", "Margin", "ROE", "CashVsDebt", "ZeroDebt", "DivYield", "ExDate", "PayoutRatio", "Info"])
     return pd.DataFrame(rows)
