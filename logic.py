@@ -16,17 +16,6 @@ def evaluate_pdf_metrics(info):
     except: pass
     return score
 
-def get_ai_logic(price, fv, score):
-    if not fv or fv == 0: return "בבדיקה 🔍", "נתונים חסרים לחישוב שווי הוגן."
-    gap = (fv - price) / price
-    if score >= 5:
-        if gap > 0.05: return "קנייה חזקה 💎", f"מניית 'זהב' (ציון {score}). נסחרת בהנחה של {abs(gap):.1%} משוויה."
-        return "קנייה 📈", "חברה איכותית ביותר במחיר הוגן."
-    elif score >= 3:
-        if gap > 0.10: return "איסוף 🛒", "חברה טובה במחיר 'מבצע'. שווה להגדיל אחזקה."
-        return "החזק ⚖️", "החברה יציבה אך המחיר משקף את השווי האמיתי."
-    return "מכירה/המתנה 🔴", "ציון איכות נמוך יחסית לסיכון בשוק."
-
 @st.cache_data(ttl=600)
 def fetch_master_data(tickers):
     rows = []
@@ -34,30 +23,30 @@ def fetch_master_data(tickers):
         try:
             s = yf.Ticker(t)
             inf = s.info
-            # שואבים 5 ימים אחורה כדי להיות בטוחים שיש נתונים
-            h = s.history(period="5d")
+            h = s.history(period="2d")
             if h.empty: continue
             px = h['Close'].iloc[-1]
             score = evaluate_pdf_metrics(inf)
             
-            fcf = inf.get('freeCashflow', 0) or 0
-            shares = inf.get('sharesOutstanding', 1) or 1
-            fv = (fcf * 15) / shares
-            
-            action, logic = get_ai_logic(px, fv, score)
+            # עמודות ה-PDF הספציפיות שביקשת להחזיר
+            cash = inf.get('totalCash', 0) or 0
+            debt = inf.get('totalDebt', 0) or 0
             
             rows.append({
                 "Symbol": t, "Price": px, "Change": ((px / h['Close'].iloc[-2]) - 1) * 100,
-                "Score": score, "Action": action, "AI_Logic": logic,
+                "Score": score, 
+                "RevGrowth": (inf.get('revenueGrowth', 0) or 0),
+                "EarnGrowth": (inf.get('earningsGrowth', 0) or 0),
+                "Margins": (inf.get('profitMargins', 0) or 0),
+                "ROE": (inf.get('returnOnEquity', 0) or 0),
+                "CashVsDebt": "✅" if cash > debt else "❌",
+                "ZeroDebt": "✅" if debt == 0 else "❌",
                 "DivYield": inf.get('dividendYield', 0), 
                 "ExDate": inf.get('exDividendDate'),
-                "RevGrowth": inf.get('revenueGrowth', 0), "Info": inf
+                "Info": inf
             })
-        except Exception as e:
-            continue
-            
-    # מנגנון הגנה נגד קריסות (KeyError)
-    if not rows:
-        return pd.DataFrame(columns=["Symbol", "Price", "Change", "Score", "Action", "AI_Logic", "DivYield", "ExDate", "RevGrowth", "Info"])
+        except: continue
         
+    if not rows:
+        return pd.DataFrame(columns=["Symbol", "Price", "Change", "Score", "RevGrowth", "EarnGrowth", "Margins", "ROE", "CashVsDebt", "ZeroDebt"])
     return pd.DataFrame(rows)
