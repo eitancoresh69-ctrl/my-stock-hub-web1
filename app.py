@@ -4,6 +4,7 @@ import pandas as pd
 import yfinance as yf
 from datetime import datetime
 
+# ייבוא כל המודולים הקיים והוספת המודול החדש
 from config import HELP, MY_STOCKS_BASE, SCAN_LIST
 from logic import fetch_master_data
 import market_ai
@@ -17,7 +18,8 @@ import news_ai
 import telegram_ai    
 import analytics_ai   
 import pro_tools_ai 
-import premium_agents_ai # המודול המטורף החדש!
+import premium_agents_ai 
+import growth_risk_ai # המודול המטורף החדש!
 
 st.set_page_config(page_title="Investment Hub Elite", layout="wide", initial_sidebar_state="collapsed")
 st.markdown("""<script>setInterval(function(){ window.location.reload(); }, 900000);</script>""", unsafe_allow_html=True)
@@ -44,11 +46,11 @@ c1.metric("📊 VIX (מדד הפחד)", f"{vix:.2f}")
 c2.metric("🏆 מניות 'זהב' בסורק ה-PDF", len(df_all[df_all["Score"] >= 5]) if not df_all.empty else 0)
 c3.metric("🕒 עדכון אחרון", datetime.now().strftime("%H:%M"))
 
-# 15 טאבים עוצמתיים מבלי לפגוע בכלום!
-tab1, tab2, tab_pro, tab_fin, tab3, tab_alerts, tab_val, tab_day, tab_prem, tab_pod, tab_mac, tab_bb, tab_cryp, tab_news, tab_tg, tab_analytics = st.tabs([
-    "📌 התיק", "🔍 סורק PDF", "💼 רנטגן וכסף חכם", "📚 דוחות", "💰 דיבידנדים", "🔔 התראות", 
+# 16 טאבים שעובדים בהרמוניה מושלמת!
+tab1, tab2, tab_gr, tab_pro, tab_fin, tab3, tab_alerts, tab_val, tab_day, tab_prem, tab_pod, tab_mac, tab_bb, tab_cryp, tab_news, tab_analytics = st.tabs([
+    "📌 התיק", "🔍 סורק PDF", "🚀 צמיחה וסיכונים", "💼 רנטגן וכסף חכם", "📚 דוחות", "💰 דיבידנדים", "🔔 התראות", 
     "📈 סוכן ערך", "⚡ סוכן יומי", "🤖 סוכני פרימיום", "🎧 פודקאסטים", "🌍 מאקרו", "⚖️ שור/דוב", 
-    "₿ קריפטו", "📰 חדשות", "📱 טלגרם", "📊 אנליטיקה"
+    "₿ קריפטו", "📰 חדשות", "📊 אנליטיקה"
 ])
 
 with tab1:
@@ -96,6 +98,9 @@ with tab2:
             "Action": "המלצת AI"
         }, use_container_width=True, hide_index=True)
 
+# קריאה לטאב צמיחה וסיכונים החדש
+with tab_gr: growth_risk_ai.render_growth_and_risk(df_all)
+
 with tab_pro:
     if 'portfolio' in st.session_state and not df_all.empty:
         pro_tools_ai.render_pro_tools(df_all, st.session_state.portfolio)
@@ -124,12 +129,11 @@ with tab3:
 with tab_alerts: alerts_ai.render_smart_alerts(df_all)
 with tab_val: simulator.render_value_agent(df_all)
 with tab_day: simulator.render_day_trade_agent(df_all)
-with tab_prem: premium_agents_ai.render_premium_agents(df_all) # קריאה לסוכנים החדשים!
+with tab_prem: premium_agents_ai.render_premium_agents(df_all) 
 with tab_pod: podcasts_ai.render_podcasts_analysis()
 with tab_mac: market_ai.render_market_intelligence()
 with tab_bb:
     if not df_all.empty: bull_bear.render_bull_bear(df_all)
 with tab_cryp: crypto_ai.render_crypto_arena()
 with tab_news: news_ai.render_live_news(MY_STOCKS_BASE)
-with tab_tg: telegram_ai.render_telegram_integration()
 with tab_analytics: analytics_ai.render_analytics_dashboard()
