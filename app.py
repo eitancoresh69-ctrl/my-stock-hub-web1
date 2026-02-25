@@ -4,7 +4,6 @@ import pandas as pd
 import yfinance as yf
 from datetime import datetime
 
-# ייבוא כל המודולים הקיים (והוספת החדש)
 from config import HELP, MY_STOCKS_BASE, SCAN_LIST
 from logic import fetch_master_data
 import market_ai
@@ -16,7 +15,7 @@ import financials_ai
 import crypto_ai      
 import news_ai        
 import telegram_ai    
-import analytics_ai   # המודול החדש שלנו!
+import analytics_ai   
 
 st.set_page_config(page_title="Investment Hub Elite", layout="wide", initial_sidebar_state="collapsed")
 st.markdown("""<script>setInterval(function(){ window.location.reload(); }, 900000);</script>""", unsafe_allow_html=True)
@@ -43,15 +42,14 @@ c1.metric("📊 VIX (מדד הפחד)", f"{vix:.2f}")
 c2.metric("🏆 מניות 'זהב' (ציון 5-6)", len(df_all[df_all["Score"] >= 5]) if not df_all.empty else 0)
 c3.metric("🕒 עדכון אחרון", datetime.now().strftime("%H:%M"))
 
-# 14 טאבים שעובדים בהרמוניה מושלמת
 tab1, tab2, tab_fin, tab3, tab_alerts, tab_val, tab_day, tab_pod, tab_mac, tab_bb, tab_cryp, tab_news, tab_tg, tab_analytics = st.tabs([
-    "📌 התיק", "🔍 סורק", "📚 דוחות", "💰 דיבידנדים", "🔔 התראות", 
+    "📌 התיק", "🔍 סורק מורחב", "📚 דוחות", "💰 דיבידנדים", "🔔 התראות", 
     "💼 ערך", "⚡ יומי", "🎧 פודקאסטים", "🌍 מאקרו", "⚖️ שור/דוב", 
     "₿ קריפטו", "📰 חדשות", "📱 טלגרם", "📊 אנליטיקה"
 ])
 
 with tab1:
-    st.markdown('<div class="ai-card"><b>התיק שלי (Mega-Table):</b> לחץ פעמיים על מחיר קנייה וכמות כדי לעדכן. רחף מעל הכותרות להסברים.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ai-card"><b>התיק שלי (Mega-Table):</b> לחץ פעמיים על מחיר קנייה וכמות כדי לעדכן.</div>', unsafe_allow_html=True)
     if 'portfolio' not in st.session_state:
         gold_from_scan = df_all[(df_all['Score'] >= 5) & (df_all['Symbol'].isin(SCAN_LIST))]['Symbol'].tolist() if not df_all.empty else []
         initial_list = list(set(MY_STOCKS_BASE + gold_from_scan))
@@ -65,27 +63,35 @@ with tab1:
         edited = st.data_editor(
             merged[["Symbol", "PriceStr", "BuyPrice", "Qty", "PL", "Yield", "Score", "RevGrowth", "EarnGrowth", "Margin", "ROE", "CashVsDebt", "ZeroDebt"]],
             column_config={
-                "Symbol": st.column_config.TextColumn("סימול", disabled=True, help=HELP["symbol"]),
-                "PriceStr": st.column_config.TextColumn("מחיר", disabled=True, help=HELP["price"]),
-                "BuyPrice": st.column_config.NumberColumn("קנייה ✏️", help=HELP["buy_price"]),
-                "Qty": st.column_config.NumberColumn("כמות ✏️", help=HELP["qty"]),
-                "PL": st.column_config.NumberColumn("P/L", format="%.2f", disabled=True, help=HELP["pl"]),
-                "Yield": st.column_config.NumberColumn("תשואה %", format="%.1f%%", disabled=True, help=HELP["yield"]),
-                "Score": st.column_config.NumberColumn("⭐ ציון", disabled=True, help=HELP["score"]),
-                "RevGrowth": st.column_config.NumberColumn("צמיחת מכירות", format="%.1f%%", disabled=True, help=HELP["rev_growth"]),
-                "EarnGrowth": st.column_config.NumberColumn("צמיחת רווחים", format="%.1f%%", disabled=True, help=HELP["earn_growth"]),
-                "Margin": st.column_config.NumberColumn("שולי רווח", format="%.1f%%", disabled=True, help=HELP["margin"]),
-                "ROE": st.column_config.NumberColumn("ROE", format="%.1f%%", disabled=True, help=HELP["roe"]),
-                "CashVsDebt": st.column_config.TextColumn("מזומן>חוב", disabled=True, help=HELP["cash_debt"]),
-                "ZeroDebt": st.column_config.TextColumn("חוב 0", disabled=True, help=HELP["zero_debt"])
+                "Symbol": st.column_config.TextColumn("סימול", disabled=True),
+                "PriceStr": st.column_config.TextColumn("מחיר", disabled=True),
+                "BuyPrice": st.column_config.NumberColumn("קנייה ✏️"),
+                "Qty": st.column_config.NumberColumn("כמות ✏️"),
+                "PL": st.column_config.NumberColumn("P/L", format="%.2f", disabled=True),
+                "Yield": st.column_config.NumberColumn("תשואה %", format="%.1f%%", disabled=True),
+                "Score": st.column_config.NumberColumn("⭐ ציון", disabled=True),
+                "RevGrowth": st.column_config.NumberColumn("צמיחת מכירות", format="%.1f%%", disabled=True),
+                "EarnGrowth": st.column_config.NumberColumn("צמיחת רווחים", format="%.1f%%", disabled=True),
+                "Margin": st.column_config.NumberColumn("שולי רווח", format="%.1f%%", disabled=True),
+                "ROE": st.column_config.NumberColumn("ROE", format="%.1f%%", disabled=True),
+                "CashVsDebt": st.column_config.TextColumn("מזומן>חוב", disabled=True),
+                "ZeroDebt": st.column_config.TextColumn("חוב 0", disabled=True)
             }, use_container_width=True, hide_index=True
         )
         st.session_state.portfolio = edited[["Symbol", "BuyPrice", "Qty"]]
 
 with tab2:
+    st.markdown('<div class="ai-card"><b>סורק מניות מורחב:</b> התווסף קונצנזוס אנליסטים עולמי (צפי לעלייה) ומעקב אחזקות בעלי עניין (Insiders).</div>', unsafe_allow_html=True)
     if not df_all.empty:
         scanner = df_all[(df_all['Symbol'].isin(SCAN_LIST)) & (df_all['Score'] >= 4)].sort_values(by="Score", ascending=False)
-        st.dataframe(scanner[["Symbol", "PriceStr", "Score", "RevGrowth", "Margin", "RSI", "MA50"]], column_config={"PriceStr": "מחיר", "Score": "⭐ ציון", "RevGrowth": st.column_config.NumberColumn("צמיחת מכירות", format="%.1f%%"), "Margin": st.column_config.NumberColumn("שולי רווח", format="%.1f%%"), "RSI": st.column_config.NumberColumn("RSI", format="%.1f"), "MA50": st.column_config.NumberColumn("MA50", format="%.2f")}, use_container_width=True, hide_index=True)
+        st.dataframe(scanner[["Symbol", "PriceStr", "Score", "TargetUpside", "InsiderHeld", "RevGrowth", "Margin"]], 
+        column_config={
+            "PriceStr": "מחיר", "Score": "⭐ ציון PDF", 
+            "TargetUpside": st.column_config.NumberColumn("קונצנזוס יעד שוק 🎯", format="+%.1f%%", help="צפי העלייה למחיר היעד של האנליסטים בוול סטריט לשנה הקרובה."),
+            "InsiderHeld": st.column_config.NumberColumn("אחזקות בעלי עניין 🕵️‍♂️", format="%.2f%%", help="אחוז המניות שמוחזק על ידי ההנהלה עצמה."),
+            "RevGrowth": st.column_config.NumberColumn("צמיחת מכירות", format="%.1f%%"), 
+            "Margin": st.column_config.NumberColumn("שולי רווח", format="%.1f%%")
+        }, use_container_width=True, hide_index=True)
 
 with tab_fin: financials_ai.render_financial_reports(df_all)
 
@@ -118,6 +124,4 @@ with tab_bb:
 with tab_cryp: crypto_ai.render_crypto_arena()
 with tab_news: news_ai.render_live_news(MY_STOCKS_BASE)
 with tab_tg: telegram_ai.render_telegram_integration()
-
-# קריאה לטאב האנליטיקה החדש שיצרנו:
 with tab_analytics: analytics_ai.render_analytics_dashboard()
