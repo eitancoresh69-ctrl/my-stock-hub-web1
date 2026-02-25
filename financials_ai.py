@@ -2,9 +2,10 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
+import plotly.graph_objects as go
 
 def render_financial_reports(df_all):
-    st.markdown('<div class="ai-card" style="border-right-color: #009688;"><b>📚 ארכיון דוחות וניתוח AI רב-שנתי:</b> המערכת שואבת דוחות פיננסיים היסטוריים (מאזן, תזרים, רווח והפסד) ומנתחת את יציבות החברה לאורך העשור האחרון.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ai-card" style="border-right-color: #009688;"><b>📚 ארכיון דוחות וניתוח AI רב-שנתי:</b> המערכת שואבת דוחות פיננסיים היסטוריים (מאזן, תזרים, רווח והפסד) ומנתחת את יציבות החברה לאורך השנים האחרונות.</div>', unsafe_allow_html=True)
     
     sel = st.selectbox("בחר מניה לניתוח דוחות עומק:", df_all['Symbol'].unique())
     
@@ -23,31 +24,55 @@ def render_financial_reports(df_all):
                     net_inc_row = financials.loc['Net Income'] if 'Net Income' in financials.index else None
                     
                     if rev_row is not None and net_inc_row is not None:
-                        # המרה למיליארדים לתצוגה נוחה
+                        # המרה למיליארדים
                         df_display = pd.DataFrame({
-                            "הכנסות (מיליארדים)": rev_row / 1e9,
-                            "רווח נקי (מיליארדים)": net_inc_row / 1e9
+                            "Revenue": rev_row / 1e9,
+                            "Net Income": net_inc_row / 1e9
                         }).dropna()
                         
-                        # סידור השנים בצורה כרונולוגית (מהישן לחדש)
-                        df_display.index = pd.to_datetime(df_display.index).year
+                        # הפיכת התאריכים לשנים (כטקסט) כדי שהגרף יציג אותם ישר ולא חתוך
+                        df_display.index = pd.to_datetime(df_display.index).year.astype(str)
                         df_display = df_display.sort_index()
                         
-                        st.bar_chart(df_display)
+                        # יצירת גרף Plotly מקצועי ומעוצב
+                        fig = go.Figure()
+                        fig.add_trace(go.Bar(
+                            x=df_display.index,
+                            y=df_display["Revenue"],
+                            name='הכנסות (מיליארדים)',
+                            marker_color='#1a73e8'
+                        ))
+                        fig.add_trace(go.Bar(
+                            x=df_display.index,
+                            y=df_display["Net Income"],
+                            name='רווח נקי (מיליארדים)',
+                            marker_color='#64b5f6'
+                        ))
+
+                        fig.update_layout(
+                            barmode='group',
+                            template='plotly_white',
+                            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                            margin=dict(l=0, r=0, t=30, b=0),
+                            yaxis_title="מיליארדים",
+                            xaxis_title="שנה"
+                        )
+                        
+                        st.plotly_chart(fig, use_container_width=True)
                         
                         # ניתוח AI מילולי
-                        is_growing = df_display.iloc[-1]['הכנסות (מיליארדים)'] > df_display.iloc[0]['הכנסות (מיליארדים)']
+                        is_growing = df_display.iloc[-1]['Revenue'] > df_display.iloc[0]['Revenue']
                         
                         st.markdown("### 🧠 דוח רואה-חשבון AI (ניתוח עומק רב-שנתי)")
                         if is_growing:
-                            st.success(f"**מגמת צמיחה יציבה (שור):** ה-AI מזהה עקביות מרשימה בצמיחת ההכנסות לאורך השנים. החברה מוכיחה יתרון תחרותי חזק (Moat) המאפשר לה לצמוח גם דרך משברים כלכליים. היסטוריה זו תואמת במדויק לדרישות המחמירות של ה-PDF להשקעות ערך.")
+                            st.success(f"**מגמת צמיחה יציבה (שור):** ה-AI מזהה עקביות מרשימה בצמיחת ההכנסות לאורך השנים. החברה מוכיחה יתרון תחרותי חזק (Moat) המאפשר לה לצמוח גם דרך משברים כלכליים. [cite_start]היסטוריה זו תואמת במדויק לדרישות המחמירות של מדריך ה-PDF להשקעות ערך[cite: 53].")
                         else:
                             st.warning(f"**אזהרת שחיקה (דוב):** המערכת מזהה קיפאון או ירידה בהכנסות ביחס לשנים קודמות. שחיקה בפעילות הליבה מצריכה זהירות רבה בהשקעה לטווח ארוך.")
                         
                         # ניתוח מאזן וחוב מתוך הדוחות
                         if balance is not None and 'Total Debt' in balance.index and 'Total Cash' in balance.index:
-                            st.info("**מבנה הון ומאזן היסטורי:** המערכת אימתה את התחייבויות החברה אל מול נכסיה. חברות ששורדות עשורים הן אלו שמקפידות על מאזן נקי מחובות רעילים, בדיוק כפי שמכתיב קריטריון 5 במדריך. הנתונים מועברים כעת לסוכני המסחר לגיבוי החלטות הקנייה שלהם.")
+                            [cite_start]st.info("**מבנה הון ומאזן היסטורי:** המערכת אימתה את התחייבויות החברה אל מול נכסיה. חברות ששורדות עשורים הן אלו שמקפידות על מאזן נקי מחובות רעילים, עקרון הליבה של קריטריון 5 במדריך ההשקעות[cite: 331, 332, 333]. הנתונים מוזרמים לסוכני המסחר לגיבוי החלטות הקנייה.")
                 else:
                     st.error("לא נמצאו דוחות היסטוריים זמינים כעת בשרת עבור מניה זו.")
             except Exception as e:
-                st.error("שגיאה בשליפת או פענוח הדוחות הכספיים.")
+                st.error("שגיאה בשליפת הדוחות הכספיים משרתי הבורסה.")
