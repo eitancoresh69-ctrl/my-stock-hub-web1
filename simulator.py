@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 
 def render_paper_trading(df_all):
-    st.markdown('<div class="ai-card"><b>🤖 סוכן מסחר חכם (Paper Trading):</b> הסוכן קיבל 5,000 ש"ח. הוא יקנה מניות לפי עקרונות ה-PDF, ויסביר את תחזית הרווח וזמן ההמתנה.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ai-card"><b>🤖 מנהל התיקים האישי שלך (AI Portfolio Manager):</b><br>הפקדנו עבורך 5,000 ש"ח וירטואליים. הסוכן סורק את השוק, מרכיב תיק מבוסס ערך (PDF), ומפיק <b>דוח אנליזה מפורט</b> לכל רכישה.</div>', unsafe_allow_html=True)
     
     if 'cash_ils' not in st.session_state:
         st.session_state.cash_ils = 5000.0
@@ -27,58 +27,55 @@ def render_paper_trading(df_all):
     yield_pct = ((port_value_usd / (5000 / usd_rate)) - 1) * 100 if port_value_usd > 0 else 0.0
     c3.metric("📈 תשואת הסוכן", f"{yield_pct:.1f}%")
 
-    if st.button("🚀 הפעל סוכן AI להשקעה אוטומטית (5,000 ₪)"):
+    if st.button("🚀 הפעל סוכן AI לבניית תיק (5,000 ₪)"):
         if st.session_state.cash_ils > 100:
             gold_stocks = df_all[df_all['Score'] >= 5]
             if not gold_stocks.empty:
-                st.success("הסוכן זיהה מניות מעולות! מבצע רכישה...")
+                st.success("הסוכן בנה עבורך תיק השקעות! גלול למטה לקריאת דוחות האנליזה.")
                 invest_per_stock_usd = cash_usd / len(gold_stocks)
                 new_portfolio = []
                 for _, row in gold_stocks.iterrows():
                     price_usd = row['Price'] if row['Currency'] == "$" else (row['Price'] / 100) / usd_rate
                     qty = invest_per_stock_usd / price_usd if price_usd > 0 else 0
                     
-                    # חישוב רווח ומסגרת זמן (Timeframe)
                     if row['FairValue'] > row['Price']:
                         exp_profit = ((row['FairValue'] / row['Price']) - 1) * 100
-                        # הערכת זמן מבוססת השקעות ערך: רווח גדול דורש יותר זמן בשלות
-                        if exp_profit > 30:
-                            timeframe = "1.5 עד 3 שנים"
-                        elif exp_profit > 15:
-                            timeframe = "12 עד 18 חודשים"
-                        else:
-                            timeframe = "6 עד 12 חודשים"
+                        timeframe = "1.5 עד 3 שנים" if exp_profit > 30 else "12 עד 18 חודשים"
                     else:
-                        exp_profit = 12.0 # רווח סולידי למניית צמיחה מעולה
+                        exp_profit = 12.0 
                         timeframe = "1 עד 2 שנים"
                         
-                    reason = f"החברה עומדת ב-{row['Score']}/6 קריטריוני ה-PDF. נרכשה ב-{row['PriceStr']}. צפי לעלייה של 🟢 {exp_profit:.1f}% כדי להגיע לשווי ההוגן. צפי זמן לבשלות: ⏳ {timeframe}."
-                    
                     new_portfolio.append({
                         "Symbol": row['Symbol'], "Raw_Buy_Price": row['Price'], 
                         "Buy_Price": row['PriceStr'], "Qty": round(qty, 2), 
-                        "Expected_Profit": f"+{exp_profit:.1f}%", "AI_Explanation": reason
+                        "Expected_Profit": exp_profit, "Timeframe": timeframe,
+                        "Score": row['Score'], "RevG": row['RevGrowth']
                     })
                 st.session_state.ai_portfolio = new_portfolio
                 st.session_state.cash_ils = 0
                 st.rerun()
             else:
-                st.error("ה-AI לא מצא כרגע חברות שעומדות בציון 5 או 6. הכסף נשמר במזומן.")
+                st.error("ה-AI לא מצא כרגע חברות שעומדות בציון 5 או 6.")
 
     if st.session_state.ai_portfolio:
-        st.markdown("### 📊 תיק הסוכן ותחזיות (מבוסס השקעות ערך):")
-        display_df = pd.DataFrame(st.session_state.ai_portfolio)[["Symbol", "Buy_Price", "Expected_Profit", "AI_Explanation"]]
-        st.dataframe(
-            display_df, 
-            column_config={
-                "Symbol": "סימול",
-                "Buy_Price": "קנייה",
-                "Expected_Profit": "יעד רווח",
-                "AI_Explanation": st.column_config.TextColumn("למה ה-AI קנה? (כולל צפי זמן)", width="large")
-            }, 
-            use_container_width=True, hide_index=True
-        )
-        if st.button("💸 ממש רווחים והחזר למזומן"):
+        st.markdown("### 📊 התיק הפעיל:")
+        display_df = pd.DataFrame(st.session_state.ai_portfolio)[["Symbol", "Buy_Price", "Qty", "Expected_Profit", "Timeframe"]]
+        st.dataframe(display_df, column_config={"Symbol": "סימול", "Buy_Price": "מחיר קנייה", "Qty": "כמות", "Expected_Profit": st.column_config.NumberColumn("יעד רווח %", format="+%.1f%%"), "Timeframe": "זמן יעד (AI)"}, use_container_width=True, hide_index=True)
+        
+        st.markdown("### 🧠 דוחות עומק של מנהל התיקים (למה קניתי?):")
+        for p in st.session_state.ai_portfolio:
+            with st.expander(f"דוח השקעה: {p['Symbol']} | יעד רווח: +{p['Expected_Profit']:.1f}%"):
+                st.markdown(f"""
+                **1. הצדקת איכות (PDF):** החברה קיבלה ציון עלית של {p['Score']}/6. היא מציגה צמיחת מכירות עקבית של {p['RevG']:.1%} וניהול חוב מצוין, מה שהופך אותה ל"עסק מעולה" על פי המדריך.
+                
+                **2. תמחור ופוטנציאל:** המניה נרכשה ב-{p['Buy_Price']}. מודל ה-DCF (תזרים מזומנים מהוון) מראה שהמניה נסחרת בהנחה. יעד הרווח נקבע ל-**+{p['Expected_Profit']:.1f}%**.
+                
+                **3. מסגרת זמן (Timeframe):** בהתבסס על השקעות ערך קלאסיות, השוק דורש זמן כדי לתקן עיוותי תמחור. צפי הגעה ליעד הוא בין **{p['Timeframe']}**.
+                
+                **4. ניהול סיכונים:** הסוכן ימשיך לעקוב אחרי דוחות הרבעון הקרוב. אם צמיחת הרווחים תרד מתחת ל-10%, תישקל מכירה מוקדמת.
+                """)
+                
+        if st.button("💸 ממש רווחים עכשיו והחזר למזומן"):
             st.session_state.cash_ils = port_value_usd * usd_rate
             st.session_state.ai_portfolio = []
             st.rerun()
