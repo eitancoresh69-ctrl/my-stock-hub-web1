@@ -4,7 +4,7 @@ import pandas as pd
 import yfinance as yf
 from datetime import datetime
 
-# ייבוא כל המודולים (כולל ה-3 החדשים!)
+# ייבוא כל המודולים הקיים (והוספת החדש)
 from config import HELP, MY_STOCKS_BASE, SCAN_LIST
 from logic import fetch_master_data
 import market_ai
@@ -13,9 +13,10 @@ import simulator
 import podcasts_ai 
 import alerts_ai
 import financials_ai 
-import crypto_ai      # מודול קריפטו חדש
-import news_ai        # מודול חדשות חדש
-import telegram_ai    # מודול טלגרם חדש
+import crypto_ai      
+import news_ai        
+import telegram_ai    
+import analytics_ai   # המודול החדש שלנו!
 
 st.set_page_config(page_title="Investment Hub Elite", layout="wide", initial_sidebar_state="collapsed")
 st.markdown("""<script>setInterval(function(){ window.location.reload(); }, 900000);</script>""", unsafe_allow_html=True)
@@ -42,11 +43,11 @@ c1.metric("📊 VIX (מדד הפחד)", f"{vix:.2f}")
 c2.metric("🏆 מניות 'זהב' (ציון 5-6)", len(df_all[df_all["Score"] >= 5]) if not df_all.empty else 0)
 c3.metric("🕒 עדכון אחרון", datetime.now().strftime("%H:%M"))
 
-# 13 טאבים שכוללים הכל - ללא פגיעה בקיים!
-tab1, tab2, tab_fin, tab3, tab_alerts, tab_val, tab_day, tab_pod, tab_mac, tab_bb, tab_cryp, tab_news, tab_tg = st.tabs([
+# 14 טאבים שעובדים בהרמוניה מושלמת
+tab1, tab2, tab_fin, tab3, tab_alerts, tab_val, tab_day, tab_pod, tab_mac, tab_bb, tab_cryp, tab_news, tab_tg, tab_analytics = st.tabs([
     "📌 התיק", "🔍 סורק", "📚 דוחות", "💰 דיבידנדים", "🔔 התראות", 
     "💼 ערך", "⚡ יומי", "🎧 פודקאסטים", "🌍 מאקרו", "⚖️ שור/דוב", 
-    "₿ קריפטו", "📰 חדשות Live", "📱 טלגרם"
+    "₿ קריפטו", "📰 חדשות", "📱 טלגרם", "📊 אנליטיקה"
 ])
 
 with tab1:
@@ -101,7 +102,7 @@ with tab3:
         st.dataframe(div_df.sort_values(by="DivYield", ascending=False)[["Symbol", "DivYield", "DivRate", "FiveYrDiv", "PayoutRatio", "Safety", "ExDateClean"]], 
         column_config={
             "Symbol": "סימול", "DivYield": st.column_config.NumberColumn("תשואה %", format="%.2f%%"), 
-            "DivRate": st.column_config.NumberColumn("קצבה שנתית ($)", format="$%.2f"),
+            "DivRate": st.column_config.NumberColumn("קצבה ($)", format="$%.2f"),
             "FiveYrDiv": st.column_config.NumberColumn("ממוצע 5 שנים %", format="%.2f%%"),
             "PayoutRatio": st.column_config.NumberColumn("יחס חלוקה %", format="%.1f%%"),
             "Safety": "בטיחות (AI)", "ExDateClean": "תאריך אקס"
@@ -114,8 +115,9 @@ with tab_pod: podcasts_ai.render_podcasts_analysis()
 with tab_mac: market_ai.render_market_intelligence()
 with tab_bb:
     if not df_all.empty: bull_bear.render_bull_bear(df_all)
-
-# קריאה ל-3 המודולים החדשים שיצרנו:
 with tab_cryp: crypto_ai.render_crypto_arena()
 with tab_news: news_ai.render_live_news(MY_STOCKS_BASE)
 with tab_tg: telegram_ai.render_telegram_integration()
+
+# קריאה לטאב האנליטיקה החדש שיצרנו:
+with tab_analytics: analytics_ai.render_analytics_dashboard()
