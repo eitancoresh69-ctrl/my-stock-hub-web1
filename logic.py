@@ -4,7 +4,6 @@ import pandas as pd
 import streamlit as st
 
 def evaluate_pdf_metrics(info):
-    """חישוב 6 הקריטריונים מהמדריך (PDF)"""
     score = 0
     try:
         if (info.get('revenueGrowth', 0) or 0) >= 0.10: score += 1
@@ -18,7 +17,6 @@ def evaluate_pdf_metrics(info):
     return score
 
 def get_ai_logic(price, fv, score):
-    """המלצת AI משולבת שווי הוגן וציון איכות"""
     if not fv or fv == 0: return "בבדיקה 🔍", "נתונים חסרים לחישוב שווי הוגן."
     gap = (fv - price) / price
     if score >= 5:
@@ -31,18 +29,17 @@ def get_ai_logic(price, fv, score):
 
 @st.cache_data(ttl=600)
 def fetch_master_data(tickers):
-    """שליפת כל הנתונים מהאינטרנט בצורה מרוכזת ויעילה"""
     rows = []
     for t in tickers:
         try:
             s = yf.Ticker(t)
             inf = s.info
-            h = s.history(period="2d")
+            # שואבים 5 ימים אחורה כדי להיות בטוחים שיש נתונים
+            h = s.history(period="5d")
             if h.empty: continue
             px = h['Close'].iloc[-1]
             score = evaluate_pdf_metrics(inf)
             
-            # חישוב שווי הוגן בסיסי (DCF)
             fcf = inf.get('freeCashflow', 0) or 0
             shares = inf.get('sharesOutstanding', 1) or 1
             fv = (fcf * 15) / shares
@@ -56,5 +53,11 @@ def fetch_master_data(tickers):
                 "ExDate": inf.get('exDividendDate'),
                 "RevGrowth": inf.get('revenueGrowth', 0), "Info": inf
             })
-        except: continue
+        except Exception as e:
+            continue
+            
+    # מנגנון הגנה נגד קריסות (KeyError)
+    if not rows:
+        return pd.DataFrame(columns=["Symbol", "Price", "Change", "Score", "Action", "AI_Logic", "DivYield", "ExDate", "RevGrowth", "Info"])
+        
     return pd.DataFrame(rows)
