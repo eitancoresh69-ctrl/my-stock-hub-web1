@@ -55,16 +55,20 @@ def fetch_master_data(tickers):
             s = yf.Ticker(t)
             inf = s.info
             
-            h = s.history(period="6mo")
+            # תיקון קלוד #1: הורדת העומס מ-6mo ל-3mo (מספיק בדיוק ל-50MA)
+            h = s.history(period="3mo")
             if h.empty or len(h) < 20: continue 
             
             px = h['Close'].iloc[-1]
             
+            # תיקון קלוד #2: הגנה מפני חלוקה באפס ב-RSI
             delta = h['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+            loss = loss.replace(0, 1e-10) # מונע קריסה אם אין ירידות בכלל!
             rs = gain / loss
             rsi = 100 - (100 / (1 + rs.iloc[-1])) if not np.isnan(rs.iloc[-1]) else 50
+            
             ma50 = h['Close'].rolling(window=50).mean().iloc[-1]
             
             score, details = evaluate_pdf_metrics(inf)
@@ -82,7 +86,6 @@ def fetch_master_data(tickers):
             sector = inf.get('sector', 'Unknown Sector')
             if str(t).endswith(".TA"): sector = "שוק ישראלי (TASE)"
             
-            # --- התיקון הקריטי: החזרת חישוב ימי הדוחות (Earnings) ---
             earning_date_str = "לא ידוע"
             days_to_earnings = -1
             try:
@@ -106,7 +109,7 @@ def fetch_master_data(tickers):
                 "FiveYrDiv": inf.get('fiveYearAvgDividendYield') or 0, 
                 "PayoutRatio": (inf.get('payoutRatio', 0) or 0) * 100, "ExDate": inf.get('exDividendDate'),
                 "TargetUpside": target_upside, "InsiderHeld": insider_percent, "Sector": sector,
-                "EarningsDate": earning_date_str, "DaysToEarnings": days_to_earnings, # חזר למקום!
+                "EarningsDate": earning_date_str, "DaysToEarnings": days_to_earnings,
                 "Info": inf
             })
         except: continue
