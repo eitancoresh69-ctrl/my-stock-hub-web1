@@ -76,12 +76,23 @@ def fetch_master_data(tickers):
             price_str = f"{currency}{px:,.2f}"
             action, logic = get_ai_logic(px, fv, score, currency)
             
-            # --- נתונים חדשים לרנטגן ולכסף החכם ---
             target_price = inf.get('targetMeanPrice', 0)
             target_upside = ((target_price / px) - 1) * 100 if px > 0 and target_price > 0 else 0
             insider_percent = (inf.get('heldPercentInsiders', 0) or 0) * 100
             sector = inf.get('sector', 'Unknown Sector')
             if str(t).endswith(".TA"): sector = "שוק ישראלי (TASE)"
+            
+            # --- התיקון הקריטי: החזרת חישוב ימי הדוחות (Earnings) ---
+            earning_date_str = "לא ידוע"
+            days_to_earnings = -1
+            try:
+                cal = s.calendar
+                if isinstance(cal, dict) and 'Earnings Date' in cal and len(cal['Earnings Date']) > 0:
+                    edate = cal['Earnings Date'][0]
+                    if hasattr(edate, 'date'):
+                        earning_date_str = edate.strftime('%d/%m/%Y')
+                        days_to_earnings = (edate.date() - now.date()).days
+            except: pass
             
             rows.append({
                 "Symbol": t, "Price": px, "PriceStr": price_str, "Currency": currency,
@@ -95,10 +106,11 @@ def fetch_master_data(tickers):
                 "FiveYrDiv": inf.get('fiveYearAvgDividendYield') or 0, 
                 "PayoutRatio": (inf.get('payoutRatio', 0) or 0) * 100, "ExDate": inf.get('exDividendDate'),
                 "TargetUpside": target_upside, "InsiderHeld": insider_percent, "Sector": sector,
+                "EarningsDate": earning_date_str, "DaysToEarnings": days_to_earnings, # חזר למקום!
                 "Info": inf
             })
         except: continue
     
     if not rows:
-        return pd.DataFrame(columns=["Symbol", "Price", "PriceStr", "Currency", "FairValue", "Change", "Score", "RSI", "MA50", "Action", "AI_Logic", "RevGrowth", "EarnGrowth", "Margin", "ROE", "CashVsDebt", "ZeroDebt", "DivYield", "DivRate", "FiveYrDiv", "PayoutRatio", "ExDate", "TargetUpside", "InsiderHeld", "Sector", "Info"])
+        return pd.DataFrame(columns=["Symbol", "Price", "PriceStr", "Currency", "FairValue", "Change", "Score", "RSI", "MA50", "Action", "AI_Logic", "RevGrowth", "EarnGrowth", "Margin", "ROE", "CashVsDebt", "ZeroDebt", "DivYield", "DivRate", "FiveYrDiv", "PayoutRatio", "ExDate", "TargetUpside", "InsiderHeld", "Sector", "EarningsDate", "DaysToEarnings", "Info"])
     return pd.DataFrame(rows)
