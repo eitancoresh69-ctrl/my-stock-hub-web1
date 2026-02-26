@@ -7,11 +7,10 @@ def render_financial_reports(df_all):
     st.markdown('<div class="ai-card" style="border-right-color: #2196f3;"><b>📊 ניתוח דוחות פיננסיים (Financials AI)</b> — ניתוח עומק של דוחות החברה ונתוני אמת.</div>', unsafe_allow_html=True)
     st.divider()
 
-    # סורק חכם למציאת עמודת הסימול
     symbol_col = next((col for col in ['סימול', 'Symbol', 'symbol', 'Ticker', 'ticker'] if col in df_all.columns), None)
     
     if symbol_col is None:
-        st.error("❌ שגיאה: לא מצאתי עמודה המכילה את סימולי המניות בטבלה הראשית.")
+        st.error("❌ שגיאה: לא מצאתי עמודה המכילה את סימולי המניות בטבלה.")
         return
         
     symbols_list = df_all[symbol_col].dropna().unique().tolist()
@@ -26,14 +25,11 @@ def render_financial_reports(df_all):
         with st.spinner(f"מושך נתונים עבור {sel}..."):
             try:
                 ticker = yf.Ticker(sel)
-                
-                # משיכה זהירה של המידע כדי למנוע קריסה
                 info = ticker.info if hasattr(ticker, 'info') else {}
                 
                 company_name = info.get('longName', sel)
-                st.success(f"✅ נתונים נטענו בהצלחה עבור: **{company_name}**")
+                st.success(f"✅ נתונים נטענו בהצלחה מ-Yahoo Finance עבור: **{company_name}**")
                 
-                # --- מדדי מפתח בטוחים ---
                 st.subheader("💡 מדדי מפתח (Key Metrics)")
                 c1, c2, c3, c4 = st.columns(4)
                 
@@ -56,32 +52,27 @@ def render_financial_reports(df_all):
                 
                 st.divider()
                 
-                # --- גרף הכנסות בטוח ---
                 st.subheader("📈 מגמת הכנסות ורווחים (שנתי)")
-                try:
-                    financials = ticker.financials
-                    if financials is not None and not financials.empty:
-                        if 'Total Revenue' in financials.index and 'Net Income' in financials.index:
-                            rev = financials.loc['Total Revenue'].dropna() / 1e9
-                            net_income = financials.loc['Net Income'].dropna() / 1e9
-                            
-                            rev = rev.sort_index()
-                            net_income = net_income.sort_index()
-                            years = [str(date.year) for date in rev.index]
+                financials = ticker.financials
+                if financials is not None and not financials.empty:
+                    if 'Total Revenue' in financials.index and 'Net Income' in financials.index:
+                        rev = financials.loc['Total Revenue'].dropna() / 1e9
+                        net_income = financials.loc['Net Income'].dropna() / 1e9
+                        
+                        rev = rev.sort_index()
+                        net_income = net_income.sort_index()
+                        years = [str(date.year) for date in rev.index]
 
-                            fig = go.Figure()
-                            fig.add_trace(go.Bar(x=years, y=rev.values, name='הכנסות (מיליארדים $)', marker_color='#2196f3'))
-                            fig.add_trace(go.Bar(x=years, y=net_income.values, name='רווח נקי (מיליארדים $)', marker_color='#4caf50'))
-                            
-                            fig.update_layout(barmode='group', template='plotly_white')
-                            st.plotly_chart(fig, use_container_width=True)
-                        else:
-                            st.info("הדוחות קיימים אך חסרות שורות של רווח והכנסות (אופייני למניות מסוימות).")
+                        fig = go.Figure()
+                        fig.add_trace(go.Bar(x=years, y=rev.values, name='הכנסות (מיליארדים $)', marker_color='#2196f3'))
+                        fig.add_trace(go.Bar(x=years, y=net_income.values, name='רווח נקי (מיליארדים $)', marker_color='#4caf50'))
+                        
+                        fig.update_layout(barmode='group', template='plotly_white')
+                        st.plotly_chart(fig, use_container_width=True)
                     else:
-                        st.info("לא נמצאו דוחות היסטוריים מלאים ב-Yahoo Finance עבור מניה זו.")
-                except Exception as e_fin:
-                    st.warning(f"לא ניתן היה לצייר את הגרף עקב חוסר בנתונים בשרת. ({e_fin})")
+                        st.info("הדוחות קיימים אך חסרות שורות של רווח והכנסות.")
+                else:
+                    st.info("לא נמצאו דוחות היסטוריים מלאים ב-Yahoo Finance עבור מניה זו.")
 
             except Exception as e:
-                # כאן תודפס השגיאה האמיתית בלי להרוס את האתר
                 st.error(f"❌ אירעה שגיאה קריטית בעת משיכת הנתונים מ-Yahoo: {e}")
