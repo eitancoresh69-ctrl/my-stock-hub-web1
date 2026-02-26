@@ -3,11 +3,14 @@ import streamlit as st
 import pandas as pd
 
 def render_value_agent(df_all):
-    st.markdown('<div class="ai-card" style="border-right-color: #2e7d32;"><b>💼 סוכן השקעות ערך (טווח ארוך):</b> סורק את ה-PDF, מנתח את <b>הדוחות הכספיים ההיסטוריים</b> של השנים האחרונות, ומחפש מניות יציבות בנקודת כניסה נוחה.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ai-card" style="border-right-color: #2e7d32;"><b>💼 סוכן השקעות ערך (טווח ארוך):</b> סורק את ה-PDF ומחפש מניות יציבות.</div>', unsafe_allow_html=True)
     
     if 'val_cash_ils' not in st.session_state:
         st.session_state.val_cash_ils = 5000.0
         st.session_state.val_portfolio = []
+
+    if 'val_last_receipt' in st.session_state:
+        st.info(st.session_state.val_last_receipt)
 
     usd_rate = 3.8 
     cash_usd = st.session_state.val_cash_ils / usd_rate
@@ -16,51 +19,52 @@ def render_value_agent(df_all):
     c1, c2, c3 = st.columns(3)
     c1.metric("💵 יתרת מזומן", f"₪{st.session_state.val_cash_ils:,.2f}")
     c2.metric("💼 שווי התיק (דולר)", f"${port_value_usd:,.2f}")
-    c3.metric("📈 תשואה", f"{((port_value_usd / (5000 / usd_rate)) - 1) * 100 if port_value_usd > 0 else 0.0:.1f}%")
+    c3.metric("📈 תשואה פתוחה", f"{((port_value_usd / (5000 / usd_rate)) - 1) * 100 if port_value_usd > 0 else 0.0:.1f}%")
 
     if st.button("🚀 הפעל סוכן ערך (השקע 5,000 ₪)"):
         if st.session_state.val_cash_ils > 100:
-            # ה-AI מסנן מניות זהב שיש להן גם מגמה טכנית סבירה
+            if 'val_last_receipt' in st.session_state: del st.session_state.val_last_receipt
             gold_stocks = df_all[(df_all['Score'] >= 5) & (df_all['RSI'] > 35)]
             if not gold_stocks.empty:
-                st.success("הסוכן סרק את הדוחות ההיסטוריים וזיהה מניות שעומדות במבחן הזמן! רוכש כעת...")
                 invest_per_stock_usd = cash_usd / len(gold_stocks)
                 new_portfolio = []
                 for _, row in gold_stocks.iterrows():
                     price_usd = row['Price'] if row['Currency'] == "$" else (row['Price'] / 100) / usd_rate
                     qty = invest_per_stock_usd / price_usd if price_usd > 0 else 0
-                    
-                    exp_profit = ((row['FairValue'] / row['Price']) - 1) * 100 if row['FairValue'] > row['Price'] else 15.0
                     stop_loss = row['Price'] * 0.85 
-                    
-                    reason = f"החברה קיבלה {row['Score']}/6 ב-PDF. סריקת דוחות העבר שלה מאשרת עמידות. ה-RSI הוא {row['RSI']:.0f} (כניסה בטוחה). יעד רווח: {exp_profit:.1f}%."
-                    
                     new_portfolio.append({
-                        "Symbol": row['Symbol'], "Currency": row['Currency'], "Raw_Buy_Price": row['Price'], 
-                        "Buy_Price": row['PriceStr'], "Qty": round(qty, 2), "Expected_Profit": exp_profit, 
-                        "StopLoss": f"{row['Currency']}{stop_loss:.2f}", "AI_Explanation": reason
+                        "Symbol": row['Symbol'], "Currency": row['Currency'], "Buy_Price": row['PriceStr'], 
+                        "Qty": round(qty, 2), "StopLoss": f"{row['Currency']}{stop_loss:.2f}"
                     })
                 st.session_state.val_portfolio = new_portfolio
                 st.session_state.val_cash_ils = 0
                 st.rerun()
             else:
-                st.error("ה-AI לא מצא חברות חזקות מספיק שעומדות בהיסטוריית הדוחות כרגע.")
+                st.error("ה-AI לא מצא חברות מספיק חזקות כרגע.")
 
     if st.session_state.val_portfolio:
         for p in st.session_state.val_portfolio:
-            with st.expander(f"דוח רכישה מורחב: {p['Symbol']} | יעד: +{p['Expected_Profit']:.1f}%"):
-                st.markdown(f"**ניתוח פונדמנטלי (PDF + דוחות היסטוריים):** {p['AI_Explanation']}\n\n**הגנת הון (Stop-Loss):** ימכור אוטומטית בירידה ל-{p['StopLoss']}.")
-        if st.button("ממש רווחים (סוכן ערך)"):
-            st.session_state.val_cash_ils = port_value_usd * usd_rate
+            st.write(f"**{p['Symbol']}** | קנייה: {p['Buy_Price']} | הגנה: {p['StopLoss']}")
+        if st.button("💸 ממש הכל וסגור עסקאות"):
+            final_value_ils = port_value_usd * usd_rate
+            net_profit = final_value_ils - 5000.0
+            st.session_state.val_cash_ils = 5000.0 # מחזיר לתקציב התחלתי
             st.session_state.val_portfolio = []
+            if net_profit >= 0:
+                st.session_state.val_last_receipt = f"✅ העסקאות נסגרו ברווח של ₪{net_profit:.2f}!"
+            else:
+                st.session_state.val_last_receipt = f"🔻 העסקאות נסגרו בהפסד של ₪{abs(net_profit):.2f}."
             st.rerun()
 
 def render_day_trade_agent(df_all):
-    st.markdown('<div class="ai-card" style="border-right-color: #d32f2f;"><b>⚡ סוכן מסחר יומי (Day Trader):</b> לא מתעניין בדוחות היסטוריים. מתמקד רק במומנטום, תנודתיות, פריצות RSI ומחזורי מסחר כדי לייצר רווח מהיר.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ai-card" style="border-right-color: #d32f2f;"><b>⚡ סוכן מסחר יומי (Day Trader):</b> מתמקד רק במומנטום ותנודתיות.</div>', unsafe_allow_html=True)
     
     if 'day_cash_ils' not in st.session_state:
         st.session_state.day_cash_ils = 5000.0
         st.session_state.day_portfolio = []
+
+    if 'day_last_receipt' in st.session_state:
+        st.info(st.session_state.day_last_receipt)
 
     usd_rate = 3.8 
     cash_usd = st.session_state.day_cash_ils / usd_rate
@@ -71,38 +75,33 @@ def render_day_trade_agent(df_all):
     c2.metric("💼 שווי פוזיציות", f"${port_value_usd:,.2f}")
     c3.metric("📈 תשואה יומית", f"{((port_value_usd / (5000 / usd_rate)) - 1) * 100 if port_value_usd > 0 else 0.0:.1f}%")
 
-    if st.button("⚡ הפעל סוכן יומי (מומנטום)"):
+    if st.button("⚡ הפעל סוכן יומי"):
         if st.session_state.day_cash_ils > 100:
+            if 'day_last_receipt' in st.session_state: del st.session_state.day_last_receipt
             momentum_stocks = df_all[(df_all['RSI'] < 40) | ((df_all['RSI'] > 65) & (df_all['Price'] > df_all['MA50']))].head(3)
-            
             if not momentum_stocks.empty:
                 invest_per_stock_usd = cash_usd / len(momentum_stocks)
                 new_portfolio = []
                 for _, row in momentum_stocks.iterrows():
                     price_usd = row['Price'] if row['Currency'] == "$" else (row['Price'] / 100) / usd_rate
                     qty = invest_per_stock_usd / price_usd if price_usd > 0 else 0
-                    
-                    stop_loss = row['Price'] * 0.96 # הגנה הדוקה
-                    take_profit = row['Price'] * 1.06 # מימוש מהיר
-                    
-                    reason = f"מומנטום טכני: RSI עומד על {row['RSI']:.0f}. " + ("מכירת יתר, צפי לפול-באק." if row['RSI'] < 40 else "פריצת התנגדות ומומנטום חיובי.")
-                    
                     new_portfolio.append({
-                        "Symbol": row['Symbol'], "Currency": row['Currency'], "Buy_Price": row['PriceStr'], 
-                        "Qty": round(qty, 2), "Logic": reason,
-                        "StopLoss": f"{row['Currency']}{stop_loss:.2f}", "TakeProfit": f"{row['Currency']}{take_profit:.2f}"
+                        "Symbol": row['Symbol'], "Currency": row['Currency'], "Buy_Price": row['PriceStr'], "Qty": round(qty, 2)
                     })
                 st.session_state.day_portfolio = new_portfolio
                 st.session_state.day_cash_ils = 0
                 st.rerun()
-            else:
-                st.warning("השוק לא מספק כרגע תבניות ברורות למסחר יומי.")
 
     if st.session_state.day_portfolio:
         for p in st.session_state.day_portfolio:
-            with st.expander(f"טרייד יומי: {p['Symbol']}"):
-                st.markdown(f"**סיבת כניסה:** {p['Logic']}\n**הגנות:** רווח ב-{p['TakeProfit']} | חיתוך הפסד ב-{p['StopLoss']}.")
-        if st.button("סגור פוזיציות יומיות"):
-            st.session_state.day_cash_ils = port_value_usd * usd_rate
+            st.write(f"**{p['Symbol']}** | קנייה: {p['Buy_Price']}")
+        if st.button("💸 סגור פוזיציות יומיות"):
+            final_value_ils = port_value_usd * usd_rate
+            net_profit = final_value_ils - 5000.0
+            st.session_state.day_cash_ils = 5000.0
             st.session_state.day_portfolio = []
+            if net_profit >= 0:
+                st.session_state.day_last_receipt = f"⚡ הטרייד היומי נסגר ברווח של ₪{net_profit:.2f}!"
+            else:
+                st.session_state.day_last_receipt = f"🔻 הטרייד היומי נחתך בהפסד של ₪{abs(net_profit):.2f} (הגנת הון הופעלה)."
             st.rerun()
