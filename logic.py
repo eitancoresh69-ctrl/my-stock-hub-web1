@@ -80,7 +80,7 @@ def fetch_master_data(tickers):
             sector = inf.get('sector', 'Unknown Sector')
             if str(t).endswith(".TA"): sector = "שוק ישראלי (TASE)"
             
-            # שחזור נתוני דוחות כספיים קרובים
+            # --- תיקון השגיאה: שחזור נתוני דוחות כספיים ---
             earning_date_str = "לא ידוע"
             days_to_earnings = -1
             try:
