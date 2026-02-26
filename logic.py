@@ -38,10 +38,10 @@ def get_ai_logic(price, fv, score, currency):
     if not fv or fv <= 0: return "בבדיקה 🔍", "חסרים נתוני תזרים."
     gap = (fv - price) / price if price > 0 else 0
     if score >= 5:
-        if gap > 0.05: return "קנייה חזקה 💎", f"מניית 'זהב'. נסחרת בהנחה."
+        if gap > 0.05: return "קנייה חזקה 💎", "מניית 'זהב'. נסחרת בהנחה."
         return "קנייה 📈", "חברה איכותית ביותר במחיר הוגן."
     elif score >= 3:
-        if gap > 0.10: return "איסוף 🛒", f"חברה טובה במחיר 'מבצע'."
+        if gap > 0.10: return "איסוף 🛒", "חברה טובה במחיר 'מבצע'."
         return "החזק ⚖️", "המחיר משקף את השווי האמיתי."
     return "מכירה 🔴", "ציון איכות נמוך יחסית לסיכון."
 
@@ -54,20 +54,15 @@ def fetch_master_data(tickers):
         try:
             s = yf.Ticker(t)
             inf = s.info
-            
-            # טעינה יציבה של 3 חודשים לחישוב מדדים טכניים
             h = s.history(period="3mo")
             if h.empty or len(h) < 20: continue 
             
             px = h['Close'].iloc[-1]
-            
-            # חישוב RSI יציב עם הגנה מחלוקה באפס
             delta = h['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean().replace(0, 1e-10)
             rs = gain / loss
             rsi = 100 - (100 / (1 + rs.iloc[-1])) if not np.isnan(rs.iloc[-1]) else 50
-            
             ma50 = h['Close'].rolling(window=50).mean().iloc[-1]
             
             score, details = evaluate_pdf_metrics(inf)
@@ -85,16 +80,15 @@ def fetch_master_data(tickers):
             sector = inf.get('sector', 'Unknown Sector')
             if str(t).endswith(".TA"): sector = "שוק ישראלי (TASE)"
             
-            # תאריכי דוחות לעבודה תקינה של טאב התראות
+            # שחזור נתוני דוחות כספיים קרובים
             earning_date_str = "לא ידוע"
             days_to_earnings = -1
             try:
                 cal = s.calendar
                 if isinstance(cal, dict) and 'Earnings Date' in cal and len(cal['Earnings Date']) > 0:
                     edate = cal['Earnings Date'][0]
-                    if hasattr(edate, 'date'):
-                        earning_date_str = edate.strftime('%d/%m/%Y')
-                        days_to_earnings = (edate.date() - now.date()).days
+                    earning_date_str = edate.strftime('%d/%m/%Y')
+                    days_to_earnings = (edate.date() - now.date()).days
             except: pass
             
             rows.append({
