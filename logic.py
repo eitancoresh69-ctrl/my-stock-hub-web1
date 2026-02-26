@@ -45,18 +45,30 @@ def get_ai_logic(price, fv, score, currency):
         return "החזק ⚖️", "המחיר משקף את השווי האמיתי."
     return "מכירה 🔴", "ציון איכות נמוך יחסית לסיכון."
 
-@st.cache_data(ttl=600)
-def fetch_master_data(tickers):
+@st.cache_data(ttl=300, show_spinner=False)def fetch_master_data(tickers):
     rows = []
     now = datetime.datetime.now()
     
     for t in tickers:
+    try:
+        s = yf.Ticker(t)
+
+        h = None
+        for period in ["6mo", "3mo", "1mo"]:
+            try:
+                h = s.history(period=period, timeout=15)
+                if not h.empty and len(h) >= 5:
+                    break
+            except:
+                continue
+
+        if h is None or h.empty or len(h) < 5:
+            continue
+
         try:
-            s = yf.Ticker(t)
-            inf = s.info
-            
-            h = s.history(period="6mo")
-            if h.empty or len(h) < 20: continue 
+            inf = s.info or {}
+        except:
+            inf = {} 
             
             px = h['Close'].iloc[-1]
             
@@ -114,3 +126,4 @@ def fetch_master_data(tickers):
     if not rows:
         return pd.DataFrame(columns=["Symbol", "Price", "PriceStr", "Currency", "FairValue", "Change", "Score", "RSI", "MA50", "Action", "AI_Logic", "RevGrowth", "EarnGrowth", "Margin", "ROE", "CashVsDebt", "ZeroDebt", "DivYield", "DivRate", "FiveYrDiv", "PayoutRatio", "ExDate", "TargetUpside", "InsiderHeld", "Sector", "EarningsDate", "DaysToEarnings", "Info"])
     return pd.DataFrame(rows)
+
