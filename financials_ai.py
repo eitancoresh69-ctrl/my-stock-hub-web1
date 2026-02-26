@@ -4,39 +4,38 @@ import yfinance as yf
 import plotly.graph_objects as go
 
 def render_financial_reports(df_all):
-    st.markdown('<div class="ai-card" style="border-right-color: #2196f3;"><b>📊 ניתוח דוחות פיננסיים (Financials AI)</b> — ניתוח עומק של דוחות החברה ונתוני אמת.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ai-card" style="border-right-color: #2196f3;"><b>📊 ניתוח דוחות פיננסיים (Financials AI)</b> — ניתוח עומק של דוחות החברה.</div>', unsafe_allow_html=True)
     st.divider()
 
-    symbol_col = next((col for col in ['סימול', 'Symbol', 'symbol', 'Ticker', 'ticker'] if col in df_all.columns), None)
-    if symbol_col is None:
-        st.error("❌ שגיאה: לא מצאתי עמודה המכילה את סימולי המניות בטבלה הראשית.")
+    # מנגנון איתור עמודת סימול
+    symbol_col = next((c for c in ['סימול', 'Symbol', 'symbol', 'Ticker'] if c in df_all.columns), None)
+    
+    if not symbol_col:
+        st.error("❌ לא נמצאה עמודת 'סימול' בטבלה.")
         return
         
-    symbols_list = df_all[symbol_col].dropna().unique().tolist()
-    if not symbols_list:
-        st.warning("⚠️ לא נמצאו מניות בטבלה.")
-        return
-
-    sel = st.selectbox("🎯 בחר מניה לניתוח דוחות עומק:", symbols_list)
+    symbols = df_all[symbol_col].dropna().unique().tolist()
+    sel = st.selectbox("🎯 בחר מניה לניתוח:", symbols)
+    
     if sel:
-        with st.spinner(f"מושך נתונים עבור {sel}..."):
+        with st.spinner(f"טוען נתונים עבור {sel}..."):
             try:
                 ticker = yf.Ticker(sel)
-                info = ticker.info if hasattr(ticker, 'info') else {}
-                company_name = info.get('longName', sel)
-                st.success(f"✅ נתונים נטענו בהצלחה עבור: **{company_name}**")
+                info = ticker.info
+                st.success(f"✅ נתונים עבור: **{info.get('longName', sel)}**")
                 
-                st.subheader("💡 מדדי מפתח (Key Metrics)")
-                c1, c2, c3, c4 = st.columns(4)
+                # מדדי מפתח
+                c1, c2, c3 = st.columns(3)
+                c1.metric("שווי שוק", f"${info.get('marketCap', 0)/1e9:.2f}B")
+                c2.metric("מכפיל רווח", info.get('trailingPE', 'N/A'))
+                c3.metric("תשואת דיבידנד", f"{info.get('dividendYield', 0)*100:.2f}%")
                 
-                market_cap = info.get('marketCap')
-                c1.metric("שווי שוק", f"${market_cap / 1e9:.2f}B" if market_cap else "N/A")
-                pe_ratio = info.get('trailingPE')
-                c2.metric("מכפיל רווח (P/E)", f"{pe_ratio:.2f}" if isinstance(pe_ratio, (int, float)) else "N/A")
-                profit_margin = info.get('profitMargins')
-                c3.metric("שולי רווח נקי", f"{profit_margin * 100:.2f}%" if profit_margin else "N/A")
-                rev_growth = info.get('revenueGrowth')
-                c4.metric("צמיחה בהכנסות", f"{rev_growth * 100:.2f}%" if rev_growth else "N/A")
-                
+                # גרף הכנסות
+                fin = ticker.financials
+                if not fin.empty and 'Total Revenue' in fin.index:
+                    rev = fin.loc['Total Revenue'].sort_index()
+                    fig = go.Figure(go.Bar(x=rev.index.year, y=rev.values/1e9, marker_color='#2196f3'))
+                    fig.update_layout(title="הכנסות שנתיות (במיליארדים $)", template='plotly_white')
+                    st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
-                st.error(f"❌ אירעה שגיאה בעת משיכת הנתונים: {e}")
+                st.error(f"שגיאה במשיכת נתונים: {e}")
