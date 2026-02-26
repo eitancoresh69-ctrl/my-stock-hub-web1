@@ -13,16 +13,13 @@ def render_value_agent(df_all):
 
     usd_rate = 3.8 
     cash_usd = st.session_state.val_cash_ils / usd_rate
-    
-    # חישוב שווי תיק נוכחי
     port_value_usd = 0
     if st.session_state.val_portfolio:
         for p in st.session_state.val_portfolio:
             stock_data = df_all[df_all['Symbol'] == p['Symbol']]
             if not stock_data.empty:
                 current_price = stock_data['Price'].iloc[0]
-                if p['Currency'] != "$":
-                    current_price = (current_price / 100) / usd_rate
+                if p['Currency'] != "$": current_price = (current_price / 100) / usd_rate
                 port_value_usd += p['Qty'] * current_price
 
     c1, c2, c3 = st.columns(3)
@@ -33,7 +30,7 @@ def render_value_agent(df_all):
     if st.button("🚀 הפעל סוכן ערך"):
         if st.session_state.val_cash_ils > 100:
             if 'val_receipt' in st.session_state: del st.session_state.val_receipt
-            # סינון מניות 'זהב' לפי ה-PDF
+            # סינון מניות איכותיות (ציון 5 ומעלה)
             gold_stocks = df_all[df_all['Score'] >= 5]
             if not gold_stocks.empty:
                 inv_per_stock = cash_usd / len(gold_stocks)
@@ -46,7 +43,7 @@ def render_value_agent(df_all):
                 st.session_state.val_cash_ils = 0
                 st.rerun()
             else:
-                st.error("ה-AI לא מצא חברות חזקות מספיק העומדות בקריטריונים כרגע.")
+                st.error("ה-AI לא מצא חברות חזקות מספיק שעומדות בקריטריונים כרגע.")
 
     if st.session_state.val_portfolio:
         if st.button("💸 סגור עסקאות וחשב רווח/הפסד"):
