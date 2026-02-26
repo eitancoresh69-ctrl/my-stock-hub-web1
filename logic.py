@@ -4,6 +4,14 @@ import pandas as pd
 import numpy as np
 import datetime
 import streamlit as st
+import requests
+
+# תיקון קריטי לStreamlit Cloud - מגדיר User-Agent כמו דפדפן אמיתי
+yf.utils.get_json = lambda url, proxy=None: requests.get(
+    url,
+    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
+    timeout=15
+).json()
 
 def evaluate_pdf_metrics(info):
     score = 0
@@ -47,7 +55,11 @@ def get_ai_logic(price, fv, score, currency):
 
 def _fetch_single(t, now):
     try:
-        s = yf.Ticker(t)
+        session = requests.Session()
+        session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
+        })
+        s = yf.Ticker(t, session=session)
 
         h = None
         for period in ["6mo", "3mo", "1mo"]:
@@ -126,8 +138,11 @@ def _fetch_single(t, now):
             "FiveYrDiv": inf.get('fiveYearAvgDividendYield') or 0,
             "PayoutRatio": (inf.get('payoutRatio') or 0) * 100,
             "ExDate": inf.get('exDividendDate'),
-            "TargetUpside": target_upside, "InsiderHeld": insider_percent, "Sector": sector,
-            "EarningsDate": earning_date_str, "DaysToEarnings": days_to_earnings,
+            "TargetUpside": target_upside,
+            "InsiderHeld": insider_percent,
+            "Sector": sector,
+            "EarningsDate": earning_date_str,
+            "DaysToEarnings": days_to_earnings,
             "Info": inf
         }
     except:
@@ -148,11 +163,11 @@ def fetch_master_data(tickers):
 
     try:
         import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
             futures = {executor.submit(_fetch_single, t, now): t for t in tickers}
-            for future in concurrent.futures.as_completed(futures, timeout=60):
+            for future in concurrent.futures.as_completed(futures, timeout=90):
                 try:
-                    result = future.result(timeout=20)
+                    result = future.result(timeout=25)
                     if result:
                         rows.append(result)
                 except:
