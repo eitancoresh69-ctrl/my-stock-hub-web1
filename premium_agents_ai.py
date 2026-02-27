@@ -4,6 +4,19 @@ import pandas as pd
 import yfinance as yf
 from datetime import datetime
 
+
+def _get_agent_df(df_all: pd.DataFrame) -> pd.DataFrame:
+    """מחזיר תוצאות סריקה אוטונומית אם קיימות, אחרת watchlist."""
+    scan_df = st.session_state.get("agent_universe_df")
+    if scan_df is not None and not scan_df.empty:
+        needed = ["Symbol","Price","Currency","Score","RSI","Margin",
+                  "DivYield","PayoutRatio","CashVsDebt","InsiderHeld","TargetUpside"]
+        have = [c for c in needed if c in scan_df.columns]
+        return scan_df[have].copy()
+    return df_all
+
+
+
 USD_DEFAULT = 3.75
 
 
@@ -197,6 +210,7 @@ def _agent_block(prefix, label, title, desc, run_key, sell_key, reset_key,
 
 
 def render_premium_agents(df_all):
+    df_all = _get_agent_df(df_all)
     st.markdown(
         '<div class="ai-card" style="border-right-color: #ffd700;">'
         '<b>🤖 סוכני פרימיום — מסחר דמו עם מחירים חיים.</b><br>'

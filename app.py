@@ -10,6 +10,7 @@ import market_ai, bull_bear, simulator, podcasts_ai, alerts_ai
 import financials_ai, crypto_ai, news_ai, telegram_ai, analytics_ai
 import pro_tools_ai, premium_agents_ai, growth_risk_ai, backtest_ai
 import execution_ai, failsafes_ai, ml_learning_ai, social_sentiment_ai, tax_fees_ai
+import market_scanner
 
 # ─── הגדרות עמוד ───
 st.set_page_config(
@@ -72,6 +73,11 @@ c3.metric("📋 סה\"כ בניתוח", len(df_all) if not df_all.empty else 0)
 c4.metric("🕒 עדכון", datetime.now().strftime("%H:%M"))
 c5.metric("🛡️ מצב", "🔴 Kill Switch" if st.session_state.get("kill_switch_active", False) else "🟢 תקין")
 
+# Scanner badge
+if "agent_universe_df" in st.session_state:
+    n_scan = len(st.session_state["agent_universe_df"])
+    st.info(f"🌐 **מצב סוכנים:** עובדים עם {n_scan} מניות מהסריקה האוטונומית | לחץ על טאב '🌐 סורק שוק' לעדכון")
+
 # ─── 22 טאבים ───
 tabs = st.tabs([
     "📌 התיק",          # 0
@@ -84,7 +90,8 @@ tabs = st.tabs([
     "📈 סוכן ערך",      # 7
     "⚡ סוכן יומי",     # 8
     "🤖 פרימיום",       # 9
-    "⏪ בק-טסט",        # 10
+    "🌐 סורק שוק",      # 10
+    "⏪ בק-טסט",        # 11
     "🎧 פודקאסטים",     # 11
     "🌍 מאקרו",         # 12
     "⚖️ שור/דוב",       # 13
@@ -238,39 +245,42 @@ with tabs[9]:
     premium_agents_ai.render_premium_agents(df_all)
 
 with tabs[10]:
+    market_scanner.render_market_scanner()
+
+with tabs[11]:
     if not df_all.empty:
         backtest_ai.render_backtester(df_all)
 
-with tabs[11]:
+with tabs[12]:
     podcasts_ai.render_podcasts_analysis()
 
-with tabs[12]:
+with tabs[13]:
     market_ai.render_market_intelligence()
 
-with tabs[13]:
+with tabs[14]:
     if not df_all.empty:
         bull_bear.render_bull_bear(df_all)
 
-with tabs[14]:
+with tabs[15]:
     crypto_ai.render_crypto_arena()
 
-with tabs[15]:
+with tabs[16]:
     news_ai.render_live_news(MY_STOCKS_BASE)
 
-with tabs[16]:
+with tabs[17]:
     analytics_ai.render_analytics_dashboard()
 
-with tabs[17]:
+with tabs[18]:
     execution_ai.render_execution_engine()
 
-with tabs[18]:
+with tabs[19]:
     failsafes_ai.render_failsafes()
 
-with tabs[19]:
+with tabs[20]:
     ml_learning_ai.render_machine_learning()
 
-with tabs[20]:
+with tabs[21]:
     social_sentiment_ai.render_social_intelligence()
 
-with tabs[21]:
+with tabs[22]:
     tax_fees_ai.render_tax_optimization()

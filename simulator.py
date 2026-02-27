@@ -4,6 +4,22 @@ import pandas as pd
 import yfinance as yf
 from datetime import datetime
 
+
+def _get_agent_df(df_all: pd.DataFrame) -> pd.DataFrame:
+    """מחזיר את הדאטה-פריים הטוב ביותר לסוכן:
+    אם רצה סריקת שוק — משתמש בתוצאות הסריקה.
+    אחרת — משתמש ב-watchlist."""
+    scan_df = st.session_state.get("agent_universe_df")
+    if scan_df is not None and not scan_df.empty:
+        # מיזוג: עמודות בסיסיות בטוחות בכל מקרה
+        needed = ["Symbol","Price","Currency","Score","RSI","Margin",
+                  "DivYield","PayoutRatio","CashVsDebt","InsiderHeld","TargetUpside"]
+        have   = [c for c in needed if c in scan_df.columns]
+        return scan_df[have].copy()
+    return df_all
+
+
+
 USD_RATE_DEFAULT = 3.75
 
 
@@ -177,7 +193,8 @@ def render_value_agent(df_all: pd.DataFrame):
     with b1:
         if st.button("🚀 הפעל סוכן ערך", type="primary", key="val_run"):
             if st.session_state["val_cash_ils"] > 100:
-                gold = df_all[df_all["Score"] >= 5]
+                _df = _get_agent_df(df_all)
+                gold = _df[_df["Score"] >= 5]
                 if gold.empty:
                     st.error("ה-AI לא מצא מניות 'זהב' (ציון 5+) כרגע.")
                 else:
@@ -289,7 +306,8 @@ def render_day_trade_agent(df_all: pd.DataFrame):
     with b1:
         if st.button("⚡ הפעל סוכן יומי", type="primary", key="day_run"):
             if st.session_state["day_cash_ils"] > 100:
-                momentum = df_all[(df_all["RSI"] < 35) | (df_all["RSI"] > 65)].head(3)
+                _df = _get_agent_df(df_all)
+                momentum = _df[(_df["RSI"] < 35) | (_df["RSI"] > 65)].head(5)
                 if momentum.empty:
                     st.warning("השוק שקט. אין מומנטום ברור כרגע.")
                 else:
