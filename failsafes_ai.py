@@ -110,7 +110,7 @@ def render_failsafes():
         st.toggle("🔒 מנע After-Hours", value=True, key="fs_after")
         st.toggle("⚠️ אשר עסקאות >$5K", value=True, key="fs_big")
     with r2:
-        st.toggle("📊 ניטור VIX", value=True, key="fs_vix")
+        st.toggle("📊 ניטור VIX", value=True, key="fs_vix_toggle")
         st.toggle("🔄 Rebalance בסוף יום", value=False, key="fs_rebal")
         st.toggle("📱 התראה לטלגרם", value=False, key="fs_tg")
 
