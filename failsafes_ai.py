@@ -45,7 +45,7 @@ def render_failsafes():
     with col2:
         st.slider("🎯 Take Profit (%)", 1.0, 30.0, 10.0, 0.5, key="fs_tp")
         vix_halt = st.slider("😨 עצור אם VIX >", 20, 80, 40, 5, key="fs_vix")
-        st.number_input("📊 מקסימום פוזיציות", 1, 20, 5)
+        st.number_input("📊 מקסימום פוזיציות", 1, 20, 5, key="fs_maxpositions")
 
     st.subheader("🔧 סימולציות")
     b1, b2, b3, b4 = st.columns(4)

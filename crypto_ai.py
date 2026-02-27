@@ -4,6 +4,12 @@ import yfinance as yf
 import pandas as pd
 
 
+@st.cache_data(ttl=60)
+def _fetch_crypto(sym):
+    hist = _fetch_crypto(sym)
+    return hist if not hist.empty else None
+
+
 def render_crypto_arena():
     st.markdown(
         '<div class="ai-card" style="border-right-color: #f7931a;">'
@@ -23,7 +29,7 @@ def render_crypto_arena():
     with st.spinner("שואב נתוני קריפטו..."):
         for sym, name in cryptos.items():
             try:
-                hist = yf.Ticker(sym).history(period="7d")
+                hist = _fetch_crypto(sym)
                 if not hist.empty and len(hist) >= 2:
                     px = hist["Close"].iloc[-1]
                     chg = ((px / hist["Close"].iloc[-2]) - 1) * 100

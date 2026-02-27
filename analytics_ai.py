@@ -4,6 +4,12 @@ import yfinance as yf
 import pandas as pd
 
 
+@st.cache_data(ttl=300)
+def _fetch_sector(ticker):
+    h = _fetch_sector(ticker)
+    return h if not h.empty else None
+
+
 def render_analytics_dashboard():
     st.markdown(
         '<div class="ai-card" style="border-right-color: #ff5722;">'
@@ -28,7 +34,7 @@ def render_analytics_dashboard():
         with st.spinner("שואב..."):
             for name, ticker in sectors.items():
                 try:
-                    h = yf.Ticker(ticker).history(period="5d")
+                    h = _fetch_sector(ticker)
                     if not h.empty and len(h) >= 2:
                         chg = ((h["Close"].iloc[-1] / h["Close"].iloc[-2]) - 1) * 100
                         rows.append({"סקטור": name, "שינוי %": chg,

@@ -37,13 +37,13 @@ def render_machine_learning():
         algo = st.selectbox("🔢 אלגוריתם", [
             "Random Forest", "Gradient Boosting", "XGBoost",
             "LSTM (נוירונים)", "Ensemble (משולב — מומלץ)"
-        ])
+        ], key="ml_algo")
         st.slider("📅 חלון אימון (ימים)", 7, 180, 30, key="ml_window")
     with col2:
         features = st.multiselect("📌 פיצ'רים", [
             "RSI", "Score (PDF)", "RevGrowth", "Margin", "ROE",
             "MA50", "DivYield", "VIX", "InsiderHeld", "TargetUpside"
-        ], default=["RSI", "Score (PDF)", "RevGrowth", "Margin"])
+        ], default=["RSI", "Score (PDF)", "RevGrowth", "Margin"], key="ml_features")
 
     if st.button("🚀 אמן מודל", type="primary", key="ml_train"):
         if not features:

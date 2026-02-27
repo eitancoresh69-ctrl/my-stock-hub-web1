@@ -38,6 +38,14 @@ def _get(sym):
             "sig": "🟡 ניטרלי", "str": "חלש"}
 
 
+@st.cache_data(ttl=300)
+def _fetch_social_data(sym):
+    try:
+        return yf.Ticker(sym).history(period="5d")
+    except Exception:
+        return None
+
+
 def render_social_intelligence():
     st.markdown(
         '<div class="ai-card" style="border-right-color: #03a9f4;">'
