@@ -77,8 +77,16 @@ c5.metric("🛡️ מצב", "🔴 Kill Switch" if st.session_state.get("kill_swi
 market_scanner.maybe_auto_scan()
 
 # ── badge מצב סוכנים ──
-_n_long  = len(st.session_state.get("agent_universe_df",  []) or [])
-_n_short = len(st.session_state.get("agent_universe_short_df", []) or [])
+def _safe_len(key):
+    import pandas as _pd
+    val = st.session_state.get(key)
+    if val is None: return 0
+    if isinstance(val, _pd.DataFrame): return len(val)
+    try: return len(val)
+    except Exception: return 0
+
+_n_long  = _safe_len("agent_universe_df")
+_n_short = _safe_len("agent_universe_short_df")
 _last_push = st.session_state.get("last_auto_push", None)
 _auto_on   = st.session_state.get("auto_scan_interval", 0) > 0
 

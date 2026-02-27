@@ -229,8 +229,11 @@ def maybe_auto_scan():
         st.session_state["scan_time"]     = datetime.now().strftime("%H:%M:%S")
         _push_to_agents(df, mode)
         # הצג הודעת הצלחה קצרה
-        n_long  = len(st.session_state.get("agent_universe_df", []))
-        n_short = len(st.session_state.get("agent_universe_short_df", []))
+        def _slen(k):
+            v = st.session_state.get(k)
+            return len(v) if isinstance(v, pd.DataFrame) else 0
+        n_long  = _slen("agent_universe_df")
+        n_short = _slen("agent_universe_short_df")
         st.toast(f"✅ סריקה הושלמה — {n_long} מניות לסוכן ערך | {n_short} לסוכן יומי", icon="🤖")
 
 
@@ -287,7 +290,13 @@ def render_market_scanner():
     # סטטוס
     last_dt  = st.session_state.get("last_scan_dt")
     last_push= st.session_state.get("last_auto_push", "—")
-    n_agents = len(st.session_state.get("agent_universe_df", pd.DataFrame()))
+    def _safe_len(key):
+        val = st.session_state.get(key)
+        if val is None: return 0
+        if isinstance(val, pd.DataFrame): return len(val)
+        try: return len(val)
+        except: return 0
+    n_agents = _safe_len("agent_universe_df")
 
     if auto_on and interval_min > 0:
         next_scan = (last_dt + timedelta(minutes=interval_min)).strftime("%H:%M") if last_dt else "בקרוב"
@@ -392,7 +401,7 @@ def render_market_scanner():
     with ag2:
         short_df = st.session_state.get("agent_universe_short_df")
         if short_df is not None and not short_df.empty:
-            st.success(f"**⚡ סוכן יומי:** {short_df.shape[0]} מניות")
+            st.success(f"**⚡ סוכן יומי:** {len(short_df)} מניות")
             st.dataframe(
                 short_df[["Symbol","ShortScore","RSI","Chg1M","TargetUpside"]].head(10),
                 use_container_width=True, hide_index=True,
