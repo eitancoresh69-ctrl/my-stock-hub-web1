@@ -274,4 +274,3 @@ with tabs[20]:
 
 with tabs[21]:
     tax_fees_ai.render_tax_optimization()
-```
