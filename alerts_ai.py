@@ -29,4 +29,10 @@ def render_smart_alerts(df_all):
         if not high.empty:
             for _, r in high.iterrows():
                 st.markdown(
-                    f'<div style="background
+                    f'<div style="background:#fff8e1;border-right:4px solid #ff9800;'
+                    f'padding:8px 12px;border-radius:6px;margin:4px 0;">'
+                    f'<b>{r["Symbol"]}</b> — בעלי עניין מחזיקים <b>{r["InsiderHeld"]:.1f}%</b></div>',
+                    unsafe_allow_html=True,
+                )
+        else:
+            st.info("אין נתוני בעלי עניין זמינים.")
