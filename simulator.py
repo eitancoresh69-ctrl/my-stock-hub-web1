@@ -5,16 +5,18 @@ import yfinance as yf
 from datetime import datetime
 
 
-def _get_agent_df(df_all: pd.DataFrame) -> pd.DataFrame:
-    """מחזיר את הדאטה-פריים הטוב ביותר לסוכן:
-    אם רצה סריקת שוק — משתמש בתוצאות הסריקה.
-    אחרת — משתמש ב-watchlist."""
-    scan_df = st.session_state.get("agent_universe_df")
+def _get_agent_df(df_all: pd.DataFrame, prefer_short: bool = False) -> pd.DataFrame:
+    """מחזיר את הדאטה-פריים הטוב ביותר לסוכן.
+    prefer_short=True → מעדיף agent_universe_short_df (לסוכן יומי).
+    """
+    needed = ["Symbol","Price","Currency","Score","RSI","Margin",
+              "DivYield","PayoutRatio","CashVsDebt","InsiderHeld","TargetUpside"]
+    if prefer_short:
+        scan_df = st.session_state.get("agent_universe_short_df")
+    else:
+        scan_df = st.session_state.get("agent_universe_df")
     if scan_df is not None and not scan_df.empty:
-        # מיזוג: עמודות בסיסיות בטוחות בכל מקרה
-        needed = ["Symbol","Price","Currency","Score","RSI","Margin",
-                  "DivYield","PayoutRatio","CashVsDebt","InsiderHeld","TargetUpside"]
-        have   = [c for c in needed if c in scan_df.columns]
+        have = [c for c in needed if c in scan_df.columns]
         return scan_df[have].copy()
     return df_all
 
@@ -306,7 +308,7 @@ def render_day_trade_agent(df_all: pd.DataFrame):
     with b1:
         if st.button("⚡ הפעל סוכן יומי", type="primary", key="day_run"):
             if st.session_state["day_cash_ils"] > 100:
-                _df = _get_agent_df(df_all)
+                _df = _get_agent_df(df_all, prefer_short=True)
                 momentum = _df[(_df["RSI"] < 35) | (_df["RSI"] > 65)].head(5)
                 if momentum.empty:
                     st.warning("השוק שקט. אין מומנטום ברור כרגע.")

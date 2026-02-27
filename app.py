@@ -73,10 +73,33 @@ c3.metric("📋 סה\"כ בניתוח", len(df_all) if not df_all.empty else 0)
 c4.metric("🕒 עדכון", datetime.now().strftime("%H:%M"))
 c5.metric("🛡️ מצב", "🔴 Kill Switch" if st.session_state.get("kill_switch_active", False) else "🟢 תקין")
 
-# Scanner badge
-if "agent_universe_df" in st.session_state:
-    n_scan = len(st.session_state["agent_universe_df"])
-    st.info(f"🌐 **מצב סוכנים:** עובדים עם {n_scan} מניות מהסריקה האוטונומית | לחץ על טאב '🌐 סורק שוק' לעדכון")
+# ── סריקה אוטומטית ברקע ──
+market_scanner.maybe_auto_scan()
+
+# ── badge מצב סוכנים ──
+_n_long  = len(st.session_state.get("agent_universe_df",  []) or [])
+_n_short = len(st.session_state.get("agent_universe_short_df", []) or [])
+_last_push = st.session_state.get("last_auto_push", None)
+_auto_on   = st.session_state.get("auto_scan_interval", 0) > 0
+
+if _n_long > 0 or _n_short > 0:
+    _next = ""
+    if _auto_on and st.session_state.get("last_scan_dt"):
+        import datetime as _dt
+        _interval = st.session_state.get("auto_scan_interval", 60)
+        _next_dt  = st.session_state["last_scan_dt"] + _dt.timedelta(minutes=_interval)
+        _next = f" | סריקה הבאה: {_next_dt.strftime('%H:%M')}"
+    st.success(
+        f"🤖 **סוכנים:** סוכן ערך ← {_n_long} מניות | "
+        f"סוכן יומי ← {_n_short} מניות | "
+        f"עדכון: {_last_push or '—'}"
+        + (" 🔄 אוטומטי" if _auto_on else " ✋ ידני")
+        + _next
+    )
+elif _auto_on:
+    st.info("🔄 סריקה אוטומטית מופעלת — הסריקה הראשונה תתחיל בקרוב.")
+else:
+    st.warning("⚠️ הסוכנים עובדים עם ה-Watchlist בלבד. גש ל-'🌐 סורק שוק' להפעלה.")
 
 # ─── 22 טאבים ───
 tabs = st.tabs([

@@ -5,12 +5,13 @@ import yfinance as yf
 from datetime import datetime
 
 
-def _get_agent_df(df_all: pd.DataFrame) -> pd.DataFrame:
+def _get_agent_df(df_all: pd.DataFrame, prefer_short: bool = False) -> pd.DataFrame:
     """מחזיר תוצאות סריקה אוטונומית אם קיימות, אחרת watchlist."""
-    scan_df = st.session_state.get("agent_universe_df")
+    needed = ["Symbol","Price","Currency","Score","RSI","Margin",
+              "DivYield","PayoutRatio","CashVsDebt","InsiderHeld","TargetUpside"]
+    scan_df = st.session_state.get("agent_universe_short_df" if prefer_short
+                                    else "agent_universe_df")
     if scan_df is not None and not scan_df.empty:
-        needed = ["Symbol","Price","Currency","Score","RSI","Margin",
-                  "DivYield","PayoutRatio","CashVsDebt","InsiderHeld","TargetUpside"]
         have = [c for c in needed if c in scan_df.columns]
         return scan_df[have].copy()
     return df_all
@@ -210,7 +211,8 @@ def _agent_block(prefix, label, title, desc, run_key, sell_key, reset_key,
 
 
 def render_premium_agents(df_all):
-    df_all = _get_agent_df(df_all)
+    df_long  = _get_agent_df(df_all, prefer_short=False)
+    df_short = _get_agent_df(df_all, prefer_short=True)
     st.markdown(
         '<div class="ai-card" style="border-right-color: #ffd700;">'
         '<b>🤖 סוכני פרימיום — מסחר דמו עם מחירים חיים.</b><br>'
@@ -231,7 +233,7 @@ def render_premium_agents(df_all):
             title="👑 סוכן דיבידנד — תשואה >2%, חלוקה <60%, מאזן נקי",
             desc="אסטרטגיה: חברות שמחלקות דיבידנד עקבי עם מאזן חזק.",
             run_key="div_run", sell_key="div_sell", reset_key="div_reset",
-            df_all=df_all, usd=usd,
+            df_all=df_long, usd=usd,
             filter_fn=lambda d: d[(d["DivYield"] > 2) &
                                    (d["PayoutRatio"].between(1, 60)) &
                                    (d["CashVsDebt"] == "✅")],
@@ -244,7 +246,7 @@ def render_premium_agents(df_all):
             title='🕵️ סוכן מנכ"לים — הנהלה >2% + אפסייד >10%',
             desc="אסטרטגיה: מנהלים שמחזיקים מניות — סימן לאמון בחברה.",
             run_key="ins_run", sell_key="ins_sell", reset_key="ins_reset",
-            df_all=df_all, usd=usd,
+            df_all=df_long, usd=usd,
             filter_fn=lambda d: d[(d["InsiderHeld"] >= 2) & (d["TargetUpside"] > 10)],
             reason_fn=lambda r: f"הנהלה {r['InsiderHeld']:.1f}% | אפסייד +{r['TargetUpside']:.1f}%",
         )
@@ -255,7 +257,7 @@ def render_premium_agents(df_all):
             title="🚑 סוכן משברים — ציון 3+, RSI<35, מאזן נקי",
             desc="אסטרטגיה: קנייה בפאניקה. חברות איכותיות שנמכרות ביתר.",
             run_key="deep_run", sell_key="deep_sell", reset_key="deep_reset",
-            df_all=df_all, usd=usd,
+            df_all=df_short, usd=usd,
             filter_fn=lambda d: d[(d["Score"] >= 3) & (d["RSI"] < 35) &
                                    (d["CashVsDebt"] == "✅")],
             reason_fn=lambda r: f"RSI {r['RSI']:.0f} פאניקה | ציון {r['Score']}/6 | מאזן ✅",
