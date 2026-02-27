@@ -6,8 +6,11 @@ import pandas as pd
 
 @st.cache_data(ttl=300)
 def _fetch_sector(ticker):
-    h = _fetch_sector(ticker)
-    return h if not h.empty else None
+    try:
+        h = yf.Ticker(ticker).history(period="5d")
+        return h if not h.empty else None
+    except Exception:
+        return None
 
 
 def render_analytics_dashboard():
@@ -35,7 +38,7 @@ def render_analytics_dashboard():
             for name, ticker in sectors.items():
                 try:
                     h = _fetch_sector(ticker)
-                    if not h.empty and len(h) >= 2:
+                    if h is not None and not h.empty and len(h) >= 2:
                         chg = ((h["Close"].iloc[-1] / h["Close"].iloc[-2]) - 1) * 100
                         rows.append({"סקטור": name, "שינוי %": chg,
                                      "מגמה": "🟢" if chg > 0 else "🔴"})

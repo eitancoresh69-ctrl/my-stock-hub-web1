@@ -6,8 +6,11 @@ import pandas as pd
 
 @st.cache_data(ttl=60)
 def _fetch_crypto(sym):
-    hist = _fetch_crypto(sym)
-    return hist if not hist.empty else None
+    try:
+        hist = yf.Ticker(sym).history(period="7d")
+        return hist if not hist.empty else None
+    except Exception:
+        return None
 
 
 def render_crypto_arena():
@@ -30,7 +33,7 @@ def render_crypto_arena():
         for sym, name in cryptos.items():
             try:
                 hist = _fetch_crypto(sym)
-                if not hist.empty and len(hist) >= 2:
+                if hist is not None and not hist.empty and len(hist) >= 2:
                     px = hist["Close"].iloc[-1]
                     chg = ((px / hist["Close"].iloc[-2]) - 1) * 100
                     vol = hist["Volume"].iloc[-1] / 1e9
