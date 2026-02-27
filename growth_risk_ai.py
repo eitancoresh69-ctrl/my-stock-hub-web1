@@ -13,7 +13,7 @@ def render_growth_and_risk(df_all):
 
     with t1:
         st.markdown("### 🚀 סורק צמיחה מואצת (מכירות >20%, RSI>55, מחיר>MA50)")
-        if st.button("🔍 הפעל סורק", type="primary"):
+        if st.button("🔍 הפעל סורק", type="primary", key="growth_scan"):
             if df_all.empty:
                 st.error("אין נתונים.")
             else:
@@ -50,7 +50,7 @@ def render_growth_and_risk(df_all):
             entry = st.number_input("🎯 מחיר כניסה ($):", min_value=0.01, value=100.0, step=1.0)
             stop = st.number_input("🛑 Stop-Loss ($):", min_value=0.01, value=93.0, step=1.0)
 
-        if st.button("🧮 חשב", type="primary"):
+        if st.button("🧮 חשב", type="primary", key="growth_calc"):
             if entry <= stop:
                 st.error("Stop-Loss חייב להיות נמוך ממחיר הכניסה!")
             else:

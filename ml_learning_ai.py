@@ -38,14 +38,14 @@ def render_machine_learning():
             "Random Forest", "Gradient Boosting", "XGBoost",
             "LSTM (נוירונים)", "Ensemble (משולב — מומלץ)"
         ])
-        st.slider("📅 חלון אימון (ימים)", 7, 180, 30)
+        st.slider("📅 חלון אימון (ימים)", 7, 180, 30, key="ml_window")
     with col2:
         features = st.multiselect("📌 פיצ'רים", [
             "RSI", "Score (PDF)", "RevGrowth", "Margin", "ROE",
             "MA50", "DivYield", "VIX", "InsiderHeld", "TargetUpside"
         ], default=["RSI", "Score (PDF)", "RevGrowth", "Margin"])
 
-    if st.button("🚀 אמן מודל", type="primary"):
+    if st.button("🚀 אמן מודל", type="primary", key="ml_train"):
         if not features:
             st.warning("בחר פיצ'ר אחד לפחות.")
         else:
@@ -103,6 +103,6 @@ def render_machine_learning():
         st.metric("אחוז הצלחה", f"{(wins/30)*100:.0f}%")
 
     if st.session_state.ml_trained:
-        if st.button("🗑️ איפוס מודל"):
+        if st.button("🗑️ איפוס מודל", key="ml_reset"):
             st.session_state.ml_trained = False
             st.session_state.ml_accuracy = 0.0

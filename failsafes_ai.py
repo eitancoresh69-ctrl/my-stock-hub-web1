@@ -39,18 +39,18 @@ def render_failsafes():
     st.subheader("⚙️ הגדרות")
     col1, col2 = st.columns(2)
     with col1:
-        max_loss = st.slider("🚫 הפסד יומי מקסימלי (%)", 1.0, 20.0, 5.0, 0.5)
-        st.slider("💼 פוזיציה מקסימלית (% מתיק)", 5.0, 50.0, 20.0, 5.0)
-        st.slider("🛑 Stop Loss (%)", 1.0, 15.0, 5.0, 0.5)
+        max_loss = st.slider("🚫 הפסד יומי מקסימלי (%)", 1.0, 20.0, 5.0, 0.5, key="fs_maxloss")
+        st.slider("💼 פוזיציה מקסימלית (% מתיק)", 5.0, 50.0, 20.0, 5.0, key="fs_maxpos")
+        st.slider("🛑 Stop Loss (%)", 1.0, 15.0, 5.0, 0.5, key="fs_stoploss")
     with col2:
-        st.slider("🎯 Take Profit (%)", 1.0, 30.0, 10.0, 0.5)
-        vix_halt = st.slider("😨 עצור אם VIX >", 20, 80, 40, 5)
+        st.slider("🎯 Take Profit (%)", 1.0, 30.0, 10.0, 0.5, key="fs_tp")
+        vix_halt = st.slider("😨 עצור אם VIX >", 20, 80, 40, 5, key="fs_vix")
         st.number_input("📊 מקסימום פוזיציות", 1, 20, 5)
 
     st.subheader("🔧 סימולציות")
     b1, b2, b3, b4 = st.columns(4)
     with b1:
-        if st.button("📉 הדמה -3%"):
+        if st.button("📉 הדמה -3%", key="fs_sim3"):
             st.session_state.daily_loss_pct = 3.0
             _log("הדמיית הפסד -3%")
             if 3.0 >= max_loss:
@@ -58,18 +58,18 @@ def render_failsafes():
                 _log("⚡ Circuit Breaker!")
             st.rerun()
     with b2:
-        if st.button("📉 הדמה -7%"):
+        if st.button("📉 הדמה -7%", key="fs_sim7"):
             st.session_state.daily_loss_pct = 7.0
             st.session_state.circuit_breaker_triggered = True
             _log("🚨 הפסד קריטי -7%!")
             st.rerun()
     with b3:
-        if st.button("😨 הדמה VIX 45"):
+        if st.button("😨 הדמה VIX 45", key="fs_vix45"):
             st.session_state.circuit_breaker_triggered = True
             _log("⚠️ VIX הגיע ל-45")
             st.rerun()
     with b4:
-        if st.button("🔄 איפוס יום"):
+        if st.button("🔄 איפוס יום", key="fs_resetday"):
             st.session_state.daily_loss_pct = 0.0
             st.session_state.circuit_breaker_triggered = False
             _log("✅ איפוס יומי")
@@ -80,7 +80,7 @@ def render_failsafes():
     ck1, ck2 = st.columns(2)
     with ck1:
         if not st.session_state.kill_switch_active:
-            if st.button("🚨 הפעל מתג השמדה!", type="primary"):
+            if st.button("🚨 הפעל מתג השמדה!", type="primary", key="fs_killswitch"):
                 st.session_state.kill_switch_active = True
                 for k in ["val_portfolio","day_portfolio","div_portfolio","ins_portfolio","deep_portfolio"]:
                     if k in st.session_state:
@@ -88,7 +88,7 @@ def render_failsafes():
                 _log("🚨 KILL SWITCH! כל הפוזיציות נסגרו!")
                 st.rerun()
         else:
-            if st.button("✅ איפוס — חזרה לפעולה"):
+            if st.button("✅ איפוס — חזרה לפעולה", key="fs_resume"):
                 st.session_state.kill_switch_active = False
                 st.session_state.circuit_breaker_triggered = False
                 st.session_state.daily_loss_pct = 0.0
@@ -119,6 +119,6 @@ def render_failsafes():
             for ev in st.session_state.failsafe_log[:40]:
                 icon = "🔴" if any(x in ev for x in ["KILL","קריטי","Circuit"]) else "🟡" if "הדמ" in ev else "🟢"
                 st.markdown(f"{icon} `{ev}`")
-            if st.button("🗑️ נקה יומן"):
+            if st.button("🗑️ נקה יומן", key="fs_clearlog"):
                 st.session_state.failsafe_log = []
                 st.rerun()

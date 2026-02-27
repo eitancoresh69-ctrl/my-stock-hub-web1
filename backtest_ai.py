@@ -27,11 +27,11 @@ def render_backtester(df_all):
 
     c1, c2 = st.columns(2)
     with c1:
-        sel = st.selectbox("בחר מניה:", df_all["Symbol"].unique())
+        sel = st.selectbox("בחר מניה:", df_all["Symbol"].unique(), key="backtest_sym")
     with c2:
-        capital = st.number_input("סכום ($):", min_value=1000, value=10000, step=1000)
+        capital = st.number_input("סכום ($):", min_value=1000, value=10000, step=1000, key="backtest_capital")
 
-    if st.button("⏪ הרץ", type="primary"):
+    if st.button("⏪ הרץ", type="primary", key="backtest_run"):
         with st.spinner("מחשב..."):
             hist, res = _backtest(sel, capital)
         if hist is not None:

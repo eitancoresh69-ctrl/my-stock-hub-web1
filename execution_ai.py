@@ -56,7 +56,7 @@ def render_execution_engine():
     with col7:
         tif = st.selectbox("תוקף", ["Day", "GTC", "IOC"], key="exec_tif")
 
-    if st.button("🚀 שגר פקודה", type="primary"):
+    if st.button("🚀 שגר פקודה", type="primary", key="exec_run"):
         market_px = _live_price(symbol, manual_px) if use_live else manual_px
         if use_live:
             st.caption(f"📡 מחיר שוק חי: ${market_px:.2f}")

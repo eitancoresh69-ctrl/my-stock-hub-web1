@@ -10,8 +10,8 @@ def render_telegram_integration():
     )
 
     st.markdown("### סטטוס: 🔴 לא מחובר")
-    chat_id = st.text_input("Chat ID:", placeholder="123456789")
-    if st.button("🔌 חבר"):
+    chat_id = st.text_input("Chat ID:", placeholder="123456789", key="tg_chatid")
+    if st.button("🔌 חבר", key="tg_connect"):
         if chat_id:
             st.success("הבקשה נרשמה! (דורש שרת רקע — בקרוב).")
         else:

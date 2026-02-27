@@ -11,7 +11,7 @@ def render_bull_bear(df_all):
         unsafe_allow_html=True,
     )
 
-    sel = st.selectbox("בחר מניה:", df_all["Symbol"].unique())
+    sel = st.selectbox("בחר מניה:", df_all["Symbol"].unique(), key="bullbear_sym")
     row = df_all[df_all["Symbol"] == sel].iloc[0]
     st.markdown(f"### 🏢 {sel}")
 
@@ -44,7 +44,7 @@ def render_bull_bear(df_all):
         st.markdown(bear_args)
 
     st.markdown("---")
-    yrs = st.slider("טווח שנים:", 1, 10, 5)
+    yrs = st.slider("טווח שנים:", 1, 10, 5, key="bullbear_yrs")
     try:
         hist = yf.Ticker(sel).history(period=f"{yrs}y")
         fig = go.Figure(go.Scatter(

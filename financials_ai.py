@@ -12,9 +12,9 @@ def render_financial_reports(df_all):
         unsafe_allow_html=True,
     )
 
-    sel = st.selectbox("בחר מניה:", df_all["Symbol"].unique())
+    sel = st.selectbox("בחר מניה:", df_all["Symbol"].unique(), key="fin_sym")
 
-    if st.button("📊 נתח דוחות", type="primary"):
+    if st.button("📊 נתח דוחות", type="primary", key="fin_run"):
         with st.spinner("שואב ומנתח..."):
             try:
                 s = yf.Ticker(sel)

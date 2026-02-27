@@ -53,9 +53,9 @@ def render_social_intelligence():
 
     st.divider()
     known = list(_DATA.keys()) + ["AMZN", "GOOGL", "AMD", "MSFT"]
-    sel = st.selectbox("בחר מניה:", known)
+    sel = st.selectbox("בחר מניה:", known, key="social_sym")
 
-    if st.button("🔍 נתח סנטימנט", type="primary"):
+    if st.button("🔍 נתח סנטימנט", type="primary", key="social_run"):
         import time; time.sleep(0.6)
         d = _get(sel)
         st.markdown(f"### 📊 {sel}")

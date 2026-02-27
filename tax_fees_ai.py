@@ -40,16 +40,16 @@ def render_tax_optimization():
     with t1:
         col1, col2 = st.columns(2)
         with col1:
-            stype = st.selectbox("🌍 סוג מניה", ["מניה אמריקאית", "מניה ישראלית"])
-            itype = st.selectbox("💰 סוג הכנסה", ["רווח הון", "דיבידנד"])
-            broker = st.selectbox("🏦 ברוקר", list(BROKERS.keys()))
+            stype = st.selectbox("🌍 סוג מניה", ["מניה אמריקאית", "מניה ישראלית"], key="tax_stype")
+            itype = st.selectbox("💰 סוג הכנסה", ["רווח הון", "דיבידנד"], key="tax_itype")
+            broker = st.selectbox("🏦 ברוקר", list(BROKERS.keys()), key="tax_broker")
         with col2:
             qty = st.number_input("🔢 כמות", min_value=1, value=50)
             entry = st.number_input("💲 קנייה ($)", min_value=0.01, value=100.0, step=1.0)
             exit_ = st.number_input("💲 מכירה ($)", min_value=0.01, value=110.0, step=1.0)
             rate = st.number_input("💱 $/₪", min_value=2.0, value=3.75, step=0.05)
 
-        if st.button("🧮 חשב", type="primary"):
+        if st.button("🧮 חשב", type="primary", key="tax_calc"):
             is_us  = "אמריקאית" in stype
             is_div = "דיבידנד" in itype
             profit_usd = (exit_ - entry) * qty
