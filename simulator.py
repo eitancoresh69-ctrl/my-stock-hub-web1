@@ -302,3 +302,10 @@ def render_day_trade_agent(df_all: pd.DataFrame):
             st.rerun()
 
     if st.session_state["day_portfolio"]:
+        st.markdown("### 📋 פוזיציות פתוחות (מחירים חיים):")
+        _show_portfolio_table("day", usd_rate)
+
+    if st.session_state["day_trades_log"]:
+        with st.expander(f"📜 לוג עסקאות ({len(st.session_state['day_trades_log'])})"):
+            st.dataframe(pd.DataFrame(st.session_state["day_trades_log"]),
+                         use_container_width=True, hide_index=True)
