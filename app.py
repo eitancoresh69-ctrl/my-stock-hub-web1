@@ -159,11 +159,11 @@ with tabs[0]:
 # ── טאב 1: סורק PDF ──
 with tabs[1]:
     st.markdown(
-        '<div class="ai-card"><b>🔍 סורק PDF:</b> מציג את כל המניות מרשימת הסריקה.</div>',
+        '<div class="ai-card"><b>🔍 סורק PDF:</b> מניות מרשימת הסריקה עם ציון ≥ 4.</div>',
         unsafe_allow_html=True,
     )
     if not df_all.empty:
-        scanner = df_all[df_all["Symbol"].isin(SCAN_LIST)].sort_values(
+        scanner = df_all[(df_all["Symbol"].isin(SCAN_LIST)) & (df_all["Score"] >= 4)].sort_values(
             "Score", ascending=False)
         if not scanner.empty:
             st.dataframe(
@@ -182,7 +182,7 @@ with tabs[1]:
                 use_container_width=True, hide_index=True,
             )
         else:
-            st.info("לא נמצאו מניות ברשימת הסריקה.")
+            st.info("לא נמצאו מניות בציון 4+ ברשימת הסריקה.")
 
 with tabs[2]:
     growth_risk_ai.render_growth_and_risk(df_all)
