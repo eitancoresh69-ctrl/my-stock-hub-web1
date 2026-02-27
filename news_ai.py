@@ -48,3 +48,6 @@ def render_live_news(symbols_list: list):
                         with st.container(border=True):
                             st.caption(f"מקור: {publisher} | [קרא עוד]({link})")
                             st.markdown(f"##### {title}")
+                            st.markdown(_analyze(title))
+            except Exception:
+                st.warning(f"לא ניתן לשאוב חדשות עבור {sym}.")

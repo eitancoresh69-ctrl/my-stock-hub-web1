@@ -32,4 +32,12 @@ def render_financial_reports(df_all):
 
                         fig = go.Figure()
                         fig.add_trace(go.Bar(x=df_d.index, y=df_d["Revenue"],
-                                             name="הכנסות ($B)", marker_color="#1a7
+                                             name="הכנסות ($B)", marker_color="#1a73e8"))
+                        fig.add_trace(go.Bar(x=df_d.index, y=df_d["Net Income"],
+                                             name='רווח נקי ($B)', marker_color="#34a853"))
+                        fig.update_layout(barmode="group", title="הכנסות ורווח נקי לשנה ($B)",
+                                          template="plotly_dark", height=350)
+                        st.plotly_chart(fig, use_container_width=True)
+                        st.info("💡 **AI:** חפש צמיחה עקבית בהכנסות >10% לשנה (קריטריון 1).")
+            except Exception as e:
+                st.error(f"שגיאה בשאיבת נתונים: {e}")
