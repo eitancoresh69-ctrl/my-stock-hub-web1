@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 
 # ─── הגדרת API Key ───────────────────────────────────────────────────────────
 # 🔑 שנה את הערך הזה ל-Key שקיבלת מ-finnhub.io
-FINNHUB_API_KEY = "YOUR_FINNHUB_KEY_HERE"
+FINNHUB_API_KEY = "d6ia9mpr01ql9cifitbgd6ia9mpr01ql9cifitc0"
 FINNHUB_BASE    = "https://finnhub.io/api/v1"
 
 
