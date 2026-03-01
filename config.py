@@ -1,50 +1,31 @@
 # config.py — רשימת נכסים מורחבת ל-2026
 
 # מניות הליבה שלך (יופיעו תמיד בתיק)
-MY_STOCKS_BASE = [
-    "MSFT", "AAPL", "NVDA", "TSLA", "PLTR",
-    "ENLT.TA", "POLI.TA", "LUMI.TA"
-]
+MY_STOCKS_BASE = ["MSFT", "AAPL", "NVDA", "TSLA", "PLTR", "ENLT.TA", "POLI.TA", "LUMI.TA"]
 
 # רשימת הסריקה המלאה: ת"א, עולם, סחורות וקריפטו
 SCAN_LIST = [
-    # --- מניות ארה"ב (Big Tech & AI Infrastructure) ---
+    # --- מניות ארה"ב חזקות ומומנטום ---
     "AMZN", "AVGO", "META", "GOOGL", "LLY", "TSM", "COST", "V", "ADBE", "NFLX", "AMD",
-    "MU", "SMCI", "GEV", "NEE", "CRDO", "CRVS", "GEHC", #
+    "MU", "SMCI", "GEV", "NEE", "CRDO", "CRVS", "GEHC", 
 
     # --- בורסת תל אביב (TASE) ---
     "ICL.TA", "TSEM.TA", "BEZQ.TA", "NICE.TA", "AZRG.TA", "DSCT.TA", 
-    "ESLT.TA", "NXSN.TA", # אלביט ונקסט ויז'ן
+    "ESLT.TA", "NXSN.TA", 
 
-    # --- מניות עולם (אירופה) ---
-    "ASML",     # הולנד - שבבי AI
-    "NVO",      # דנמרק - תרופות הרזיה
-    "MC.PA",    # צרפת - לוקסוס (LVMH)
-    "SAP",      # גרמניה - תוכנה וענן
-    "RHM.DE",   # גרמניה - ביטחון (ריינמטאל)
+    # --- מניות עולם ---
+    "ASML", "NVO", "MC.PA", "SAP", "RHM.DE",
 
-    # --- סחורות ואנרגיה (Commodities) ---
-    "GC=F",     # זהב (Gold)
-    "SI=F",     # כסף (Silver)
-    "CL=F",     # נפט גולמי (Crude Oil)
-    "HO=F",     # דלק/סולר (Heating Oil)
-    "HG=F",     # נחושת (Copper)
+    # --- סחורות ואנרגיה (דלק, נפט, זהב, כסף, נחושת) ---
+    "GC=F", "SI=F", "CL=F", "HO=F", "BZ=F", "HG=F",
 
-    # --- קריפטו (Crypto) ---
-    "BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD" #
+    # --- קריפטו ---
+    "BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD"
 ]
 
-HELP = {
-    "symbol":      "סימול הנכס בבורסה (כולל סיומת .TA לישראל או =F לסחורות).",
-    "score":       "ציון AI (0-6) המעיד על איכות החברה.",
-    "action":      "המלצת פעולה בזמן אמת.",
-    "rev_growth":  "צמיחה במכירות מעל 10%?",
-}
-
 HEBREW_SUMMARIES = {
-    "ESLT.TA": "אלביט מערכות — מובילה עולמית בביטחון.",
+    "ESLT.TA": "אלביט מערכות — מובילה ביטחונית.",
     "NXSN.TA": "נקסט ויז'ן — צמיחה אדירה בצילום רחפנים.",
-    "ASML":    "ASML — מחזיקה במונופול לייצור שבבי AI מתקדמים.",
-    "GC=F":    "זהב — הגנה אינפלציונית ומקלט בטוח.",
-    "CL=F":    "נפט — מדד האנרגיה העולמי המרכזי.",
+    "GC=F":    "זהב — הגנה אינפלציונית.",
+    "CL=F":    "נפט גולמי — מדד האנרגיה העולמי.",
 }
