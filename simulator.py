@@ -1,8 +1,9 @@
-# simulator.py — מסחר דמו עם נתוני בורסה בזמן אמת
+# simulator.py — מסחר דמו עם נתוני בורסה בזמן אמת + שמירה קבועה
 import streamlit as st
 import pandas as pd
 import yfinance as yf
 from datetime import datetime
+from storage import save_simulator, reset_simulator  # ← שמירה קבועה לדיסק
 
 
 def _get_agent_df(df_all: pd.DataFrame, prefer_short: bool = False) -> pd.DataFrame:
@@ -165,7 +166,8 @@ def render_value_agent(df_all: pd.DataFrame):
     st.markdown(
         '<div class="ai-card" style="border-right-color: #2e7d32;">'
         '<b>💼 סוכן השקעות ערך — מסחר דמו בנתוני זמן אמת</b><br>'
-        'סורק מניות "זהב" (ציון PDF 5-6) וקונה לפי מחיר שוק חי.</div>',
+        'סורק מניות "זהב" (ציון PDF 5-6) וקונה לפי מחיר שוק חי.'
+        '<br><small>✅ הנתונים נשמרים אוטומטית — לא נמחקים כשסוגרים הדפדפן</small></div>',
         unsafe_allow_html=True,
     )
 
@@ -225,7 +227,7 @@ def render_value_agent(df_all: pd.DataFrame):
                             errors.append(r["Symbol"])
                     st.session_state["val_portfolio"] = new_port
                     st.session_state["val_cash_ils"]  = 0
-                    msg = f"✅ נקנו {len(new_port)} מניות!"
+                    save_simulator(st.session_state, "val")  # ← שמירה לדיסק!
                     if errors: msg += f" (⚠️ נכשל: {', '.join(errors)})"
                     st.success(msg)
                     st.rerun()
@@ -248,15 +250,14 @@ def render_value_agent(df_all: pd.DataFrame):
                     })
                 st.session_state["val_cash_ils"] = final + st.session_state["val_cash_ils"]
                 st.session_state["val_portfolio"] = []
+                save_simulator(st.session_state, "val")  # ← שמירה לדיסק!
                 sign = "🟢 רווח" if pnl_f >= 0 else "🔴 הפסד"
                 st.success(f"{sign}: ₪{abs(pnl_f):,.2f} ({(pnl_f/initial)*100:.1f}%)")
                 st.rerun()
 
     with b3:
         if st.button("🔄 איפוס", key="val_reset"):
-            for k in ["val_cash_ils","val_portfolio","val_trades_log",
-                      "val_initial_ils","val_closed_trades"]:
-                st.session_state.pop(k, None)
+            reset_simulator(st.session_state, "val")  # ← מאפס ומוחק מדיסק!
             st.rerun()
 
     if st.session_state["val_portfolio"]:
@@ -278,7 +279,8 @@ def render_day_trade_agent(df_all: pd.DataFrame):
     st.markdown(
         '<div class="ai-card" style="border-right-color: #d32f2f;">'
         '<b>⚡ סוכן מסחר יומי — דמו עם נתוני זמן אמת</b><br>'
-        'מומנטום RSI. קונה בנפילות, מוכר בזינוקים. מחירים חיים מהבורסה.</div>',
+        'מומנטום RSI. קונה בנפילות, מוכר בזינוקים. מחירים חיים מהבורסה.'
+        '<br><small>✅ הנתונים נשמרים אוטומטית — לא נמחקים כשסוגרים הדפדפן</small></div>',
         unsafe_allow_html=True,
     )
 
@@ -339,7 +341,7 @@ def render_day_trade_agent(df_all: pd.DataFrame):
                             errors.append(r["Symbol"])
                     st.session_state["day_portfolio"] = new_port
                     st.session_state["day_cash_ils"]  = 0
-                    msg = f"⚡ נפתחו {len(new_port)} פוזיציות!"
+                    save_simulator(st.session_state, "day")  # ← שמירה לדיסק!
                     if errors: msg += f" (⚠️ נכשל: {', '.join(errors)})"
                     st.success(msg)
                     st.rerun()
@@ -362,15 +364,14 @@ def render_day_trade_agent(df_all: pd.DataFrame):
                     })
                 st.session_state["day_cash_ils"] = final + st.session_state["day_cash_ils"]
                 st.session_state["day_portfolio"] = []
+                save_simulator(st.session_state, "day")  # ← שמירה לדיסק!
                 sign = "🟢 רווח" if pnl_f >= 0 else "🔴 הפסד"
                 st.success(f"{sign} יומי: ₪{abs(pnl_f):,.2f} ({(pnl_f/initial)*100:.1f}%)")
                 st.rerun()
 
     with b3:
         if st.button("🔄 איפוס יומי", key="day_reset"):
-            for k in ["day_cash_ils","day_portfolio","day_trades_log",
-                      "day_initial_ils","day_closed_trades"]:
-                st.session_state.pop(k, None)
+            reset_simulator(st.session_state, "day")  # ← מאפס ומוחק מדיסק!
             st.rerun()
 
     if st.session_state["day_portfolio"]:

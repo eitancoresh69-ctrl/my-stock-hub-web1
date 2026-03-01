@@ -1,8 +1,9 @@
-# ml_learning_ai.py — למידת מכונה (הדמייה)
+# ml_learning_ai.py — למידת מכונה (הדמייה) + שמירה קבועה לדיסק
 import streamlit as st
 import pandas as pd
 import random
 from datetime import datetime, timedelta
+from storage import save_ml  # ← שמירה קבועה
 
 
 def render_machine_learning():
@@ -69,6 +70,7 @@ def render_machine_learning():
                     f"💡 גודל פוזיציה: {random.randint(8,15)}% מהתיק",
                     f"🎯 R/R: 1:{st.session_state.ml_params['risk_ratio']:.1f}",
                 ]
+                save_ml(st.session_state)  # ← שמירה לדיסק!
             st.success(f"✅ דיוק: {st.session_state.ml_accuracy:.1f}%")
             st.rerun()
 

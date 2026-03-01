@@ -6,6 +6,7 @@ from datetime import datetime
 
 from config import HELP, MY_STOCKS_BASE, SCAN_LIST
 from logic import fetch_master_data
+from storage import load_all_to_session, save, load  # ← שמירת נתונים קבועה
 import market_ai, bull_bear, simulator, podcasts_ai, alerts_ai
 import financials_ai, crypto_ai, news_ai, telegram_ai, analytics_ai
 import pro_tools_ai, premium_agents_ai, growth_risk_ai, backtest_ai
@@ -18,6 +19,9 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+
+# ─── טעינת נתונים שמורים מהדיסק (פעם אחת בכל הפעלה) ───
+load_all_to_session(st.session_state)
 
 # רענון אוטומטי כל 15 דקות
 st.markdown(
@@ -148,10 +152,18 @@ with tabs[0]:
             df_all[(df_all["Score"] >= 5) & (df_all["Symbol"].isin(SCAN_LIST))]["Symbol"].tolist()
             if not df_all.empty else []
         )
-        st.session_state.portfolio = pd.DataFrame(
-            [{"Symbol": t, "BuyPrice": 0.0, "Qty": 0}
-             for t in list(set(MY_STOCKS_BASE + gold_scan))]
-        )
+        all_symbols = list(set(MY_STOCKS_BASE + gold_scan))
+        # טוען מחירי קנייה וכמויות שמורות מהדיסק
+        saved_prices = st.session_state.get("portfolio_buy_prices", {})
+        saved_qty    = st.session_state.get("portfolio_quantities",  {})
+        st.session_state.portfolio = pd.DataFrame([
+            {
+                "Symbol":   t,
+                "BuyPrice": saved_prices.get(t, 0.0),
+                "Qty":      saved_qty.get(t, 0),
+            }
+            for t in all_symbols
+        ])
 
     if not df_all.empty:
         merged = pd.merge(st.session_state.portfolio, df_all, on="Symbol")
@@ -182,6 +194,9 @@ with tabs[0]:
             use_container_width=True, hide_index=True,
         )
         st.session_state.portfolio = edited[["Symbol", "BuyPrice", "Qty"]]
+        # שמירה קבועה לדיסק — מחירי קנייה וכמויות לא יאבדו!
+        save("portfolio_buy_prices", dict(zip(edited["Symbol"], edited["BuyPrice"])))
+        save("portfolio_quantities",  dict(zip(edited["Symbol"], edited["Qty"])))
 
         active = merged[merged["Qty"] > 0].copy()
         if not active.empty:
