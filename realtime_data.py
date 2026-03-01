@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
-# ─── הגדרת API Key ───────────────────────────────────────────────────────────
+# d6ia9mpr01ql9cifitbgd6ia9mpr01ql9cifitc0
 # 🔑 שנה את הערך הזה ל-Key שקיבלת מ-finnhub.io
 FINNHUB_API_KEY = "YOUR_FINNHUB_KEY_HERE"
 FINNHUB_BASE    = "https://finnhub.io/api/v1"
