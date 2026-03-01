@@ -1,107 +1,127 @@
-# 🚀 מדריך פריסה — Investment Hub Elite 2026
+# 🚀 מדריך התקנה והפעלה — Investment Hub Elite 2026
 
-## ✅ מה השתנה בגרסה זו
-
-### שמירת נתונים קבועה (הבעיה העיקרית — נפתרה!)
-כל הנתונים הבאים **נשמרים אוטומטית** ולא נמחקים כשסוגרים הדפדפן:
-- ✅ מחירי קנייה וכמויות בתיק הראשי
-- ✅ מזומן ופוזיציות סוכן הערך
-- ✅ מזומן ופוזיציות סוכן היומי
-- ✅ לוג עסקאות מלא (היסטוריה)
-- ✅ עסקאות סגורות + רווח/הפסד מצטבר
-- ✅ הגדרות ML (דיוק, פרמטרים, תובנות)
-
-הנתונים נשמרים בקובץ `hub_data.db` (SQLite) בתיקיית הפרויקט.
+## ✅ דרישות מינימליות
+- Python 3.10+
+- חיבור אינטרנט
+- ~200MB דיסק
 
 ---
 
-## 🖥️ הרצה מקומית (המחשב שלך)
+## 🖥️ הרצה מקומית (מהיר ביותר)
 
 ```bash
-# 1. התקן dependencies
+# 1. פתח טרמינל בתיקיית הפרויקט
+cd stock-hub-final
+
+# 2. התקן תלויות
 pip install -r requirements.txt
 
-# 2. הרץ
+# 3. הרץ!
 streamlit run app.py
+```
 
-# האתר יפתח בדפדפן: http://localhost:8501
+הדפדפן ייפתח אוטומטית ב: http://localhost:8501
+
+---
+
+## ☁️ פריסה ל-Streamlit Cloud (חינם, אינטרנטי)
+
+1. צור חשבון ב-https://streamlit.io
+2. צור repo ב-GitHub והעלה את כל הקבצים
+3. ב-Streamlit Cloud: New App → בחר את ה-repo → `app.py`
+4. לחץ Deploy!
+
+**⚠️ חשוב:** הנתונים נשמרים ב-SQLite מקומי. בענן — הנתונים מתאפסים עם כל deploy.
+   פתרון: השתמש ב-st.secrets עם Supabase/PlanetScale לאחסון קבוע בענן.
+
+---
+
+## 🔑 הגדרות API (כולן חינמיות)
+
+### 1. Finnhub — מחירים בזמן אמת
+```
+1. הרשם ב: https://finnhub.io (חינם, 60 קריאות/דקה)
+2. קבל API Key
+3. פתח realtime_data.py שורה 14:
+   FINNHUB_API_KEY = "YOUR_KEY_HERE"
+```
+
+### 2. FRED — נתוני מאקרו
+```
+1. הרשם ב: https://fred.stlouisfed.org/docs/api/api_key.html
+2. קבל API Key חינמי
+3. פתח realtime_data.py שורה 156:
+   FRED_API_KEY = "YOUR_KEY_HERE"
+```
+
+### 3. Telegram Bot — התראות לטלפון
+```
+1. פתח Telegram → חפש @BotFather
+2. שלח /newbot ועקוב אחרי ההוראות
+3. קבל TOKEN
+4. שלח הודעה לבוט שלך
+5. פתח: https://api.telegram.org/bot<TOKEN>/getUpdates
+6. מצא את "id" בתוך "chat" — זה ה-Chat ID
+7. הכנס Token + Chat ID בטאב "📱 טלגרם" באפליקציה
 ```
 
 ---
 
-## 🌐 פריסה לאינטרנט — Streamlit Community Cloud (חינם!)
+## 📁 מבנה קבצים
 
-### שלב 1: העלה ל-GitHub
-1. צור חשבון חינמי ב-github.com
-2. צור Repository חדש (שם: `stock-hub` למשל)
-3. העלה את כל הקבצים:
-   ```bash
-   git init
-   git add .
-   git commit -m "first commit"
-   git remote add origin https://github.com/YOUR_NAME/stock-hub.git
-   git push -u origin main
-   ```
-
-### שלב 2: פרוס ב-Streamlit Cloud
-1. היכנס ל: **https://share.streamlit.io**
-2. לחץ "New app"
-3. בחר את ה-Repository שיצרת
-4. Main file path: `app.py`
-5. לחץ "Deploy!" — האתר חי תוך 3 דקות! 🎉
-
-### ⚠️ חשוב לגבי שמירת נתונים בענן
-ב-Streamlit Cloud, קובץ `hub_data.db` נמחק כשהאפליקציה "מתעוררת" מחדש.
-**פתרון** — הוסף מסד נתונים חיצוני חינמי:
-
-#### אפשרות מומלצת: Supabase (PostgreSQL חינם)
-1. צור חשבון ב-supabase.com
-2. צור פרויקט חדש
-3. קבל את ה-connection string
-4. שנה ב-`storage.py` את `_get_conn()` לחיבור PostgreSQL
+| קובץ | תיאור |
+|------|--------|
+| `app.py` | מרכז האפליקציה — 27 טאבים |
+| `config.py` | רשימות מניות, סחורות, קריפטו, הגדרות |
+| `logic.py` | שליפת נתונים — מניות/סחורות/קריפטו/ת"א |
+| `storage.py` | שמירה ל-SQLite — נתונים לא נאבדים! |
+| `ai_portfolio.py` | תיק מנוהל AI — קנייה/מכירה אוטומטית |
+| `ml_learning_ai.py` | למידת מכונה אמיתית — Random Forest |
+| `realtime_data.py` | Finnhub + Fear&Greed + FRED מאקרו |
+| `pattern_ai.py` | זיהוי דפוסי Chart + Regime Detection |
+| `portfolio_optimizer.py` | Markowitz MPT + Efficient Frontier |
+| `telegram_ai.py` | בוט טלגרם — התראות Push |
+| `commodities_tab.py` | סחורות: זהב, כסף, נפט |
+| `hub_data.db` | מסד נתונים SQLite (נוצר אוטומטית) |
 
 ---
 
-## 🔑 ניהול API Keys (לשלבים מתקדמים)
+## 🔧 התאמה אישית
 
-צור קובץ `.streamlit/secrets.toml`:
-```toml
-TELEGRAM_TOKEN = "your_token_here"
-FINNHUB_KEY = "your_key_here"
-```
-
-וב-Streamlit Cloud — הוסף ב-Settings → Secrets.
-
----
-
-## 📊 שדרוג ל-ML אמיתי (אופציונלי)
-
-להוסיף ל-`requirements.txt`:
-```
-scikit-learn>=1.3.0
-```
-
-ואז ב-`ml_learning_ai.py` להחליף את הסימולציה ב:
+### הוסף מניות ל-Watchlist
+פתח `config.py` ועדכן:
 ```python
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import cross_val_score
+MY_STOCKS_BASE = ["AAPL","NVDA","MSFT","TSLA",
+                   "POLI.TA","LUMI.TA",  # ת"א
+                   "GC=F",               # זהב
+                   "BTC-USD"]            # קריפטו
+```
 
-def train_real_model(df_all):
-    # מאמן על נתוני yfinance אמיתיים
-    ...
+### שנה הון תחלתי של תיק AI
+```python
+AI_PORTFOLIO_DEFAULTS = {
+    "initial_capital": 10000.0,  # ₪
+    "stop_loss_pct":   8.0,      # %
+    "take_profit_pct": 20.0,     # %
+}
 ```
 
 ---
 
-## 🗂️ מבנה הקבצים לאחר העדכון
+## 🆘 פתרון תקלות נפוצות
 
+**"ModuleNotFoundError: sklearn"**
+```bash
+pip install scikit-learn
 ```
-my-stock-hub-web1-main/
-├── app.py              ← עודכן: טוען נתונים מהדיסק בהפעלה
-├── simulator.py        ← עודכן: שומר אחרי כל פעולה
-├── ml_learning_ai.py   ← עודכן: שומר אחרי אימון
-├── storage.py          ← חדש: מנהל כל השמירה/טעינה
-├── hub_data.db         ← נוצר אוטומטית: מסד הנתונים
-├── requirements.txt    ← ללא שינוי (sqlite3 כלול ב-Python)
-└── ... שאר הקבצים ללא שינוי
-```
+
+**"yfinance timeout"**
+- בדוק חיבור אינטרנט
+- נסה שוב — yfinance לפעמים איטי
+
+**"DataError: No objects to concatenate"**
+- הרשימה ריקה — בדוק שיש מניות ב-config.py
+
+**הנתונים מתאפסים**
+- ודא שה-`hub_data.db` קיים בתיקייה
+- אל תמחק קובץ זה!
