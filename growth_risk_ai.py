@@ -1,61 +1,66 @@
-# growth_risk_ai.py
+# growth_risk_ai.py — סוכן צמיחה + Position Sizing
 import streamlit as st
-import pandas as pd
+
 
 def render_growth_and_risk(df_all):
-    st.markdown('<div class="ai-card" style="border-right-color: #e91e63;"><b>🚀 מעבדת צמיחה וניהול סיכונים:</b> השלמה לאסטרטגיית ה-PDF. כאן אנחנו צדים "מפלצות צמיחה" ומנהלים את הסיכון המתמטי של התיק.</div>', unsafe_allow_html=True)
-    
-    t1, t2 = st.tabs(["🚀 סוכן צמיחה אגרסיבית (Hyper-Growth)", "🧮 מחשבון ניהול סיכונים (Position Sizing)"])
-    
+    st.markdown(
+        '<div class="ai-card" style="border-right-color: #e91e63;">'
+        '<b>🚀 מעבדת צמיחה וסיכונים:</b> סורק Hyper-Growth + מחשבון Position Sizing.</div>',
+        unsafe_allow_html=True,
+    )
+
+    t1, t2 = st.tabs(["🚀 סוכן צמיחה", "🧮 מחשבון סיכונים"])
+
     with t1:
-        st.markdown("### 🚀 סוכן מניות צמיחה (בהשראת CAN SLIM)")
-        st.write("בניגוד לסוכן הערך (PDF) שמרן, סוכן זה מחפש חברות טכנולוגיה וחדשנות שצומחות בקצב מסחרר. הוא מוכן לקבל חובות ושולי רווח נמוכים, כל עוד ההכנסות טסות והמומנטום בגרף חיובי.")
-        
-        if st.button("🚀 הפעל סורק צמיחה מואצת"):
-            # סינון: צמיחת מכירות מעל 20%, ומומנטום טכני חיובי (RSI מעל 55 ומחיר מעל ממוצע 50)
-            growth_stocks = df_all[(df_all['RevGrowth'] >= 20) & (df_all['RSI'] > 55) & (df_all['Price'] > df_all['MA50'])].sort_values(by="RevGrowth", ascending=False)
-            
-            if not growth_stocks.empty:
-                st.success(f"ה-AI איתר {len(growth_stocks)} מניות צמיחה על הרדאר!")
-                st.dataframe(
-                    growth_stocks[["Symbol", "PriceStr", "RevGrowth", "RSI", "TargetUpside"]],
-                    column_config={
-                        "Symbol": "סימול",
-                        "PriceStr": "מחיר פריצה",
-                        "RevGrowth": st.column_config.NumberColumn("זינוק בהכנסות 🚀", format="%.1f%%"),
-                        "RSI": st.column_config.NumberColumn("עוצמת מומנטום", format="%.1f"),
-                        "TargetUpside": st.column_config.NumberColumn("פוטנציאל לפי אנליסטים", format="+%.1f%%")
-                    },
-                    use_container_width=True, hide_index=True
-                )
-                st.info("💡 **טיפ מסוכן הצמיחה:** מניות צמיחה הן תנודתיות מאוד. חובה להשתמש ב-Stop-Loss של מקסימום 7%-10% ממחיר הכניסה כדי לחתוך הפסדים מוקדם.")
+        st.markdown("### 🚀 סורק צמיחה מואצת (מכירות >20%, RSI>55, מחיר>MA50)")
+        if st.button("🔍 הפעל סורק", type="primary", key="growth_scan"):
+            if df_all.empty:
+                st.error("אין נתונים.")
             else:
-                st.warning("השוק חלש כרגע. לא נמצאו מניות עם מומנטום צמיחה אגרסיבי.")
+                growth = df_all[
+                    (df_all["RevGrowth"] >= 20) &
+                    (df_all["RSI"] > 55) &
+                    (df_all["Price"] > df_all["MA50"])
+                ].sort_values("RevGrowth", ascending=False)
+
+                if not growth.empty:
+                    st.success(f"ה-AI איתר {len(growth)} מניות צמיחה!")
+                    st.dataframe(
+                        growth[["Symbol", "PriceStr", "RevGrowth", "RSI", "TargetUpside"]],
+                        column_config={
+                            "Symbol":      "סימול",
+                            "PriceStr":    "מחיר",
+                            "RevGrowth":   st.column_config.NumberColumn("צמיחה 🚀", format="%.1f%%"),
+                            "RSI":         st.column_config.NumberColumn("RSI", format="%.1f"),
+                            "TargetUpside": st.column_config.NumberColumn("פוטנציאל", format="+%.1f%%"),
+                        },
+                        use_container_width=True, hide_index=True,
+                    )
+                    st.info("💡 חובה Stop-Loss של 7%-10% מהכניסה!")
+                else:
+                    st.warning("לא נמצאו מניות צמיחה כרגע.")
 
     with t2:
-        st.markdown("### 🧮 מחשבון סיכונים של וול-סטריט (Position Sizing)")
-        st.write("הכנס את הנתונים כדי לדעת **בדיוק** כמה מניות לקנות, כך שלעולם לא תמחק את התיק שלך בעסקה כושלת אחת.")
-        
-        col1, col2, col3 = st.columns(3)
+        st.markdown("### 🧮 מחשבון Position Sizing")
+        col1, col2 = st.columns(2)
         with col1:
-            total_capital = st.number_input("💵 גודל התיק הכולל שלך ($):", min_value=100, value=10000, step=1000)
-            risk_percent = st.number_input("🚨 סיכון לעסקה (ממליץ 1%-2%):", min_value=0.1, max_value=10.0, value=1.0, step=0.5)
+            capital = st.number_input("💵 גודל תיק ($):", min_value=100, value=10000, step=1000)
+            risk_pct = st.number_input("🚨 סיכון לעסקה (%):", min_value=0.1, max_value=10.0, value=1.5, step=0.5)
         with col2:
-            entry_price = st.number_input("🎯 מחיר קנייה מתוכנן למניה ($):", min_value=0.1, value=100.0, step=1.0)
-            stop_loss = st.number_input("🛑 מחיר עצירת הפסד (Stop-Loss $):", min_value=0.1, value=90.0, step=1.0)
-        
-        with col3:
-            st.markdown("<br>", unsafe_allow_html=True) # ריווח
-            if st.button("🧮 חשב פוזיציה מדויקת"):
-                if entry_price <= stop_loss:
-                    st.error("מחיר ה-Stop-Loss חייב להיות נמוך ממחיר הקנייה (לעסקאות לונג)!")
-                else:
-                    risk_amount_dollars = total_capital * (risk_percent / 100)
-                    risk_per_share = entry_price - stop_loss
-                    shares_to_buy = risk_amount_dollars / risk_per_share
-                    total_investment = shares_to_buy * entry_price
-                    
-                    st.success("✅ **תוצאות החישוב של ה-AI:**")
-                    st.markdown(f"כדי לסכן בדיוק **${risk_amount_dollars:,.2f}** (שהם {risk_percent}% מהתיק שלך):")
-                    st.markdown(f"👉 עליך לקנות **{int(shares_to_buy)} מניות**.")
-                    st.markdown(f"💰 סך ההשקעה שתידרש בעסקה: **${total_investment:,.2f}**.")
+            entry = st.number_input("🎯 מחיר כניסה ($):", min_value=0.01, value=100.0, step=1.0)
+            stop = st.number_input("🛑 Stop-Loss ($):", min_value=0.01, value=93.0, step=1.0)
+
+        if st.button("🧮 חשב", type="primary", key="growth_calc"):
+            if entry <= stop:
+                st.error("Stop-Loss חייב להיות נמוך ממחיר הכניסה!")
+            else:
+                risk_usd = capital * (risk_pct / 100)
+                rps = entry - stop
+                shares = int(risk_usd / rps)
+                total_inv = shares * entry
+                pct = (total_inv / capital) * 100
+                c1, c2, c3 = st.columns(3)
+                c1.metric("מניות לקנות", f"{shares}")
+                c2.metric("סך השקעה", f"${total_inv:,.2f}")
+                c3.metric("% מהתיק", f"{pct:.1f}%")
+                st.info(f"מסכן **${risk_usd:,.2f}** ({risk_pct}% מהתיק). Stop: ${stop:.2f}")

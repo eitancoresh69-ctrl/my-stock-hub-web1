@@ -1,120 +1,108 @@
-# ml_learning_ai.py - למידת מכונה מלאה (הדמייה)
+# ml_learning_ai.py — למידת מכונה (הדמייה)
 import streamlit as st
 import pandas as pd
 import random
 from datetime import datetime, timedelta
 
+
 def render_machine_learning():
-    st.markdown('<div class="ai-card" style="border-right-color: #9c27b0;"><b>🧠 מודול למידת מכונה (Machine Learning)</b> — ה-AI לומד מעסקאות העבר שלך ומשפר את דיוק חיזוי הכניסות ביציאות לאורך זמן.</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="ai-card" style="border-right-color: #9c27b0;">'
+        '<b>🧠 למידת מכונה:</b> ה-AI לומד מעסקאות העבר ומשפר דיוק חיזוי.</div>',
+        unsafe_allow_html=True,
+    )
 
-    if 'ml_model_trained' not in st.session_state:
-        st.session_state.ml_model_trained = False
-        st.session_state.ml_accuracy = 0.0
-        st.session_state.ml_runs = 0
-        st.session_state.ml_params = {"risk_ratio": 1.0, "rsi_buy": 40, "rsi_sell": 65, "min_score": 4}
-        st.session_state.ml_insights = []
+    for key, default in [
+        ("ml_trained", False), ("ml_accuracy", 0.0), ("ml_runs", 0),
+        ("ml_params", {"risk_ratio": 1.0, "rsi_buy": 40, "rsi_sell": 65, "min_score": 4}),
+        ("ml_insights", []),
+    ]:
+        if key not in st.session_state:
+            st.session_state[key] = default
 
-    # --- סטטוס ---
-    if not st.session_state.ml_model_trained:
-        st.info("🟡 מודל לא אומן עדיין. לחץ 'אמן מודל AI' כדי להתחיל.")
+    if not st.session_state.ml_trained:
+        st.info("🟡 מודל לא אומן עדיין.")
     else:
-        st.success(f"✅ מודל פעיל | דיוק: **{st.session_state.ml_accuracy:.1f}%** | ריצות אימון: {st.session_state.ml_runs}")
+        st.success(f"✅ מודל פעיל | דיוק: **{st.session_state.ml_accuracy:.1f}%** | ריצות: {st.session_state.ml_runs}")
 
-    # --- מדדים ---
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("🎯 דיוק חיזוי", f"{st.session_state.ml_accuracy:.1f}%")
-    m2.metric("⚖️ יחס סיכוי/סיכון", f"1:{st.session_state.ml_params['risk_ratio']:.1f}")
-    m3.metric("📊 RSI כניסה אופטימלי", f"≤{st.session_state.ml_params['rsi_buy']}")
-    m4.metric("⭐ ציון PDF מינימום", str(st.session_state.ml_params['min_score']))
+    m1.metric("🎯 דיוק", f"{st.session_state.ml_accuracy:.1f}%")
+    m2.metric("⚖️ R/R", f"1:{st.session_state.ml_params['risk_ratio']:.1f}")
+    m3.metric("📊 RSI כניסה", f"≤{st.session_state.ml_params['rsi_buy']}")
+    m4.metric("⭐ ציון מינימום", str(st.session_state.ml_params["min_score"]))
 
     st.divider()
-
-    # --- הגדרות אימון ---
-    st.subheader("🏋️ הגדרות אימון")
     col1, col2 = st.columns(2)
     with col1:
-        lookback = st.slider("📅 חלון זמן לאימון (ימים)", 7, 180, 30, key="ml_lookback")
-        algo = st.selectbox("🔢 אלגוריתם", ["Random Forest", "Gradient Boosting", "XGBoost", "LSTM (נוירונים)", "Ensemble (משולב — מומלץ)"], key="ml_algo")
-        train_split = st.slider("📊 % נתונים לאימון (vs. ולידציה)", 60, 90, 80, key="ml_split")
+        algo = st.selectbox("🔢 אלגוריתם", [
+            "Random Forest", "Gradient Boosting", "XGBoost",
+            "LSTM (נוירונים)", "Ensemble (משולב — מומלץ)"
+        ], key="ml_algo")
+        st.slider("📅 חלון אימון (ימים)", 7, 180, 30, key="ml_window")
     with col2:
-        features = st.multiselect("📌 פיצ'רים לאימון",
-            ["RSI", "Score (PDF)", "RevGrowth", "Margin", "ROE", "MA50", "DivYield", "VIX", "InsiderHeld", "TargetUpside"],
-            default=["RSI", "Score (PDF)", "RevGrowth", "Margin"], key="ml_features")
+        features = st.multiselect("📌 פיצ'רים", [
+            "RSI", "Score (PDF)", "RevGrowth", "Margin", "ROE",
+            "MA50", "DivYield", "VIX", "InsiderHeld", "TargetUpside"
+        ], default=["RSI", "Score (PDF)", "RevGrowth", "Margin"], key="ml_features")
 
-    if st.button("🚀 אמן מודל AI", type="primary", key="ml_train"):
+    if st.button("🚀 אמן מודל", type="primary", key="ml_train"):
         if not features:
-            st.warning("בחר לפחות פיצ'ר אחד לאימון.")
+            st.warning("בחר פיצ'ר אחד לפחות.")
         else:
-            with st.spinner(f"🧠 מאמן {algo} על {lookback} ימי מסחר | {len(features)} פיצ'רים..."):
+            with st.spinner(f"מאמן {algo}..."):
                 import time; time.sleep(1.5)
-
                 base = 52 + len(features) * 2.5 + random.uniform(-3, 4)
                 bonus = min(st.session_state.ml_runs * 1.8, 18)
                 st.session_state.ml_accuracy = min(round(base + bonus, 1), 83.0)
-                st.session_state.ml_model_trained = True
+                st.session_state.ml_trained = True
                 st.session_state.ml_runs += 1
-
                 st.session_state.ml_params = {
                     "risk_ratio": round(1.4 + random.uniform(0, 1.2), 1),
-                    "rsi_buy": random.choice([33, 36, 38, 40, 42]),
-                    "rsi_sell": random.choice([62, 65, 68, 70]),
-                    "min_score": random.choices([4, 5], weights=[0.6, 0.4])[0]
+                    "rsi_buy":    random.choice([33, 36, 38, 40, 42]),
+                    "rsi_sell":   random.choice([62, 65, 68, 70]),
+                    "min_score":  random.choices([4, 5], weights=[0.6, 0.4])[0],
                 }
-
-                insights = [
-                    f"📊 הפיצ'ר החזק ביותר: **{random.choice(features)}** (חשיבות {random.randint(28,45)}%)",
-                    f"📈 תבנית RSI מנצחת: קנייה כשRSI < {st.session_state.ml_params['rsi_buy']} + Score ≥ {st.session_state.ml_params['min_score']}",
-                    f"⚠️ תבנית RSI מפסידה: קנייה כשRSI > {st.session_state.ml_params['rsi_sell']} בשוק יורד (כשל ב-{random.randint(68,79)}% מהמקרים)",
-                    f"💡 גודל פוזיציה אופטימלי: {random.randint(8,15)}% מהתיק לכל עסקה",
-                    f"🎯 יחס רווח/הפסד מומלץ: 1:{st.session_state.ml_params['risk_ratio']:.1f}"
+                st.session_state.ml_insights = [
+                    f"📊 פיצ'ר חזק: **{random.choice(features)}** ({random.randint(28,45)}%)",
+                    f"📈 כניסה מנצחת: RSI<{st.session_state.ml_params['rsi_buy']} + Score≥{st.session_state.ml_params['min_score']}",
+                    f"⚠️ כניסה מפסידה: RSI>{st.session_state.ml_params['rsi_sell']} בשוק יורד",
+                    f"💡 גודל פוזיציה: {random.randint(8,15)}% מהתיק",
+                    f"🎯 R/R: 1:{st.session_state.ml_params['risk_ratio']:.1f}",
                 ]
-                st.session_state.ml_insights = insights
-
-            st.success(f"✅ אימון הושלם! דיוק: {st.session_state.ml_accuracy:.1f}% | ריצה #{st.session_state.ml_runs}")
+            st.success(f"✅ דיוק: {st.session_state.ml_accuracy:.1f}%")
             st.rerun()
 
-    # --- תובנות ---
     if st.session_state.ml_insights:
-        st.subheader("💡 תובנות AI מהאימון האחרון")
-        for insight in st.session_state.ml_insights:
-            st.markdown(f"- {insight}")
+        st.subheader("💡 תובנות")
+        for ins in st.session_state.ml_insights:
+            st.markdown(f"- {ins}")
 
-    # --- פרמטרים מעודכנים ---
-    if st.session_state.ml_model_trained:
-        st.subheader("⚙️ פרמטרים אופטימליים שה-AI גילה")
+    if st.session_state.ml_trained:
         p = st.session_state.ml_params
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("📈 RSI קנייה", f"< {p['rsi_buy']}")
-        c2.metric("📉 RSI מכירה", f"> {p['rsi_sell']}")
-        c3.metric("⭐ ציון מינימום", str(p['min_score']))
-        c4.metric("⚖️ יחס R/R", f"1:{p['risk_ratio']:.1f}")
+        c1.metric("RSI קנייה", f"< {p['rsi_buy']}")
+        c2.metric("RSI מכירה", f"> {p['rsi_sell']}")
+        c3.metric("ציון מינימום", str(p["min_score"]))
+        c4.metric("R/R", f"1:{p['risk_ratio']:.1f}")
 
-        st.info(f"💡 **המלצת AI לסוכנים:** עדכן את הסוכנים לקנות כש-RSI < {p['rsi_buy']} וציון PDF ≥ {p['min_score']}, עם יחס סיכוי/סיכון של 1:{p['risk_ratio']:.1f}.")
-
-    # --- נתוני אימון ---
-    with st.expander("📋 דוגמת נתוני אימון (30 עסקאות אחרונות)"):
-        symbols = ["AAPL", "NVDA", "MSFT", "TSLA", "META", "GOOGL", "AMZN", "PLTR"]
-        demo_data = []
+    with st.expander("📋 נתוני אימון (30 עסקאות)"):
+        symbols = ["AAPL", "NVDA", "MSFT", "TSLA", "META", "PLTR"]
+        demo = []
         for i in range(30):
-            rsi = round(random.uniform(28, 75), 1)
-            score = random.randint(2, 6)
             ret = round(random.gauss(1.2, 3.5), 2)
-            outcome = "✅ הצלחה" if ret > 0 else "❌ כישלון"
-            demo_data.append({
+            demo.append({
                 "סימול": random.choice(symbols),
                 "תאריך": (datetime.now() - timedelta(days=30-i)).strftime("%d/%m"),
-                "RSI כניסה": rsi, "Score": score,
-                "תשואה (%)": ret, "תוצאה": outcome
+                "RSI": round(random.uniform(28, 75), 1),
+                "Score": random.randint(2, 6),
+                "תשואה %": ret,
+                "תוצאה": "✅" if ret > 0 else "❌",
             })
-        st.dataframe(pd.DataFrame(demo_data), use_container_width=True, hide_index=True)
-        wins = sum(1 for d in demo_data if "הצלחה" in d["תוצאה"])
-        st.metric("אחוז הצלחה בנתונים אלה", f"{(wins/30)*100:.0f}%")
+        st.dataframe(pd.DataFrame(demo), use_container_width=True, hide_index=True)
+        wins = sum(1 for d in demo if d["תוצאה"] == "✅")
+        st.metric("אחוז הצלחה", f"{(wins/30)*100:.0f}%")
 
-    # --- איפוס ---
-    if st.session_state.ml_model_trained:
-        if st.button("🗑️ איפוס מודל והתחלה מחדש", key="ml_reset"):
-            st.session_state.ml_model_trained = False
+    if st.session_state.ml_trained:
+        if st.button("🗑️ איפוס מודל", key="ml_reset"):
+            st.session_state.ml_trained = False
             st.session_state.ml_accuracy = 0.0
-            st.session_state.ml_runs = 0
-            st.session_state.ml_insights = []
-            st.rerun()

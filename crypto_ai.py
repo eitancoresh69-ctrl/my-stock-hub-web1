@@ -1,59 +1,68 @@
-# crypto_ai.py
+# crypto_ai.py — קריפטו בזמן אמת
 import streamlit as st
 import yfinance as yf
 import pandas as pd
 
+
+@st.cache_data(ttl=60)
+def _fetch_crypto(sym):
+    try:
+        hist = yf.Ticker(sym).history(period="7d")
+        return hist if not hist.empty else None
+    except Exception:
+        return None
+
+
 def render_crypto_arena():
-    st.markdown('<div class="ai-card" style="border-right-color: #f7931a;"><b>₿ זירת הקריפטו (Crypto Pro):</b> ניתוח מטבעות מובילים כולל גרף התנהגות חי (Sparkline) של 7 הימים האחרונים.</div>', unsafe_allow_html=True)
-    
-    crypto_symbols = {"BTC-USD": "ביטקוין (BTC)", "ETH-USD": "אתריום (ETH)", "SOL-USD": "סולאנה (SOL)", "XRP-USD": "ריפל (XRP)"}
-    
-    with st.spinner("שואב נתוני בלוקצ'יין, מחזורי מסחר וגרפים..."):
-        rows = []
-        for sym, name in crypto_symbols.items():
+    st.markdown(
+        '<div class="ai-card" style="border-right-color: #f7931a;">'
+        '<b>₿ זירת קריפטו:</b> נתונים חיים + גרף 7 ימים.</div>',
+        unsafe_allow_html=True,
+    )
+
+    cryptos = {
+        "BTC-USD": "ביטקוין (BTC)",
+        "ETH-USD": "אתריום (ETH)",
+        "SOL-USD": "סולאנה (SOL)",
+        "XRP-USD": "ריפל (XRP)",
+        "DOGE-USD": "דוג'קוין (DOGE)",
+    }
+
+    rows = []
+    with st.spinner("שואב נתוני קריפטו..."):
+        for sym, name in cryptos.items():
             try:
-                ticker = yf.Ticker(sym)
-                # שואב 7 ימים כדי לייצר את הגרף הקטן בטבלה
-                hist = ticker.history(period="7d")
-                if not hist.empty and len(hist) >= 2:
-                    px = hist['Close'].iloc[-1]
-                    prev_px = hist['Close'].iloc[-2]
-                    change = ((px / prev_px) - 1) * 100
-                    vol = hist['Volume'].iloc[-1] / 1e9 # מיליארדים
-                    
-                    # רשימת המחירים לטובת ציור הגרף המיניאטורי
-                    trend_data = hist['Close'].tolist()
-                    
-                    if change > 3: action = "מומנטום פריצה 🟢"
-                    elif change < -3: action = "תיקון אגרסיבי 🔴"
-                    else: action = "דשדוש יציב ⚪"
-                    
+                hist = _fetch_crypto(sym)
+                if hist is not None and not hist.empty and len(hist) >= 2:
+                    px = hist["Close"].iloc[-1]
+                    chg = ((px / hist["Close"].iloc[-2]) - 1) * 100
+                    vol = hist["Volume"].iloc[-1] / 1e9
+                    trend = hist["Close"].tolist()
+                    status = ("מומנטום פריצה 🟢" if chg > 3
+                              else "תיקון אגרסיבי 🔴" if chg < -3 else "דשדוש ⚪")
                     rows.append({
                         "מטבע": name,
-                        "מחיר נוכחי ($)": px,
-                        "שינוי 24H": change,
-                        "נפח מסחר (מיליארדים)": vol,
-                        "גרף 7 ימים": trend_data,
-                        "סטטוס AI": action
+                        "מחיר ($)": px,
+                        "שינוי 24H": chg,
+                        "נפח (B$)": vol,
+                        "גרף 7 ימים": trend,
+                        "סטטוס AI": status,
                     })
-            except: pass
-            
-        if rows:
-            df_crypto = pd.DataFrame(rows)
-            
-            # שימוש ביכולות החדשות של Streamlit לציור גרפים בתוך טבלה
-            st.dataframe(
-                df_crypto, 
-                column_config={
-                    "מטבע": st.column_config.TextColumn("מטבע", width="medium"),
-                    "מחיר נוכחי ($)": st.column_config.NumberColumn("מחיר נוכחי", format="$%.2f"),
-                    "שינוי 24H": st.column_config.NumberColumn("שינוי 24 שעות", format="%.2f%%"),
-                    "נפח מסחר (מיליארדים)": st.column_config.NumberColumn("נפח מסחר (B)", format="$%.2fB"),
-                    "גרף 7 ימים": st.column_config.LineChartColumn("מגמת מחיר (7 ימים) 📈", y_min=0),
-                    "סטטוס AI": st.column_config.TextColumn("סטטוס AI")
-                }, 
-                use_container_width=True, 
-                hide_index=True
-            )
-            
-            st.info("💡 **אסטרטגיית קריפטו AI:** שימו לב ל'נפח המסחר'. עליית מחיר עם נפח מסחר נמוך עשויה להיות מלכודת (Fakeout). כניסה לטרייד בקריפטו דורשת נפח שמגבה את התנועה.")
+            except Exception:
+                pass
+
+    if rows:
+        st.dataframe(
+            pd.DataFrame(rows),
+            column_config={
+                "מחיר ($)": st.column_config.NumberColumn("מחיר", format="$%.2f"),
+                "שינוי 24H": st.column_config.NumberColumn("שינוי 24H", format="%.2f%%"),
+                "נפח (B$)": st.column_config.NumberColumn("נפח (B$)", format="$%.2fB"),
+                "גרף 7 ימים": st.column_config.LineChartColumn("מגמה 7 ימים 📈", y_min=0),
+            },
+            use_container_width=True,
+            hide_index=True,
+        )
+        st.info("💡 **AI:** BTC מוביל > 60% = שוק שור. ETH/SOL/XRP מובילים = עונת altcoins.")
+    else:
+        st.warning("לא ניתן לשאוב נתוני קריפטו כרגע.")
