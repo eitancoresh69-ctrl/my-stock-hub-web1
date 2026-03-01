@@ -7,6 +7,7 @@ from datetime import datetime
 from config import HELP, MY_STOCKS_BASE, SCAN_LIST
 from logic import fetch_master_data
 from storage import load_all_to_session, save, load  # ← שמירת נתונים קבועה
+import realtime_data  # ← נתוני זמן אמת: Finnhub + Fear&Greed + מאקרו
 import market_ai, bull_bear, simulator, podcasts_ai, alerts_ai
 import financials_ai, crypto_ai, news_ai, telegram_ai, analytics_ai
 import pro_tools_ai, premium_agents_ai, growth_risk_ai, backtest_ai
@@ -77,6 +78,16 @@ c3.metric("📋 סה\"כ בניתוח", len(df_all) if not df_all.empty else 0)
 c4.metric("🕒 עדכון", datetime.now().strftime("%H:%M"))
 c5.metric("🛡️ מצב", "🔴 Kill Switch" if st.session_state.get("kill_switch_active", False) else "🟢 תקין")
 
+# ─── פס מחירים חיים + Fear & Greed ───
+with st.expander("📡 מחירים חיים + Fear & Greed Index", expanded=True):
+    col_fg, col_px = st.columns([1, 2])
+    with col_fg:
+        st.markdown("**😱 Fear & Greed Index**")
+        realtime_data.render_fear_greed_widget()
+    with col_px:
+        st.markdown("**💹 מחירים חיים**")
+        realtime_data.render_live_prices_strip(list(set(MY_STOCKS_BASE + SCAN_LIST)))
+
 # ── סריקה אוטומטית ברקע ──
 market_scanner.maybe_auto_scan()
 
@@ -138,6 +149,7 @@ tabs = st.tabs([
     "🧠 למידת מכונה",   # 19
     "🐦 רשתות",         # 20
     "💸 מיסים",         # 21
+    "📡 נתונים חיים",   # 22 — חדש!
 ])
 
 # ── טאב 0: התיק ──
@@ -323,10 +335,14 @@ with tabs[19]:
     failsafes_ai.render_failsafes()
 
 with tabs[20]:
-    ml_learning_ai.render_machine_learning()
+    ml_learning_ai.render_machine_learning(df_all)
 
 with tabs[21]:
     social_sentiment_ai.render_social_intelligence()
 
 with tabs[22]:
     tax_fees_ai.render_tax_optimization()
+
+# טאב חדש: נתונים חיים
+with tabs[23]:
+    realtime_data.render_full_realtime_panel(list(set(MY_STOCKS_BASE + SCAN_LIST)))
