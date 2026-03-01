@@ -1,4 +1,3 @@
-# storage.py — ניהול שמירת נתונים קבועה ב-SQLite
 import sqlite3
 import pandas as pd
 import datetime
@@ -11,7 +10,7 @@ def _get_conn():
 def init_db():
     conn = _get_conn()
     cursor = conn.cursor()
-    # יצירת טבלה לתיק הסוכנים עם מחיר קנייה ומחיר נוכחי
+    # טבלה לתיק הסוכנים: שומרת מחיר קנייה ומחיר נוכחי לחישוב P&L
     cursor.execute('''CREATE TABLE IF NOT EXISTS agent_portfolio 
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                        symbol TEXT, buy_price REAL, current_price REAL, 
@@ -29,7 +28,8 @@ def save_agent_trade(symbol, price, agent_type):
     conn.close()
 
 def update_agent_prices(df_all):
-    """עדכון מחירים נוכחיים לחישוב רווח/הפסד בזמן אמת"""
+    """מעדכן את המחירים הנוכחיים בתיק הסוכנים מתוך הסריקה האחרונה"""
+    if df_all.empty: return
     conn = _get_conn()
     cursor = conn.cursor()
     for _, row in df_all.iterrows():
@@ -43,6 +43,13 @@ def load_agent_portfolio():
     df = pd.read_sql_query("SELECT * FROM agent_portfolio WHERE status = 'OPEN'", conn)
     conn.close()
     if not df.empty:
-        # חישוב אחוזי רווח/הפסד
-        df['Profit_Pct'] = (df['current_price'] - df['buy_price']) / df['buy_price'] * 100
+        # חישוב תשואה באחוזים
+        df['Yield_%'] = (df['current_price'] - df['buy_price']) / df['buy_price'] * 100
+        df['PnL_$'] = df['current_price'] - df['buy_price']
     return df
+
+def clear_agent_portfolio():
+    conn = _get_conn()
+    conn.execute("DELETE FROM agent_portfolio")
+    conn.commit()
+    conn.close()
