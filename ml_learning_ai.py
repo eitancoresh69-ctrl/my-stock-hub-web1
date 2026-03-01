@@ -376,8 +376,17 @@ def render_machine_learning(df_all=None):
                     c2.metric("📊 תנודתיות",    f"{res['volatility']:.1f}%")
                     c3.metric("⚖️ Sharpe",       f"{res['sharpe']:.2f}")
                     with st.expander("🔗 מטריצת קורלציה"):
-                        st.dataframe(res["corr"].style.applymap(lambda v: "background-color:#c8e6c9;color:#1b5e20" if v>0.3 else ("background-color:#ffcdd2;color:#b71c1c" if v<-0.3 else "background-color:#fff8e1;color:#555") if v!=1.0 else "background-color:#1565c0;color:white"),
-                                     use_container_width=True)
+                        import plotly.express as px
+                        corr_clean = res["corr"].fillna(0).round(2)
+                        fig_corr = px.imshow(
+                            corr_clean, text_auto=True,
+                            color_continuous_scale="RdYlGn",
+                            zmin=-1, zmax=1,
+                            title="קורלציה בין נכסים (1=תנועה זהה, -1=הפוכה, 0=ללא קשר)"
+                        )
+                        fig_corr.update_layout(height=400, font=dict(size=11))
+                        st.plotly_chart(fig_corr, use_container_width=True)
+                        st.caption("🟢 ירוק = קורלציה חיובית | 🔴 אדום = קורלציה שלילית (גידור) | 🟡 צהוב = אין קשר (פיזור טוב!)")
                 else:
                     st.error(res.get("error","שגיאה"))
 
@@ -395,6 +404,7 @@ def render_machine_learning(df_all=None):
                     ])
                     feat = np.nan_to_num(feat)
                     iso  = IsolationForest(contamination=0.15, random_state=42)
+                    iso.fit(feat)  # ← חייב לאמן לפני score_samples
                     scores = iso.score_samples(feat)
                     df_all2 = df_all.copy()
                     df_all2["אנומליה"] = scores

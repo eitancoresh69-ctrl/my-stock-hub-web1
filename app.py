@@ -1,4 +1,4 @@
-# app.py — Investment Hub Elite 2026 — גרסה סופית מלאה
+# app.py — Investment Hub Elite 2026 — גרסה סופית + Tooltips עברית
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -8,6 +8,7 @@ from config import (HELP, MY_STOCKS_BASE, SCAN_LIST,
                     COMMODITIES_SYMBOLS, CRYPTO_SYMBOLS, TASE_SCAN)
 from logic   import fetch_master_data
 from storage import load_all_to_session, save, load
+from tooltips_he import inject_tooltip_css, tooltip, render_glossary
 
 import realtime_data, market_ai, bull_bear, simulator
 import podcasts_ai, alerts_ai, financials_ai, crypto_ai
@@ -31,97 +32,46 @@ try:
 except Exception:
     pass
 
-# ─── עיצוב: רקע לבן, מבטי צבע כחולים ──────────────────────────────────────
+# ─── עיצוב + Tooltips ────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;800&display=swap');
-
-html, body, [class*="css"] {
-    font-family: 'Heebo', sans-serif !important;
-    direction: rtl;
-    text-align: right;
-}
-
-/* ── רקע ראשי: לבן נקי ── */
-.stApp { background: #f5f7fa !important; }
-.block-container { padding-top: 0.5rem !important; max-width: 100% !important; }
-
-/* ── כרטיס AI ── */
+html, body, [class*="css"] { font-family:'Heebo',sans-serif !important; direction:rtl; text-align:right; }
+.stApp { background:#f5f7fa !important; }
+.block-container { padding-top:0.5rem !important; max-width:100% !important; }
 .ai-card {
-    background: #ffffff;
-    padding: 12px 18px;
-    border-radius: 12px;
-    border-right: 5px solid #1976d2;
-    box-shadow: 0 1px 6px rgba(0,0,0,0.08);
-    margin-bottom: 10px;
+    background:#fff; padding:12px 18px; border-radius:12px;
+    border-right:5px solid #1976d2;
+    box-shadow:0 1px 6px rgba(0,0,0,0.08); margin-bottom:10px;
 }
-
-/* ── פס כותרת ─  gradient כחול חיוני ── */
 .hub-header {
-    background: linear-gradient(135deg, #1565c0 0%, #1976d2 55%, #42a5f5 100%);
-    border-radius: 14px;
-    padding: 16px 22px;
-    margin-bottom: 12px;
-    box-shadow: 0 4px 18px rgba(21,101,192,0.22);
+    background:linear-gradient(135deg,#1565c0 0%,#1976d2 55%,#42a5f5 100%);
+    border-radius:14px; padding:16px 22px; margin-bottom:12px;
+    box-shadow:0 4px 18px rgba(21,101,192,0.22);
 }
-
-/* ── מדדים (metrics) ── */
 [data-testid="stMetric"] {
-    background: #ffffff;
-    border-radius: 10px;
-    padding: 8px 14px;
-    box-shadow: 0 1px 5px rgba(0,0,0,0.07);
-    border: 1px solid #e8edf2;
+    background:#fff; border-radius:10px; padding:8px 14px;
+    box-shadow:0 1px 5px rgba(0,0,0,0.07); border:1px solid #e8edf2;
 }
-[data-testid="stMetricLabel"] { color: #607d8b !important; font-size: 11px !important; font-weight: 700 !important; }
-[data-testid="stMetricValue"] { color: #1a237e !important; font-size: 20px !important; font-weight: 800 !important; }
-
-/* ── טאבים ── */
-div[data-testid="stTabs"] button {
-    font-weight: 700 !important; font-size: 11px !important;
-    color: #546e7a !important;
-}
-div[data-testid="stTabs"] button:hover { color: #1565c0 !important; background: #e3f2fd !important; }
+[data-testid="stMetricLabel"] { color:#607d8b !important; font-size:11px !important; font-weight:700 !important; }
+[data-testid="stMetricValue"] { color:#1a237e !important; font-size:20px !important; font-weight:800 !important; }
+div[data-testid="stTabs"] button { font-weight:700 !important; font-size:11px !important; color:#546e7a !important; }
+div[data-testid="stTabs"] button:hover { color:#1565c0 !important; background:#e3f2fd !important; }
 div[data-testid="stTabs"] button[aria-selected="true"] {
-    color: #1565c0 !important;
-    border-bottom: 3px solid #1565c0 !important;
-    background: #fff !important;
+    color:#1565c0 !important; border-bottom:3px solid #1565c0 !important; background:#fff !important;
 }
-
-/* ── טבלאות ── */
-[data-testid="stDataFrame"] th {
-    background: #e3f2fd !important;
-    color: #1565c0 !important; font-weight: 700 !important;
-}
-[data-testid="stDataFrame"] td { font-size: 13px !important; }
-
-/* ── כפתורים ── */
-.stButton > button {
-    border-radius: 8px !important; font-weight: 700 !important;
-    font-family: 'Heebo', sans-serif !important; border: none !important;
-    transition: all 0.15s ease;
-}
-.stButton > button[kind="primary"] {
-    background: linear-gradient(135deg,#1565c0,#1976d2) !important;
-    color: #fff !important;
-}
-.stButton > button[kind="primary"]:hover { filter: brightness(1.1); }
-.stButton > button[kind="secondary"] {
-    background: #e3f2fd !important; color: #1565c0 !important;
-}
-
-/* ── expanders ── */
-details summary { color: #1565c0 !important; font-weight: 700 !important; }
-
-/* ── dividers ── */
-hr { border-color: #e8edf2 !important; }
-
-/* ── inputs ── */
-input, textarea, select {
-    border-radius: 8px !important; border: 1px solid #cfd8dc !important;
-}
+[data-testid="stDataFrame"] th { background:#e3f2fd !important; color:#1565c0 !important; font-weight:700 !important; }
+[data-testid="stDataFrame"] td { font-size:13px !important; }
+.stButton > button { border-radius:8px !important; font-weight:700 !important; font-family:'Heebo',sans-serif !important; border:none !important; }
+.stButton > button[kind="primary"] { background:linear-gradient(135deg,#1565c0,#1976d2) !important; color:#fff !important; }
+.stButton > button[kind="secondary"] { background:#e3f2fd !important; color:#1565c0 !important; }
+details summary { color:#1565c0 !important; font-weight:700 !important; }
+hr { border-color:#e8edf2 !important; }
+input, textarea, select { border-radius:8px !important; border:1px solid #cfd8dc !important; }
 </style>
 """, unsafe_allow_html=True)
+
+inject_tooltip_css()   # ← מזריק CSS לטולטיפים
 
 # ─── שליפת נתונים ─────────────────────────────────────────────────────────────
 ALL_TICKERS = list(set(MY_STOCKS_BASE + SCAN_LIST + TASE_SCAN))
@@ -129,7 +79,7 @@ try:
     with st.spinner("☁️ שואב נתוני שוק..."):
         df_all = fetch_master_data(ALL_TICKERS)
 except Exception:
-    st.error("⚠️ שגיאה זמנית. מציג נתונים חלקיים.")
+    st.error("⚠️ שגיאה זמנית.")
     df_all = pd.DataFrame()
 
 # ─── כותרת ────────────────────────────────────────────────────────────────────
@@ -152,7 +102,7 @@ st.markdown("""
 if st.session_state.get("kill_switch_active"):
     st.error("🚨 **מתג ההשמדה פעיל!** גש לטאב '🛡️ הגנה' לאיפוס.")
 
-# ─── מדדים עליונים ────────────────────────────────────────────────────────────
+# ─── מדדים עליונים ─────────────────────────────────────────────────────────────
 @st.cache_data(ttl=300)
 def _top_metrics():
     try: vix = float(yf.Ticker("^VIX").history(period="1d")["Close"].iloc[-1])
@@ -171,13 +121,21 @@ def _top_metrics():
 
 vix, ta35, spy_chg, btc_chg = _top_metrics()
 c1,c2,c3,c4,c5,c6,c7 = st.columns(7)
-c1.metric("📊 VIX",           f"{vix:.1f}", delta="⚠️ גבוה" if vix>25 else "תקין", delta_color="inverse")
-c2.metric("🇮🇱 TA-35",        f"{ta35:,.0f}")
-c3.metric("🇺🇸 S&P 500",      f"{spy_chg:+.2f}%")
-c4.metric("₿ Bitcoin",        f"{btc_chg:+.2f}%")
-c5.metric("💎 מניות זהב",     len(df_all[df_all["Score"]>=5]) if not df_all.empty else 0)
-c6.metric("🕒 עדכון",         datetime.now().strftime("%H:%M"))
-c7.metric("🛡️ מצב",          "🔴 KILL" if st.session_state.get("kill_switch_active") else "🟢 OK")
+c1.metric("📊 VIX",          f"{vix:.1f}", delta="⚠️ גבוה" if vix>25 else "תקין", delta_color="inverse")
+c2.metric("🇮🇱 TA-35",       f"{ta35:,.0f}")
+c3.metric("🇺🇸 S&P 500",     f"{spy_chg:+.2f}%")
+c4.metric("₿ Bitcoin",       f"{btc_chg:+.2f}%")
+c5.metric("💎 מניות זהב",    len(df_all[df_all["Score"]>=5]) if not df_all.empty else 0)
+c6.metric("🕒 עדכון",        datetime.now().strftime("%H:%M"))
+c7.metric("🛡️ מצב",         "🔴 KILL" if st.session_state.get("kill_switch_active") else "🟢 OK")
+
+# ─── VIX tooltip ──────────────────────────────────────────────────────────────
+st.markdown(
+    tooltip("ℹ️ מה זה VIX?","VIX") + "&nbsp;&nbsp;" +
+    tooltip("ℹ️ Fear & Greed?","FearGreed") + "&nbsp;&nbsp;" +
+    tooltip("ℹ️ מה זה ציון PDF?","Score"),
+    unsafe_allow_html=True
+)
 
 # ─── Fear & Greed + מחירים ────────────────────────────────────────────────────
 with st.expander("📡 Fear & Greed + מחירים חיים", expanded=True):
@@ -187,7 +145,6 @@ with st.expander("📡 Fear & Greed + מחירים חיים", expanded=True):
     with px_col:
         realtime_data.render_live_prices_strip(MY_STOCKS_BASE[:6] + SCAN_LIST[:4])
 
-# ─── Badge תיק AI ─────────────────────────────────────────────────────────────
 aip_on   = st.session_state.get("aip_enabled", False)
 aip_cash = st.session_state.get("aip_cash", 0)
 aip_pos  = len(st.session_state.get("aip_positions", []))
@@ -200,7 +157,7 @@ n_short = len(st.session_state.get("agent_universe_short_df", pd.DataFrame()))
 if n_long>0 or n_short>0:
     st.info(f"🤖 סוכן ערך ← {n_long} | סוכן יומי ← {n_short}")
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ═════════════════════════════════════════════════════════════════════════════
 tabs = st.tabs([
     "📌 התיק",        # 0
     "🤖 AI מנהל",     # 1
@@ -229,12 +186,22 @@ tabs = st.tabs([
     "🧠 ML",          # 24
     "📡 נתונים חיים", # 25
     "💸 מיסים",       # 26
+    "📖 מדריך",       # 27 ← חדש!
 ])
 
 # ══ 0: התיק האישי ═════════════════════════════════════════════════════════════
 with tabs[0]:
-    st.markdown('<div class="ai-card"><b>📌 התיק שלי</b> — לחץ פעמיים לעדכון קנייה/כמות</div>',
-                unsafe_allow_html=True)
+    # Tooltips לתיק
+    st.markdown(
+        '<div class="ai-card"><b>📌 התיק שלי</b> — לחץ פעמיים לעדכון קנייה/כמות<br>'
+        + tooltip("⬆️ מה זה P/L?","P/L","❓")
+        + " &nbsp; "
+        + tooltip("⬆️ מה זה תשואה?","Change","❓")
+        + " &nbsp; "
+        + tooltip("⬆️ מה זה ציון?","Score","❓")
+        + "</div>",
+        unsafe_allow_html=True,
+    )
 
     with st.expander("➕ הוסף נכס (מניה / סחורה / קריפטו / ת\"א)"):
         ca,cb,cc,cd = st.columns([2,1,1,1])
@@ -269,7 +236,7 @@ with tabs[0]:
         merged["Price"]    = merged["Price"].fillna(0)
         merged["PriceStr"] = merged.apply(
             lambda r: str(r.get("PriceStr","")) or f"${r['Price']:.2f}", axis=1)
-        merged["PL"]    = (merged["Price"] - merged["BuyPrice"]) * merged["Qty"]
+        merged["PL"]    = (merged["Price"]-merged["BuyPrice"])*merged["Qty"]
         merged["Yield"] = merged.apply(
             lambda r: ((r["Price"]/r["BuyPrice"])-1)*100 if r["BuyPrice"]>0 else 0, axis=1)
         merged["Emoji"] = merged["Symbol"].apply(
@@ -284,15 +251,15 @@ with tabs[0]:
         edited = st.data_editor(
             disp,
             column_config={
-                "Symbol":   st.column_config.TextColumn("סימול",    disabled=True),
-                "Emoji":    st.column_config.TextColumn("סוג",      disabled=True),
-                "PriceStr": st.column_config.TextColumn("מחיר חי", disabled=True),
-                "BuyPrice": st.column_config.NumberColumn("קנייה ✏️"),
-                "Qty":      st.column_config.NumberColumn("כמות ✏️"),
-                "PL":       st.column_config.NumberColumn("P/L $", format="%.2f", disabled=True),
-                "Yield":    st.column_config.NumberColumn("תשואה %", format="%.1f%%", disabled=True),
-                "Score":    st.column_config.NumberColumn("⭐",      disabled=True),
-                "Action":   st.column_config.TextColumn("המלצה",    disabled=True),
+                "Symbol":   st.column_config.TextColumn("סימול",     help="סימול הנכס בבורסה (AAPL=אפל, GC=F=זהב)", disabled=True),
+                "Emoji":    st.column_config.TextColumn("סוג",       help="📈=מניה | 🇮🇱=ת\"א | 🥇=זהב | 🛢️=נפט | ₿=קריפטו", disabled=True),
+                "PriceStr": st.column_config.TextColumn("מחיר חי",  help="המחיר הנוכחי בשוק. מתעדכן כל 10 דקות.", disabled=True),
+                "BuyPrice": st.column_config.NumberColumn("קנייה ✏️",help="המחיר ששילמת בקנייה. לחץ פעמיים לעדכון."),
+                "Qty":      st.column_config.NumberColumn("כמות ✏️", help="כמה יחידות/מניות אתה מחזיק."),
+                "PL":       st.column_config.NumberColumn("P/L 💰",  help="רווח/הפסד = (מחיר נוכחי - מחיר קנייה) × כמות. 🟢חיובי=רווח, 🔴שלילי=הפסד", format="%.2f", disabled=True),
+                "Yield":    st.column_config.NumberColumn("תשואה %", help="אחוז הרווח/הפסד ממחיר הקנייה. 🟢חיובי=עלייה", format="%.1f%%", disabled=True),
+                "Score":    st.column_config.NumberColumn("⭐ ציון",  help="ציון איכות 0-6. 5-6=זהב💎, 3-4=טוב✅, 0-2=סיכון⚠️", disabled=True),
+                "Action":   st.column_config.TextColumn("המלצה AI",  help="המלצת הבינה המלאכותית: קנייה/החזק/מכירה", disabled=True),
             },
             use_container_width=True, hide_index=True,
         )
@@ -309,29 +276,57 @@ with tabs[0]:
             s1,s2,s3,s4 = st.columns(4)
             s1.metric("📊 נכסים פעילים", len(active))
             s2.metric("💼 שווי תיק",     f"${total_val:,.0f}")
-            s3.metric("📈 רווח/הפסד",   f"{'🟢 +' if total_pl>=0 else '🔴 '}${abs(total_pl):,.0f}")
-            s4.metric("⭐ ציון ממוצע",  f"{active['Score'].mean():.1f}/6" if "Score" in active.columns else "—")
+            s3.metric("📈 רווח/הפסד",
+                      f"{'🟢 +' if total_pl>=0 else '🔴 '}${abs(total_pl):,.0f}")
+            s4.metric("⭐ ציון ממוצע",
+                      f"{active['Score'].mean():.1f}/6" if "Score" in active.columns else "—")
 
 # ══ 1 ── תיק AI מנוהל ═════════════════════════════════════════════════════════
-with tabs[1]:  ai_portfolio.render_ai_portfolio(df_all)
+with tabs[1]:
+    # Tooltips רלוונטיים
+    st.markdown(
+        tooltip("ℹ️ Stop-Loss","StopLoss") + " &nbsp; " +
+        tooltip("ℹ️ Take-Profit","TakeProfit") + " &nbsp; " +
+        tooltip("ℹ️ למידת מכונה","ML"),
+        unsafe_allow_html=True,
+    )
+    ai_portfolio.render_ai_portfolio(df_all)
 
 # ══ 2 ── אופטימיזציה ══════════════════════════════════════════════════════════
 with tabs[2]:
+    st.markdown(
+        tooltip("ℹ️ מה זה Efficient Frontier?","EfficientFrontier") + " &nbsp; " +
+        tooltip("ℹ️ מה זה Sharpe Ratio?","Sharpe") + " &nbsp; " +
+        tooltip("ℹ️ מה זה Beta?","Beta") + " &nbsp; " +
+        tooltip("ℹ️ מה זה קורלציה?","Correlation"),
+        unsafe_allow_html=True,
+    )
     pf = st.session_state.get("portfolio")
     portfolio_optimizer.render_portfolio_optimizer(pf)
 
 # ══ 3 ── סחורות ═══════════════════════════════════════════════════════════════
-with tabs[3]:  commodities_tab.render_commodities()
+with tabs[3]:
+    st.markdown(
+        tooltip("ℹ️ מה זה RSI?","RSI") + " &nbsp; " +
+        tooltip("ℹ️ קורלציה","Correlation"),
+        unsafe_allow_html=True,
+    )
+    commodities_tab.render_commodities()
 
-# ══ 4 ── קריפטו ═══════════════════════════════════════════════════════════════
+# ══ 4–7 ═══════════════════════════════════════════════════════════════════════
 with tabs[4]:  crypto_ai.render_crypto_arena()
 
-# ══ 5 ── תל אביב ══════════════════════════════════════════════════════════════
 with tabs[5]:
-    st.markdown('<div class="ai-card" style="border-right-color:#0052cc;"><b>🇮🇱 בורסת תל אביב — TASE</b></div>',
+    st.markdown('<div class="ai-card" style="border-right-color:#0052cc;"><b>🇮🇱 בורסת תל אביב</b></div>',
                 unsafe_allow_html=True)
+    st.markdown(
+        tooltip("ℹ️ ציון PDF","Score") + " &nbsp; " +
+        tooltip("ℹ️ דיבידנד","DivYield") + " &nbsp; " +
+        tooltip("ℹ️ RSI","RSI"),
+        unsafe_allow_html=True,
+    )
     if not df_all.empty:
-        tase_df = df_all[df_all["Symbol"].str.endswith(".TA")].copy() if not df_all.empty else pd.DataFrame()
+        tase_df = df_all[df_all["Symbol"].str.endswith(".TA")].copy()
         if not tase_df.empty:
             c1,c2,c3,c4 = st.columns(4)
             c1.metric("📋 מניות ת\"א", len(tase_df))
@@ -339,33 +334,62 @@ with tabs[5]:
             c3.metric("🟢 עולים", len(tase_df[tase_df["Change"]>0]))
             c4.metric("💰 דיבידנד ממוצע", f"{tase_df['DivYield'].mean():.1f}%")
             cols_t = [c for c in ["Symbol","PriceStr","Change","Score","RSI","DivYield","Action","AI_Logic"] if c in tase_df.columns]
-            st.dataframe(tase_df[cols_t].sort_values("Score", ascending=False),
-                         column_config={
-                             "Change":  st.column_config.NumberColumn("שינוי %",   format="%.2f%%"),
-                             "Score":   st.column_config.NumberColumn("⭐ ציון"),
-                             "RSI":     st.column_config.NumberColumn("RSI",       format="%.0f"),
-                             "DivYield":st.column_config.NumberColumn("דיבידנד %", format="%.2f%%"),
-                         },
-                         use_container_width=True, hide_index=True)
+            st.dataframe(
+                tase_df[cols_t].sort_values("Score",ascending=False),
+                column_config={
+                    "Symbol":  st.column_config.TextColumn("סימול", help="סימול מניה בבורסה תל אביב (מסתיים ב-.TA)"),
+                    "Change":  st.column_config.NumberColumn("שינוי % יומי",  format="%.2f%%", help="שינוי המחיר ביחס לאתמול"),
+                    "Score":   st.column_config.NumberColumn("⭐ ציון 0-6",    help="6=כל הקריטריונים | 0=חלש"),
+                    "RSI":     st.column_config.NumberColumn("RSI",            format="%.0f", help="מתחת 30=קנייה | מעל 70=מכירה"),
+                    "DivYield":st.column_config.NumberColumn("דיבידנד %",     format="%.2f%%", help="אחוז הדיבידנד השנתי ממחיר המניה"),
+                    "Action":  st.column_config.TextColumn("המלצת AI",         help="המלצת הבינה המלאכותית"),
+                    "AI_Logic":st.column_config.TextColumn("הסבר",             help="הלוגיקה מאחורי ההמלצה"),
+                },
+                use_container_width=True, hide_index=True,
+            )
         else:
             st.info("הוסף מניות .TA לרשימה ב-config.py")
 
-# ══ 6 ── סורק PDF ═════════════════════════════════════════════════════════════
 with tabs[6]:
     st.markdown('<div class="ai-card"><b>🔍 סורק PDF</b> — מניות עם ציון ≥ 4</div>',
                 unsafe_allow_html=True)
+    st.markdown(
+        tooltip("ℹ️ ציון PDF","Score") + " &nbsp; " +
+        tooltip("ℹ️ שולי רווח","Margin") + " &nbsp; " +
+        tooltip("ℹ️ RSI","RSI") + " &nbsp; " +
+        tooltip("ℹ️ צמיחת מכירות","RevGrowth"),
+        unsafe_allow_html=True,
+    )
     if not df_all.empty:
         scanner = df_all[(df_all["Symbol"].isin(SCAN_LIST+TASE_SCAN)) &
                          (df_all["Score"]>=4)].sort_values("Score",ascending=False)
         if not scanner.empty:
             cols_s = [c for c in ["Symbol","PriceStr","Score","RevGrowth","EarnGrowth",
                                    "Margin","RSI","Action","AI_Logic"] if c in scanner.columns]
-            st.dataframe(scanner[cols_s], use_container_width=True, hide_index=True)
+            st.dataframe(
+                scanner[cols_s],
+                column_config={
+                    "Score":     st.column_config.NumberColumn("⭐ ציון",       help="0-6. 5+=מניית זהב"),
+                    "RevGrowth": st.column_config.NumberColumn("צמיחת מכירות", format="%.1f%%", help=">10% = קריטריון עבר"),
+                    "EarnGrowth":st.column_config.NumberColumn("צמיחת רווחים", format="%.1f%%", help=">10% = קריטריון עבר"),
+                    "Margin":    st.column_config.NumberColumn("שולי רווח %",  format="%.1f%%", help=">10% = קריטריון עבר"),
+                    "RSI":       st.column_config.NumberColumn("RSI",           format="%.0f",   help="<30=קנה | >70=מכור"),
+                    "Action":    st.column_config.TextColumn("המלצה AI",        help="קנייה/החזק/מכירה"),
+                },
+                use_container_width=True, hide_index=True,
+            )
         else:
             st.info("לא נמצאו מניות ציון 4+ ברשימת הסריקה.")
 
-# ══ 7 ── דפוסי Chart ══════════════════════════════════════════════════════════
-with tabs[7]:  pattern_ai.render_pattern_analysis(df_all)
+with tabs[7]:
+    st.markdown(
+        tooltip("ℹ️ Golden Cross","GoldenCross") + " &nbsp; " +
+        tooltip("ℹ️ Death Cross","DeathCross") + " &nbsp; " +
+        tooltip("ℹ️ RSI","RSI") + " &nbsp; " +
+        tooltip("ℹ️ MA50","MA50"),
+        unsafe_allow_html=True,
+    )
+    pattern_ai.render_pattern_analysis(df_all)
 
 # ══ 8–11 ══════════════════════════════════════════════════════════════════════
 with tabs[8]:  growth_risk_ai.render_growth_and_risk(df_all)
@@ -376,7 +400,13 @@ with tabs[9]:
         st.info("הוסף מניות לתיק.")
 with tabs[10]:
     if not df_all.empty: financials_ai.render_financial_reports(df_all)
+
 with tabs[11]:
+    st.markdown(
+        tooltip("ℹ️ תשואת דיבידנד","DivYield") + " &nbsp; " +
+        tooltip("ℹ️ PayoutRatio","PayoutRatio"),
+        unsafe_allow_html=True,
+    )
     if not df_all.empty:
         div_df = df_all[df_all["DivYield"]>0].copy()
         if not div_df.empty:
@@ -390,28 +420,53 @@ with tabs[11]:
                 lambda x: pd.Timestamp(x,unit="s").strftime("%d/%m/%Y") if pd.notnull(x) else "—")
             cols_d = [c for c in ["Symbol","DivYield","DivRate","FiveYrDiv",
                                    "PayoutRatio","Safety","ExDateClean"] if c in div_df.columns]
-            st.dataframe(div_df.sort_values("DivYield",ascending=False)[cols_d],
-                         use_container_width=True, hide_index=True)
+            st.dataframe(
+                div_df.sort_values("DivYield",ascending=False)[cols_d],
+                column_config={
+                    "DivYield":   st.column_config.NumberColumn("תשואה %",      format="%.2f%%", help="אחוז הדיבידנד השנתי ממחיר המניה. מעל 4% = גבוה"),
+                    "DivRate":    st.column_config.NumberColumn("קצבה ($)",      format="$%.2f",  help="כמה דולר מקבלים לכל מניה בשנה"),
+                    "FiveYrDiv":  st.column_config.NumberColumn("ממוצע 5 שנים", format="%.2f%%", help="ממוצע הדיבידנד ב-5 שנים — האם יציב?"),
+                    "PayoutRatio":st.column_config.NumberColumn("שיעור חלוקה %",format="%.1f%%", help="כמה % מהרווח מחולק. מעל 80% = מסוכן!"),
+                    "Safety":     st.column_config.TextColumn("בטיחות AI",       help="הערכת AI לאמינות הדיבידנד"),
+                    "ExDateClean":st.column_config.TextColumn("תאריך אקס",      help="יום אחרון לזכאות לדיבידנד הבא. לפניו חייב להחזיק!"),
+                },
+                use_container_width=True, hide_index=True,
+            )
 
-# ══ 12–16 ═════════════════════════════════════════════════════════════════════
+# ══ 12–26 ═════════════════════════════════════════════════════════════════════
 with tabs[12]: alerts_ai.render_smart_alerts(df_all)
 with tabs[13]: simulator.render_value_agent(df_all)
 with tabs[14]: simulator.render_day_trade_agent(df_all)
 with tabs[15]: premium_agents_ai.render_premium_agents(df_all)
 with tabs[16]: market_scanner.render_market_scanner()
-
-# ══ 17–21 ═════════════════════════════════════════════════════════════════════
 with tabs[17]:
     if not df_all.empty: backtest_ai.render_backtester(df_all)
-with tabs[18]: market_ai.render_market_intelligence()
+with tabs[18]:
+    st.markdown(
+        tooltip("ℹ️ ריבית הפד","FedRate") + " &nbsp; " +
+        tooltip("ℹ️ אינפלציה","Inflation") + " &nbsp; " +
+        tooltip("ℹ️ עקום תשואה","YieldCurve") + " &nbsp; " +
+        tooltip("ℹ️ VIX","VIX"),
+        unsafe_allow_html=True,
+    )
+    market_ai.render_market_intelligence()
 with tabs[19]:
     if not df_all.empty: bull_bear.render_bull_bear(df_all)
 with tabs[20]: news_ai.render_live_news(MY_STOCKS_BASE)
 with tabs[21]: analytics_ai.render_analytics_dashboard()
-
-# ══ 22–26 ═════════════════════════════════════════════════════════════════════
 with tabs[22]: telegram_ai.render_telegram_integration()
 with tabs[23]: failsafes_ai.render_failsafes()
-with tabs[24]: ml_learning_ai.render_machine_learning(df_all)
+with tabs[24]:
+    st.markdown(
+        tooltip("ℹ️ למידת מכונה","ML") + " &nbsp; " +
+        tooltip("ℹ️ Cross Validation","CV") + " &nbsp; " +
+        tooltip("ℹ️ Isolation Forest","IsolationForest"),
+        unsafe_allow_html=True,
+    )
+    ml_learning_ai.render_machine_learning(df_all)
 with tabs[25]: realtime_data.render_full_realtime_panel(list(set(MY_STOCKS_BASE+SCAN_LIST)))
 with tabs[26]: tax_fees_ai.render_tax_optimization()
+
+# ══ 27: מדריך + מילון מושגים ════════════════════════════════════════════════════
+with tabs[27]:
+    render_glossary()
