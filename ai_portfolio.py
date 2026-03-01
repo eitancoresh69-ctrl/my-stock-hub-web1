@@ -463,7 +463,7 @@ def render_ai_portfolio(df_all: pd.DataFrame):
     usd_rate = _usd_rate()
 
     st.markdown("""
-    <div class="ai-card" style="border-right-color:#7b1fa2;background:linear-gradient(135deg,#f3e5f5,#fff);">
+    <div class="ai-card" style="border-right-color:#5c6bc0;background:linear-gradient(135deg,#e8eaf6,#fff);">
         <b style="font-size:18px;">🤖 תיק מנוהל AI</b><br>
         <small>הסוכנים מנהלים את התיק אוטומטית לפי ML + כללי AI.
         כל החלטה נשמרת כדי שהמערכת תלמד ותשתפר.</small>
@@ -492,7 +492,7 @@ def render_ai_portfolio(df_all: pd.DataFrame):
     enabled = st.session_state.get(KEY_ENABLED, False)
     color   = "#2e7d32" if enabled else "#666"
     st.markdown(
-        f'<div style="background:{"#e8f5e9" if enabled else "#f5f5f5"};'
+        f'<div style="background:{"#e8f5e9" if enabled else "#fafafa"};'
         f'border:2px solid {color};border-radius:8px;padding:8px 14px;'
         f'margin-bottom:10px;font-weight:700;color:{color};">'
         f'{"🟢 התיק המנוהל פעיל — הסוכנים עובדים" if enabled else "⚪ התיק המנוהל כבוי"}</div>',

@@ -121,7 +121,7 @@ def render_commodities():
     if len(price_data) >= 3:
         corr_df = pd.DataFrame(price_data).pct_change().dropna().corr().round(2)
         st.dataframe(
-            corr_df.style.background_gradient(cmap="RdYlGn", vmin=-1, vmax=1),
+            corr_df.style.applymap(lambda v: "background-color:#c8e6c9;color:#1b5e20" if v>0.3 else ("background-color:#ffcdd2;color:#b71c1c" if v<-0.3 else "background-color:#fff8e1;color:#555") if v!=1.0 else "background-color:#1565c0;color:white"),
             use_container_width=True
         )
         st.caption("🟢 +1 = תנועה זהה | 🔴 -1 = תנועה הפוכה | גידור טוב = ערכים שליליים")

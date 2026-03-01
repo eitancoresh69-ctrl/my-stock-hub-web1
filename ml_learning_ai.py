@@ -376,7 +376,7 @@ def render_machine_learning(df_all=None):
                     c2.metric("📊 תנודתיות",    f"{res['volatility']:.1f}%")
                     c3.metric("⚖️ Sharpe",       f"{res['sharpe']:.2f}")
                     with st.expander("🔗 מטריצת קורלציה"):
-                        st.dataframe(res["corr"].style.background_gradient(cmap="RdYlGn",vmin=-1,vmax=1),
+                        st.dataframe(res["corr"].style.applymap(lambda v: "background-color:#c8e6c9;color:#1b5e20" if v>0.3 else ("background-color:#ffcdd2;color:#b71c1c" if v<-0.3 else "background-color:#fff8e1;color:#555") if v!=1.0 else "background-color:#1565c0;color:white"),
                                      use_container_width=True)
                 else:
                     st.error(res.get("error","שגיאה"))
