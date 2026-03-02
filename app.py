@@ -1,4 +1,4 @@
-# app.py — Investment Hub Elite 2026 — גרסה סופית + Tooltips עברית
+# app.py — Investment Hub Elite 2026 — גרסה סופית + Tooltips עברית + 24/7 Agents
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -9,6 +9,7 @@ from config import (HELP, MY_STOCKS_BASE, SCAN_LIST,
 from logic   import fetch_master_data
 from storage import load_all_to_session, save, load
 from tooltips_he import inject_tooltip_css, tooltip, render_glossary
+from scheduler_agents import start_background_scheduler, get_scheduler
 
 import realtime_data, market_ai, bull_bear, simulator
 import podcasts_ai, alerts_ai, financials_ai, crypto_ai
@@ -31,6 +32,16 @@ try:
     load_ai_portfolio(st.session_state)
 except Exception:
     pass
+
+# ─── הפעלת Scheduler לסוכנים 24/7 ──────────────────────────────────────────────
+if "scheduler_initialized" not in st.session_state:
+    try:
+        scheduler = start_background_scheduler()
+        st.session_state.scheduler_initialized = True
+        print("[APP] 🚀 Scheduler סוכנים התחיל בהצלחה")
+    except Exception as e:
+        print(f"[APP] ⚠️ שגיאה בהפעלת Scheduler: {e}")
+        st.session_state.scheduler_initialized = False
 
 # ─── עיצוב + Tooltips ────────────────────────────────────────────────────────
 st.markdown("""
@@ -186,7 +197,8 @@ tabs = st.tabs([
     "🧠 ML",          # 24
     "📡 נתונים חיים", # 25
     "💸 מיסים",       # 26
-    "📖 מדריך",       # 27 ← חדש!
+    "🔄 ניהול 24/7",  # 27 ← סוכנים ברקע!
+    "📖 מדריך",       # 28
 ])
 
 # ══ 0: התיק האישי ═════════════════════════════════════════════════════════════
@@ -467,6 +479,165 @@ with tabs[24]:
 with tabs[25]: realtime_data.render_full_realtime_panel(list(set(MY_STOCKS_BASE+SCAN_LIST)))
 with tabs[26]: tax_fees_ai.render_tax_optimization()
 
-# ══ 27: מדריך + מילון מושגים ════════════════════════════════════════════════════
+# ══ 27: ניהול סוכנים 24/7 ═══════════════════════════════════════════════════════
 with tabs[27]:
+    st.markdown("""
+    <div class="ai-card" style="border-right-color: #ff6b6b;">
+    <b>🔄 ניהול סוכנים ברקע 24/7</b> — סוכנים רצים בחוט נפרד, לא תלויים בדפדפן!
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # סטטוס Scheduler
+    scheduler = get_scheduler()
+    status = scheduler.get_status()
+    
+    st.subheader("⚙️ סטטוס Scheduler")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        running_text = "✅ רץ" if status["running"] else "❌ עצור"
+        st.metric("🤖 Scheduler", running_text)
+    
+    with col2:
+        thread_text = "✅ פעיל" if status["thread_alive"] else "❌ לא פעיל"
+        st.metric("💻 חוט", thread_text)
+    
+    with col3:
+        last_run = status["last_runs"].get("val_agent", "טרם הופעל")
+        st.metric("⏰ ריצה אחרונה", last_run[:10] if isinstance(last_run, str) else "אין")
+    
+    st.divider()
+    
+    # הפעלה ידנית
+    st.subheader("▶️ הפעלה ידנית של סוכנים")
+    col_a, col_b, col_c = st.columns(3)
+    
+    with col_a:
+        if st.button("▶️ הפעל סוכן ערך עכשיו", key="manual_val_agent"):
+            with st.spinner("⏳ סוכן ערך רץ..."):
+                scheduler.run_val_agent()
+            st.success("✅ סוכן ערך הסתיים")
+    
+    with col_b:
+        if st.button("▶️ הפעל סוכן יומי עכשיו", key="manual_day_agent"):
+            with st.spinner("⏳ סוכן יומי רץ..."):
+                scheduler.run_day_agent()
+            st.success("✅ סוכן יומי הסתיים")
+    
+    with col_c:
+        if st.button("▶️ אימן ML עכשיו", key="manual_ml"):
+            with st.spinner("⏳ ML מתאמן..."):
+                scheduler.run_ml_training()
+            st.success("✅ ML הסתיים")
+    
+    st.divider()
+    
+    # יומן עדכונים
+    st.subheader("📋 יומן עדכונים אחרונים")
+    
+    last_val = load("scheduler_last_val_run")
+    last_day = load("scheduler_last_day_run")
+    last_ml = load("scheduler_last_ml_run")
+    
+    col_info_a, col_info_b, col_info_c = st.columns(3)
+    
+    with col_info_a:
+        if last_val:
+            st.write(f"**סוכן ערך:**\n```\n{last_val[:19]}\n```")
+        else:
+            st.write("**סוכן ערך:** טרם הופעל")
+    
+    with col_info_b:
+        if last_day:
+            st.write(f"**סוכן יומי:**\n```\n{last_day[:19]}\n```")
+        else:
+            st.write("**סוכן יומי:** טרם הופעל")
+    
+    with col_info_c:
+        if last_ml:
+            st.write(f"**ML:**\n```\n{last_ml[:19]}\n```")
+        else:
+            st.write("**ML:** טרם הופעל")
+    
+    st.divider()
+    
+    # סחר אחרון
+    st.subheader("📊 סחר אחרון של סוכנים")
+    
+    col_val_trades, col_day_trades, col_ml_info = st.columns(3)
+    
+    with col_val_trades:
+        st.markdown("**💼 סוכן ערך**")
+        val_trades = load("val_trades_log", [])
+        if val_trades:
+            latest = val_trades[0]
+            st.write(f"""
+            {latest.get('📌', 'N/A')} {latest.get('↔️', '')}
+            - מחיר: ${latest.get('💰', 'N/A')}
+            - שווי: ₪{latest.get('💵', 'N/A')}
+            - רווח: {latest.get('📊', 'N/A')}
+            """)
+        else:
+            st.info("אין עדיין סחר")
+    
+    with col_day_trades:
+        st.markdown("**📈 סוכן יומי**")
+        day_trades = load("day_trades_log", [])
+        if day_trades:
+            latest = day_trades[0]
+            st.write(f"""
+            {latest.get('📌', 'N/A')} {latest.get('↔️', '')}
+            - זמן: {latest.get('⏰', 'N/A')[:16]}
+            """)
+        else:
+            st.info("אין עדיין סחר")
+    
+    with col_ml_info:
+        st.markdown("**🤖 ML**")
+        ml_accuracy = load("ml_accuracy", 0.0)
+        ml_runs = load("ml_runs", 0)
+        st.write(f"""
+        דיוק: **{ml_accuracy:.2%}**
+        ריצות: **{ml_runs}**
+        """)
+    
+    st.divider()
+    
+    # הסברים
+    with st.expander("📖 איך סוכנים עובדים?", expanded=False):
+        st.markdown("""
+        ### 🤖 סוכן ערך (Value Agent)
+        
+        **מה:** קונה מניות טובות ומוכר אם יש 20% רווח או 8% הפסד
+        **כל:** 6 שעות
+        **סטטוס:** פועל בחוט Daemon (לא תלוי בדפדפן)
+        
+        ---
+        
+        ### 📈 סוכן יומי (Day Agent)
+        
+        **מה:** קונה בבוקר ומוכר בערב כל יום
+        **כל:** שעה (בדיקה)
+        **סטטוס:** פועל בחוט Daemon (לא תלוי בדפדפן)
+        
+        ---
+        
+        ### 🤖 Machine Learning (ML)
+        
+        **מה:** מודל AI שחוזה אם מניה תעלה
+        **כל:** 12 שעות (אימון רציף)
+        **דיוק:** בדרך כלל 65-70%
+        **סטטוס:** מתאמן בעצמאות בחוט Daemon
+        
+        ---
+        
+        ### 💾 אחסון נתונים
+        
+        **איפה:** `hub_data.db` (SQLite בדיסק)
+        **מה:** כל סחר + ML + הגדרות
+        **בטוחות:** ✅ לא מוחק כשדפדפן סוגר!
+        """)
+
+# ══ 28: מדריך + מילון מושגים ════════════════════════════════════════════════════
+with tabs[28]:
     render_glossary()
