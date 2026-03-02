@@ -9,7 +9,8 @@ from config import (HELP, MY_STOCKS_BASE, SCAN_LIST,
 from logic   import fetch_master_data
 from storage import load_all_to_session, save, load
 from tooltips_he import inject_tooltip_css, tooltip, render_glossary
-from scheduler_agents import start_background_scheduler, get_scheduler
+# אם הקובץ scheduler_agents.py לא מוגדר אצלך במלואו כפי שכתוב פה, ודא שהיבוא שלו תקין
+from scheduler_agents import get_scheduler
 
 import realtime_data, market_ai, bull_bear, simulator
 import podcasts_ai, alerts_ai, financials_ai, crypto_ai
@@ -18,6 +19,7 @@ import premium_agents_ai, growth_risk_ai, backtest_ai
 import execution_ai, failsafes_ai, ml_learning_ai
 import social_sentiment_ai, tax_fees_ai, market_scanner
 import ai_portfolio, commodities_tab, pattern_ai, portfolio_optimizer
+import user_manager
 
 st.set_page_config(
     page_title="Investment Hub Elite 2026",
@@ -25,6 +27,18 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+
+# ─── מערכת התחברות ─────────────────────────────────────────────────────────────
+if not st.session_state.get("logged_in", False):
+    user_manager.render_login_screen()
+    st.stop()
+
+with st.sidebar:
+    st.markdown(f"👤 מחובר כ: **{st.session_state.get('username', '')}**")
+    if st.button("🚪 התנתק", use_container_width=True):
+        st.session_state["logged_in"] = False
+        st.session_state.clear()
+        st.rerun()
 
 load_all_to_session(st.session_state)
 try:
@@ -469,8 +483,6 @@ with tabs[25]: realtime_data.render_full_realtime_panel(list(set(MY_STOCKS_BASE+
 with tabs[26]: tax_fees_ai.render_tax_optimization()
 
 # ══ 27: מדריך + מילון מושגים ════════════════════════════════════════════════════
-# הוסף את זה בתוך app.py, במקום הטאב הישן (with tabs[27]:)
-
 with tabs[27]:
     st.markdown("""
     <div class="ai-card" style="border-right-color: #ff6b6b;">
@@ -478,8 +490,12 @@ with tabs[27]:
     </div>
     """, unsafe_allow_html=True)
     
-    scheduler = get_scheduler()
-    status = scheduler.get_status()
+    try:
+        scheduler = get_scheduler()
+        status = scheduler.get_status()
+    except Exception:
+        status = {"running": False, "thread_alive": False, "last_runs": {}}
+        scheduler = None
     
     st.subheader("⚙️ סטטוס סוכנים")
     
@@ -530,9 +546,12 @@ with tabs[27]:
     
     with col_d2:
         if st.button("▶️ הפעל יומי", use_container_width=True):
-            with st.spinner("⏳ רץ..."):
-                scheduler.run_day_agent()
-            st.success("✅ סיים!")
+            if scheduler:
+                with st.spinner("⏳ רץ..."):
+                    scheduler.run_day_agent()
+                st.success("✅ סיים!")
+            else:
+                st.error("Scheduler לא פעיל")
     
     if day_trades:
         st.write("**עסקאות אחרונות:**")
@@ -576,9 +595,12 @@ with tabs[27]:
     
     with col_v2:
         if st.button("▶️ הפעל ערך", use_container_width=True):
-            with st.spinner("⏳ רץ..."):
-                scheduler.run_val_agent()
-            st.success("✅ סיים!")
+            if scheduler:
+                with st.spinner("⏳ רץ..."):
+                    scheduler.run_val_agent()
+                st.success("✅ סיים!")
+            else:
+                st.error("Scheduler לא פעיל")
     
     st.divider()
     
@@ -609,9 +631,12 @@ with tabs[27]:
     
     with col_ml2:
         if st.button("▶️ הפעל ML", use_container_width=True):
-            with st.spinner("⏳ אימון (זמן)..."):
-                scheduler.run_ml_agent()
-            st.success("✅ סיים!")
+            if scheduler:
+                with st.spinner("⏳ אימון (זמן)..."):
+                    scheduler.run_ml_agent()
+                st.success("✅ סיים!")
+            else:
+                st.error("Scheduler לא פעיל")
     
     st.divider()
     
@@ -668,21 +693,30 @@ with tabs[27]:
     
     with col_a:
         if st.button("▶️ סוכן ערך עכשיו", key="manual_val_agent", use_container_width=True):
-            with st.spinner("⏳ סוכן ערך רץ... (טיפול בעמדות וחיסכון)"):
-                scheduler.run_val_agent()
-            st.success("✅ סוכן ערך סיים - בדוק את היומן למטה")
+            if scheduler:
+                with st.spinner("⏳ סוכן ערך רץ... (טיפול בעמדות וחיסכון)"):
+                    scheduler.run_val_agent()
+                st.success("✅ סוכן ערך סיים - בדוק את היומן למטה")
+            else:
+                st.error("Scheduler לא פעיל")
     
     with col_b:
         if st.button("▶️ סוכן יומי עכשיו", key="manual_day_agent", use_container_width=True):
-            with st.spinner("⏳ סוכן יומי רץ... (סחר בתוך היום)"):
-                scheduler.run_day_agent()
-            st.success("✅ סוכן יומי סיים")
+            if scheduler:
+                with st.spinner("⏳ סוכן יומי רץ... (סחר בתוך היום)"):
+                    scheduler.run_day_agent()
+                st.success("✅ סוכן יומי סיים")
+            else:
+                st.error("Scheduler לא פעיל")
     
     with col_c:
         if st.button("▶️ ML אימון עכשיו", key="manual_ml", use_container_width=True):
-            with st.spinner("⏳ ML מתאמן... (זה יכול לקחת דקות)"):
-                scheduler.run_ml_training()
-            st.success("✅ ML סיים - בדוק דיוק למטה")
+            if scheduler:
+                with st.spinner("⏳ ML מתאמן... (זה יכול לקחת דקות)"):
+                    scheduler.run_ml_training()
+                st.success("✅ ML סיים - בדוק דיוק למטה")
+            else:
+                st.error("Scheduler לא פעיל")
     
     st.divider()
     
