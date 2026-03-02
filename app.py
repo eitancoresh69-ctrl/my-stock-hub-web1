@@ -1,3 +1,108 @@
+import streamlit as st
+from storage import UserManager
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.username = None
+
+if not st.session_state.logged_in:
+    st.set_page_config(page_title="Investment Hub Elite 2026", page_icon="🤖", layout="centered")
+    st.markdown("<h1 style='text-align: center; color: #1976d2;'>🤖 Investment Hub Elite 2026</h1>", unsafe_allow_html=True)
+    
+    tab1, tab2 = st.tabs(["🔓 Login", "📝 Register"])
+    
+    with tab1:
+        st.markdown("### Login")
+        login_user = st.text_input("Username", placeholder="Enter username")
+        login_pass = st.text_input("Password", type="password", placeholder="Enter password")
+        
+        if st.button("🔓 Login", use_container_width=True):
+            if login_user and login_pass:
+                success, data = UserManager.login(login_user, login_pass)
+                if success:
+                    st.session_state.logged_in = True
+                    st.session_state.username = login_user
+                    st.success("✅ Logged in!")
+                    st.rerun()
+                else:
+                    st.error(f"❌ {data}")
+    
+    with tab2:
+        st.markdown("### Register")
+        reg_user = st.text_input("Username", placeholder="Choose username")
+        reg_pass = st.text_input("Password", type="password", placeholder="Create password")
+        
+        if st.button("📝 Register", use_container_width=True):
+            if reg_user and reg_pass:
+                success, msg = UserManager.register_user(reg_user, reg_pass)
+                if success:
+                    st.success("✅ Registered! Login now.")
+                else:
+                    st.error(f"❌ {msg}")
+    
+    st.stop()
+
+# ═══════════════════════════════════════════════════════════════
+# YOUR ORIGINAL APP CODE STARTS HERE - ALL YOUR ORIGINAL CODE
+# DON'T CHANGE ANYTHING BELOW THIS LINE
+# ═══════════════════════════════════════════════════════════════
+```
+
+### Step 3: Add this to sidebar (after your original sidebar code)
+
+```python
+# Add user info
+with st.sidebar:
+    if st.session_state.logged_in:
+        st.write(f"👤 {st.session_state.username}")
+        if st.button("🚪 Logout"):
+            st.session_state.logged_in = False
+            st.rerun()
+```
+
+### Step 4: Update storage.py
+
+Copy `storage_FINAL.py` and rename to `storage.py`
+(It has the UserManager class needed for login)
+
+### Step 5: Commit and Push
+
+```bash
+git add app.py storage.py
+git commit -m "feat: Add multi-user login system"
+git push origin main
+```
+
+═══════════════════════════════════════════════════════════════
+
+## 🎯 SUMMARY
+
+1. Add login code at TOP of app.py ← Before anything else!
+2. Keep all original code below ← Don't change!
+3. Update storage.py ← Add UserManager class
+4. Push to GitHub ← Streamlit updates automatically!
+
+═══════════════════════════════════════════════════════════════
+
+## ✅ RESULT
+
+After updating:
+- Users see LOGIN screen first ✅
+- Existing data loads after login ✅
+- All dashboards work ✅
+- No breaking changes ✅
+
+═══════════════════════════════════════════════════════════════
+
+## 🔍 FILES NEEDED
+
+1. storage_FINAL.py → rename to storage.py
+2. Original app.py + login code at top
+
+That's it! Simple!
+
+═══════════════════════════════════════════════════════════════
+
 # app.py — Investment Hub Elite 2026 — With Multi-User Login (ONLY at top)
 import streamlit as st
 from storage import UserManager
