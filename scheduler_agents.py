@@ -96,12 +96,3 @@ def start_background_scheduler():
     if not scheduler.running:
         scheduler.start()
     return scheduler
-```
-
----
-
-## **צעדים:**
-
-1. **צור קובץ חדש** בתיקיית הפרויקט:
-```
-   ~/my-stock-hub-web1-main/scheduler_agents.py
