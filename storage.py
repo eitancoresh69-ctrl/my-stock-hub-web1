@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# storage.py - Complete with Multi-User Support
+# storage.py - Complete with Multi-User Support and ML/Premium Persistence
 import json
 import os
 import streamlit as st
@@ -71,10 +71,21 @@ def delete(key):
 
 def load_all_to_session(session):
     """Loads specific keys to session state on startup"""
+    # כאן הוספנו את כל מפתחות ה-ML וסוכני הפרימיום כדי שלא יתאפסו בריענון או סגירת דפדפן
     keys_to_load = [
         "portfolio_buy_prices", "portfolio_quantities", 
-        "val_cash_ils", "day_cash_ils", "ml_scores", "ml_runs", 
-        "ml_accuracy", "trade_history_complete", "val_trades_log", "day_trades_log"
+        "val_cash_ils", "day_cash_ils", "trade_history_complete", 
+        "val_trades_log", "day_trades_log",
+        
+        # זיכרון ML
+        "ml_scores", "ml_runs", "ml_accuracy", "ml_trained", 
+        "ml_params", "ml_insights", "ml_model_type", "ml_cv_scores", 
+        "ml_model_b64", "ml_scaler_b64", "ml_feat_imp", "ml_train_n",
+        
+        # זיכרון פרימיום והגדרות אחרות
+        "premium_scans_history", "premium_active_agents",
+        "agent_universe_df", "agent_universe_short_df",
+        "telegram_alert_settings"
     ]
     for k in keys_to_load:
         if k not in session:
