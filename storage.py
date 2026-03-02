@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-storage.py - Complete Storage System with Multi-User Support
-"""
-
+# storage.py - Complete with ALL required functions
 import json
 import os
 import hashlib
@@ -14,12 +10,12 @@ from datetime import datetime
 
 STORAGE_FILE = "trading_data.json"
 
-# ==============================================================================
-# פונקציות ליבה לשמירה
-# ==============================================================================
+# ═══════════════════════════════════════════════════════════════
+# CORE STORAGE FUNCTIONS
+# ═══════════════════════════════════════════════════════════════
 
 def load(key, default=None):
-    """טעינת נתונים מהאחסון"""
+    """Load data from storage"""
     try:
         if not os.path.exists(STORAGE_FILE):
             return default
@@ -32,7 +28,7 @@ def load(key, default=None):
         return default
 
 def save(key, value):
-    """שמירת נתונים לאחסון"""
+    """Save data to storage"""
     try:
         if os.path.exists(STORAGE_FILE):
             with open(STORAGE_FILE, 'r', encoding='utf-8') as f:
@@ -47,11 +43,11 @@ def save(key, value):
         
         return True
     except Exception as e:
-        print(f"שגיאת אחסון: {e}")
+        print(f"Storage error: {e}")
         return False
 
 def delete(key):
-    """מחיקת נתונים מהאחסון"""
+    """Delete data from storage"""
     try:
         if os.path.exists(STORAGE_FILE):
             with open(STORAGE_FILE, 'r', encoding='utf-8') as f:
@@ -68,7 +64,7 @@ def delete(key):
         return False
 
 def load_all_to_session(session_state):
-    """טעינת כל הנתונים לסשן של Streamlit"""
+    """Load all data to Streamlit session"""
     try:
         if os.path.exists(STORAGE_FILE):
             with open(STORAGE_FILE, 'r', encoding='utf-8') as f:
@@ -80,81 +76,106 @@ def load_all_to_session(session_state):
     except:
         pass
 
-# ==============================================================================
-# מערכת משתמשים - תמיכה בריבוי משתמשים
-# ==============================================================================
+# ═══════════════════════════════════════════════════════════════
+# ML FUNCTIONS (REQUIRED BY ml_learning_ai.py)
+# ═══════════════════════════════════════════════════════════════
+
+def save_ml(model_data):
+    """Save ML model and data"""
+    try:
+        if isinstance(model_data, dict):
+            save("ml_model_data", model_data)
+        else:
+            # Serialize model with pickle
+            serialized = base64.b64encode(pickle.dumps(model_data)).decode()
+            save("ml_model_serialized", serialized)
+        return True
+    except:
+        return False
+
+def load_ml(key="ml_model_data"):
+    """Load ML model or data"""
+    return load(key, {})
+
+def save_ml_results(results):
+    """Save ML training results"""
+    save("ml_results", results)
+
+def load_ml_results():
+    """Load ML training results"""
+    return load("ml_results", {})
+
+# ═══════════════════════════════════════════════════════════════
+# SIMULATOR FUNCTIONS (REQUIRED BY simulator.py)
+# ═══════════════════════════════════════════════════════════════
+
+def save_simulator(state):
+    """Save simulator state"""
+    save("simulator_state", state)
+
+def reset_simulator():
+    """Reset simulator"""
+    delete("simulator_state")
+    save("simulator_reset", True)
+
+def load_simulator():
+    """Load simulator state"""
+    return load("simulator_state", {})
+
+# ═══════════════════════════════════════════════════════════════
+# USER MANAGEMENT
+# ═══════════════════════════════════════════════════════════════
 
 class UserManager:
-    """ניהול משתמשים והתחברות"""
+    """User management with security"""
     
     @staticmethod
     def hash_password(password):
-        """הצפנת סיסמה"""
+        """Hash password"""
         return hashlib.sha256(password.encode()).hexdigest()
     
     @staticmethod
     def register_user(username, password):
-        """רישום משתמש חדש"""
+        """Register new user"""
         users = load("users_data", {})
         
-        if not username or not password:
-            return False, "חובה להזין שם משתמש וסיסמה"
-        
         if username in users:
-            return False, "המשתמש כבר קיים במערכת"
+            return False, "User exists"
         
         users[username] = {
             "password": UserManager.hash_password(password),
             "created": datetime.now().isoformat(),
             "subscription": "basic",
             "portfolio": {},
-            "cash": 100000.0,
-            "trades": [],
             "api_key": hashlib.sha256(f"{username}{time.time()}".encode()).hexdigest()[:32]
         }
         
         save("users_data", users)
-        return True, "המשתמש נרשם בהצלחה"
+        return True, "Registered"
     
     @staticmethod
     def login(username, password):
-        """התחברות משתמש"""
+        """Login user"""
         users = load("users_data", {})
         
         if username not in users:
-            return False, "המשתמש לא נמצא"
+            return False, "Not found"
         
         if users[username]["password"] != UserManager.hash_password(password):
-            return False, "סיסמה שגויה"
+            return False, "Wrong password"
         
         return True, users[username]
-    
-    @staticmethod
-    def get_user(username):
-        """קבלת נתוני משתמש"""
-        users = load("users_data", {})
-        return users.get(username, {})
-    
-    @staticmethod
-    def save_user_data(username, user_data):
-        """שמירת נתוני משתמש"""
-        users = load("users_data", {})
-        if username in users:
-            users[username] = user_data
-            save("users_data", users)
-            return True
-        return False
 
-# ==============================================================================
-# מערכת למידת מכונה גלובלית
-# ==============================================================================
+# ═══════════════════════════════════════════════════════════════
+# GLOBAL ML SYSTEM
+# ═══════════════════════════════════════════════════════════════
 
 class GlobalMLSystem:
-    """למידת מכונה מכלל המשתמשים במערכת"""
+    """Global machine learning from all users"""
     
     @staticmethod
     def add_trade(username, trade):
-        """הוספת פעולת מסחר ללמידה הגלובלית"""
+        """Add trade to global learning"""
         global_trades = load("global_trades_all_users", [])
         user_trades = load("user_trades_by_user", {})
         
@@ -169,7 +190,7 @@ class GlobalMLSystem:
     
     @staticmethod
     def get_global_insights():
-        """קבלת תובנות מכלל המשתמשים"""
+        """Get global insights"""
         global_trades = load("global_trades_all_users", [])
         user_trades = load("user_trades_by_user", {})
         
@@ -181,118 +202,62 @@ class GlobalMLSystem:
                 "win_rate": 0
             }
         
-        profits = [t.get("profit", 0) for t in global_trades if isinstance(t, dict)]
+        profits = [t.get("profit", 0) for t in global_trades]
         wins = sum(1 for p in profits if p > 0)
         
         return {
             "total_trades": len(global_trades),
             "total_users": len(user_trades),
             "avg_profit": sum(profits) / len(profits) if profits else 0,
-            "win_rate": wins / len(global_trades) if global_trades else 0,
-            "most_traded": GlobalMLSystem._get_most_traded(global_trades)
+            "win_rate": wins / len(global_trades) if global_trades else 0
         }
-    
-    @staticmethod
-    def _get_most_traded(trades):
-        """קבלת המניות הנסחרות ביותר"""
-        symbols = {}
-        for trade in trades:
-            if isinstance(trade, dict) and "symbol" in trade:
-                sym = trade["symbol"]
-                symbols[sym] = symbols.get(sym, 0) + 1
-        return dict(sorted(symbols.items(), key=lambda x: x[1], reverse=True)[:5])
 
-# ==============================================================================
-# פונקציות למידת מכונה
-# ==============================================================================
-
-def save_ml(model_data):
-    """שמירת נתוני המודל"""
-    try:
-        if isinstance(model_data, dict):
-            save("ml_model_data", model_data)
-        else:
-            serialized = base64.b64encode(pickle.dumps(model_data)).decode()
-            save("ml_model_serialized", serialized)
-        return True
-    except:
-        return False
-
-def load_ml(key="ml_model_data"):
-    """טעינת נתוני מודל"""
-    return load(key, {})
-
-def save_ml_results(results):
-    """שמירת תוצאות אימון"""
-    save("ml_results", results)
-
-def load_ml_results():
-    """טעינת תוצאות אימון"""
-    return load("ml_results", {})
-
-# ==============================================================================
-# פונקציות סימולטור
-# ==============================================================================
-
-def save_simulator(state):
-    """שמירת מצב סימולטור"""
-    save("simulator_state", state)
-
-def reset_simulator():
-    """איפוס סימולטור"""
-    delete("simulator_state")
-    save("simulator_reset", True)
-
-def load_simulator():
-    """טעינת מצב סימולטור"""
-    return load("simulator_state", {})
-
-# ==============================================================================
-# פונקציות ביצוע פעולות
-# ==============================================================================
-
-def save_execution_log(log_entry):
-    """שמירת יומן ביצוע"""
-    logs = load("execution_logs", [])
-    logs.append(log_entry)
-    save("execution_logs", logs)
-
-def load_execution_logs():
-    """טעינת יומני ביצוע"""
-    return load("execution_logs", [])
-
-# ==============================================================================
-# פונקציות מנגנוני הגנה
-# ==============================================================================
-
-def save_failsafe_settings(settings):
-    """שמירת הגדרות הגנה"""
-    save("failsafe_settings", settings)
-
-def load_failsafe_settings():
-    """טעינת הגדרות הגנה"""
-    return load("failsafe_settings", {})
-
-# ==============================================================================
-# פונקציות תיק השקעות
-# ==============================================================================
+# ═══════════════════════════════════════════════════════════════
+# PORTFOLIO FUNCTIONS
+# ═══════════════════════════════════════════════════════════════
 
 def load_ai_portfolio(session_state):
-    """טעינת תיק בינה מלאכותית"""
+    """Load AI portfolio from storage"""
     portfolio = load("ai_portfolio", {})
     if portfolio:
         session_state["ai_portfolio"] = portfolio
 
 def save_ai_portfolio(portfolio):
-    """שמירת תיק בינה מלאכותית"""
+    """Save AI portfolio"""
     save("ai_portfolio", portfolio)
 
-# ==============================================================================
-# פונקציות עזר
-# ==============================================================================
+# ═══════════════════════════════════════════════════════════════
+# EXECUTION FUNCTIONS
+# ═══════════════════════════════════════════════════════════════
+
+def save_execution_log(log_entry):
+    """Save execution log"""
+    logs = load("execution_logs", [])
+    logs.append(log_entry)
+    save("execution_logs", logs)
+
+def load_execution_logs():
+    """Load execution logs"""
+    return load("execution_logs", [])
+
+# ═══════════════════════════════════════════════════════════════
+# FAILSAFE FUNCTIONS
+# ═══════════════════════════════════════════════════════════════
+
+def save_failsafe_settings(settings):
+    """Save failsafe settings"""
+    save("failsafe_settings", settings)
+
+def load_failsafe_settings():
+    """Load failsafe settings"""
+    return load("failsafe_settings", {})
+
+# ═══════════════════════════════════════════════════════════════
+# UTILITY FUNCTIONS
+# ═══════════════════════════════════════════════════════════════
 
 def clear_all():
-    """ניקוי כל הנתונים"""
+    """Clear all data"""
     try:
         if os.path.exists(STORAGE_FILE):
             os.remove(STORAGE_FILE)
@@ -301,7 +266,7 @@ def clear_all():
         return False
 
 def get_all():
-    """קבלת כל הנתונים"""
+    """Get all data"""
     try:
         if not os.path.exists(STORAGE_FILE):
             return {}
@@ -312,11 +277,11 @@ def get_all():
         return {}
 
 def export_data():
-    """ייצוא נתונים"""
+    """Export all data"""
     return json.dumps(get_all(), ensure_ascii=False, indent=2)
 
 def import_data(json_data):
-    """ייבוא נתונים"""
+    """Import data from JSON"""
     try:
         data = json.loads(json_data)
         with open(STORAGE_FILE, 'w', encoding='utf-8') as f:
@@ -324,31 +289,3 @@ def import_data(json_data):
         return True
     except:
         return False
-
-def get_user_portfolio(username):
-    """קבלת תיק משתמש ספציפי"""
-    user = UserManager.get_user(username)
-    return user.get("portfolio", {})
-
-def save_user_portfolio(username, portfolio):
-    """שמירת תיק משתמש ספציפי"""
-    user = UserManager.get_user(username)
-    if user:
-        user["portfolio"] = portfolio
-        UserManager.save_user_data(username, user)
-        return True
-    return False
-
-def get_user_cash(username):
-    """קבלת יתרת משתמש"""
-    user = UserManager.get_user(username)
-    return user.get("cash", 100000.0)
-
-def save_user_cash(username, cash):
-    """שמירת יתרת משתמש"""
-    user = UserManager.get_user(username)
-    if user:
-        user["cash"] = cash
-        UserManager.save_user_data(username, user)
-        return True
-    return False
