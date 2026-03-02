@@ -9,7 +9,6 @@ from config import (HELP, MY_STOCKS_BASE, SCAN_LIST,
 from logic   import fetch_master_data
 from storage import load_all_to_session, save, load
 from tooltips_he import inject_tooltip_css, tooltip, render_glossary
-# אם הקובץ scheduler_agents.py לא מוגדר אצלך במלואו כפי שכתוב פה, ודא שהיבוא שלו תקין
 from scheduler_agents import get_scheduler
 
 import realtime_data, market_ai, bull_bear, simulator
@@ -28,17 +27,20 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ─── מערכת התחברות ─────────────────────────────────────────────────────────────
-if not st.session_state.get("logged_in", False):
+# ─── מערכת התחברות חכמה (שומרת על חיבור גם אחרי ריענון) ────────────────────────
+is_logged_in = user_manager.check_active_session()
+
+if not is_logged_in:
     user_manager.render_login_screen()
     st.stop()
 
-# ─── תפריט משתמש עליון (ללא סיידבר) ──────────────────────────────────────────
+# ─── תפריט משתמש עליון (ללא סיידבר מציק) ──────────────────────────────────────────
 user_col, empty_col, logout_col = st.columns([6, 2, 2])
 with user_col:
-    st.write(f"👤 מחובר כ: **{st.session_state.get('username', '')}**")
+    st.markdown(f"#### 👤 מחובר כ: <span style='color:#1565c0;'>{st.session_state.get('username', '')}</span>", unsafe_allow_html=True)
 with logout_col:
-    if st.button("🚪 התנתק", use_container_width=True):
+    if st.button("🚪 התנתק מוחלט", use_container_width=True):
+        user_manager.clear_session_token_url() # מחיקת הטוקן מה-URL למניעת התחברות אוטומטית
         st.session_state["logged_in"] = False
         st.session_state.clear()
         st.rerun()
