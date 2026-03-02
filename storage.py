@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-# storage.py - Complete with ALL required functions
+# storage.py - Complete with Multi-User Support
 import json
 import os
-import hashlib
-import time
-import pickle
-import base64
-from datetime import datetime
+import streamlit as st
 
-STORAGE_FILE = "trading_data.json"
+def get_storage_file():
+    """מחזיר את שם הקובץ הייעודי למשתמש המחובר כרגע"""
+    if "username" in st.session_state:
+        return f"trading_data_{st.session_state['username']}.json"
+    return "trading_data_default.json"
 
 # ═══════════════════════════════════════════════════════════════
 # CORE STORAGE FUNCTIONS
@@ -17,10 +17,11 @@ STORAGE_FILE = "trading_data.json"
 def load(key, default=None):
     """Load data from storage"""
     try:
-        if not os.path.exists(STORAGE_FILE):
+        current_file = get_storage_file()
+        if not os.path.exists(current_file):
             return default
         
-        with open(STORAGE_FILE, 'r', encoding='utf-8') as f:
+        with open(current_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
         return data.get(key, default)
@@ -30,15 +31,16 @@ def load(key, default=None):
 def save(key, value):
     """Save data to storage"""
     try:
-        if os.path.exists(STORAGE_FILE):
-            with open(STORAGE_FILE, 'r', encoding='utf-8') as f:
+        current_file = get_storage_file()
+        if os.path.exists(current_file):
+            with open(current_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
         else:
             data = {}
         
         data[key] = value
         
-        with open(STORAGE_FILE, 'w', encoding='utf-8') as f:
+        with open(current_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         
         return True
@@ -49,242 +51,100 @@ def save(key, value):
 def delete(key):
     """Delete data from storage"""
     try:
-        if os.path.exists(STORAGE_FILE):
-            with open(STORAGE_FILE, 'r', encoding='utf-8') as f:
+        current_file = get_storage_file()
+        if os.path.exists(current_file):
+            with open(current_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
             if key in data:
                 del data[key]
-            
-            with open(STORAGE_FILE, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            
-            return True
+                with open(current_file, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+                return True
+        return False
     except:
         return False
 
-def load_all_to_session(session_state):
-    """Load all data to Streamlit session"""
-    try:
-        if os.path.exists(STORAGE_FILE):
-            with open(STORAGE_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            
-            for key, value in data.items():
-                if key not in session_state:
-                    session_state[key] = value
-    except:
-        pass
-
 # ═══════════════════════════════════════════════════════════════
-# ML FUNCTIONS (REQUIRED BY ml_learning_ai.py)
+# SPECIFIC WRAPPERS (Required by other modules)
 # ═══════════════════════════════════════════════════════════════
 
-def save_ml(model_data):
-    """Save ML model and data"""
-    try:
-        if isinstance(model_data, dict):
-            save("ml_model_data", model_data)
-        else:
-            # Serialize model with pickle
-            serialized = base64.b64encode(pickle.dumps(model_data)).decode()
-            save("ml_model_serialized", serialized)
-        return True
-    except:
-        return False
+def load_all_to_session(session):
+    """Loads specific keys to session state on startup"""
+    keys_to_load = [
+        "portfolio_buy_prices", "portfolio_quantities", 
+        "val_cash_ils", "day_cash_ils", "ml_scores", "ml_runs", 
+        "ml_accuracy", "trade_history_complete", "val_trades_log", "day_trades_log"
+    ]
+    for k in keys_to_load:
+        if k not in session:
+            val = load(k)
+            if val is not None:
+                session[k] = val
 
-def load_ml(key="ml_model_data"):
-    """Load ML model or data"""
-    return load(key, {})
+def load_ai_portfolio(session):
+    """Loads AI Portfolio data to session"""
+    keys = ["aip_capital", "aip_cash", "aip_positions", "aip_trades", "aip_decisions", "aip_performance", "aip_settings", "aip_enabled"]
+    for k in keys:
+        if k not in session:
+            val = load(k)
+            if val is not None:
+                session[k] = val
 
-def save_ml_results(results):
-    """Save ML training results"""
-    save("ml_results", results)
+def save_simulator(session, agent_type="day"):
+    """Saves simulator portfolio data"""
+    save(f"{agent_type}_portfolio", session.get(f"{agent_type}_portfolio", []))
+    save(f"{agent_type}_cash_ils", session.get(f"{agent_type}_cash_ils", 100000.0))
 
-def load_ml_results():
-    """Load ML training results"""
-    return load("ml_results", {})
+def reset_simulator(session, agent_type="day"):
+    """Resets simulator data"""
+    session[f"{agent_type}_portfolio"] = []
+    session[f"{agent_type}_cash_ils"] = 100000.0
+    save_simulator(session, agent_type)
 
-# ═══════════════════════════════════════════════════════════════
-# SIMULATOR FUNCTIONS (REQUIRED BY simulator.py)
-# ═══════════════════════════════════════════════════════════════
-
-def save_simulator(state):
-    """Save simulator state"""
-    save("simulator_state", state)
-
-def reset_simulator():
-    """Reset simulator"""
-    delete("simulator_state")
-    save("simulator_reset", True)
-
-def load_simulator():
-    """Load simulator state"""
-    return load("simulator_state", {})
-
-# ═══════════════════════════════════════════════════════════════
-# USER MANAGEMENT
-# ═══════════════════════════════════════════════════════════════
-
-class UserManager:
-    """User management with security"""
-    
-    @staticmethod
-    def hash_password(password):
-        """Hash password"""
-        return hashlib.sha256(password.encode()).hexdigest()
-    
-    @staticmethod
-    def register_user(username, password):
-        """Register new user"""
-        users = load("users_data", {})
-        
-        if username in users:
-            return False, "User exists"
-        
-        users[username] = {
-            "password": UserManager.hash_password(password),
-            "created": datetime.now().isoformat(),
-            "subscription": "basic",
-            "portfolio": {},
-            "api_key": hashlib.sha256(f"{username}{time.time()}".encode()).hexdigest()[:32]
-        }
-        
-        save("users_data", users)
-        return True, "Registered"
-    
-    @staticmethod
-    def login(username, password):
-        """Login user"""
-        users = load("users_data", {})
-        
-        if username not in users:
-            return False, "Not found"
-        
-        if users[username]["password"] != UserManager.hash_password(password):
-            return False, "Wrong password"
-        
-        return True, users[username]
-
-# ═══════════════════════════════════════════════════════════════
-# GLOBAL ML SYSTEM
-# ═══════════════════════════════════════════════════════════════
-
-class GlobalMLSystem:
-    """Global machine learning from all users"""
-    
-    @staticmethod
-    def add_trade(username, trade):
-        """Add trade to global learning"""
-        global_trades = load("global_trades_all_users", [])
-        user_trades = load("user_trades_by_user", {})
-        
-        if username not in user_trades:
-            user_trades[username] = []
-        
-        user_trades[username].append(trade)
-        global_trades.append(trade)
-        
-        save("global_trades_all_users", global_trades)
-        save("user_trades_by_user", user_trades)
-    
-    @staticmethod
-    def get_global_insights():
-        """Get global insights"""
-        global_trades = load("global_trades_all_users", [])
-        user_trades = load("user_trades_by_user", {})
-        
-        if not global_trades:
-            return {
-                "total_trades": 0,
-                "total_users": 0,
-                "avg_profit": 0,
-                "win_rate": 0
-            }
-        
-        profits = [t.get("profit", 0) for t in global_trades]
-        wins = sum(1 for p in profits if p > 0)
-        
-        return {
-            "total_trades": len(global_trades),
-            "total_users": len(user_trades),
-            "avg_profit": sum(profits) / len(profits) if profits else 0,
-            "win_rate": wins / len(global_trades) if global_trades else 0
-        }
-
-# ═══════════════════════════════════════════════════════════════
-# PORTFOLIO FUNCTIONS
-# ═══════════════════════════════════════════════════════════════
-
-def load_ai_portfolio(session_state):
-    """Load AI portfolio from storage"""
-    portfolio = load("ai_portfolio", {})
-    if portfolio:
-        session_state["ai_portfolio"] = portfolio
-
-def save_ai_portfolio(portfolio):
-    """Save AI portfolio"""
-    save("ai_portfolio", portfolio)
-
-# ═══════════════════════════════════════════════════════════════
-# EXECUTION FUNCTIONS
-# ═══════════════════════════════════════════════════════════════
-
-def save_execution_log(log_entry):
-    """Save execution log"""
-    logs = load("execution_logs", [])
-    logs.append(log_entry)
-    save("execution_logs", logs)
-
-def load_execution_logs():
-    """Load execution logs"""
-    return load("execution_logs", [])
-
-# ═══════════════════════════════════════════════════════════════
-# FAILSAFE FUNCTIONS
-# ═══════════════════════════════════════════════════════════════
-
-def save_failsafe_settings(settings):
-    """Save failsafe settings"""
-    save("failsafe_settings", settings)
-
-def load_failsafe_settings():
-    """Load failsafe settings"""
-    return load("failsafe_settings", {})
+def save_ml(session):
+    """Saves Machine Learning models and parameters"""
+    keys = ["ml_trained", "ml_accuracy", "ml_runs", "ml_params", "ml_insights", "ml_model_type", "ml_cv_scores", "ml_model_b64", "ml_scaler_b64", "ml_feat_imp", "ml_train_n"]
+    for k in keys:
+        if k in session:
+            save(k, session[k])
 
 # ═══════════════════════════════════════════════════════════════
 # UTILITY FUNCTIONS
 # ═══════════════════════════════════════════════════════════════
 
 def clear_all():
-    """Clear all data"""
+    """Clear all data for current user"""
     try:
-        if os.path.exists(STORAGE_FILE):
-            os.remove(STORAGE_FILE)
+        current_file = get_storage_file()
+        if os.path.exists(current_file):
+            os.remove(current_file)
         return True
     except:
         return False
 
 def get_all():
-    """Get all data"""
+    """Get all data for current user"""
     try:
-        if not os.path.exists(STORAGE_FILE):
+        current_file = get_storage_file()
+        if not os.path.exists(current_file):
             return {}
         
-        with open(STORAGE_FILE, 'r', encoding='utf-8') as f:
+        with open(current_file, 'r', encoding='utf-8') as f:
             return json.load(f)
     except:
         return {}
 
 def export_data():
-    """Export all data"""
+    """Export all data as JSON string"""
     return json.dumps(get_all(), ensure_ascii=False, indent=2)
 
 def import_data(json_data):
-    """Import data from JSON"""
+    """Import data from JSON string"""
     try:
         data = json.loads(json_data)
-        with open(STORAGE_FILE, 'w', encoding='utf-8') as f:
+        current_file = get_storage_file()
+        with open(current_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         return True
     except:
