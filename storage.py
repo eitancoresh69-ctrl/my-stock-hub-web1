@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-# storage.py - Complete version with all functions
+# storage.py - Complete with ALL required functions
 import json
 import os
 import hashlib
 import time
+import pickle
+import base64
 from datetime import datetime
 
 STORAGE_FILE = "trading_data.json"
@@ -75,7 +77,36 @@ def load_all_to_session(session_state):
         pass
 
 # ═══════════════════════════════════════════════════════════════
-# SIMULATOR FUNCTIONS (REQUIRED)
+# ML FUNCTIONS (REQUIRED BY ml_learning_ai.py)
+# ═══════════════════════════════════════════════════════════════
+
+def save_ml(model_data):
+    """Save ML model and data"""
+    try:
+        if isinstance(model_data, dict):
+            save("ml_model_data", model_data)
+        else:
+            # Serialize model with pickle
+            serialized = base64.b64encode(pickle.dumps(model_data)).decode()
+            save("ml_model_serialized", serialized)
+        return True
+    except:
+        return False
+
+def load_ml(key="ml_model_data"):
+    """Load ML model or data"""
+    return load(key, {})
+
+def save_ml_results(results):
+    """Save ML training results"""
+    save("ml_results", results)
+
+def load_ml_results():
+    """Load ML training results"""
+    return load("ml_results", {})
+
+# ═══════════════════════════════════════════════════════════════
+# SIMULATOR FUNCTIONS (REQUIRED BY simulator.py)
 # ═══════════════════════════════════════════════════════════════
 
 def save_simulator(state):
@@ -194,6 +225,32 @@ def load_ai_portfolio(session_state):
 def save_ai_portfolio(portfolio):
     """Save AI portfolio"""
     save("ai_portfolio", portfolio)
+
+# ═══════════════════════════════════════════════════════════════
+# EXECUTION FUNCTIONS
+# ═══════════════════════════════════════════════════════════════
+
+def save_execution_log(log_entry):
+    """Save execution log"""
+    logs = load("execution_logs", [])
+    logs.append(log_entry)
+    save("execution_logs", logs)
+
+def load_execution_logs():
+    """Load execution logs"""
+    return load("execution_logs", [])
+
+# ═══════════════════════════════════════════════════════════════
+# FAILSAFE FUNCTIONS
+# ═══════════════════════════════════════════════════════════════
+
+def save_failsafe_settings(settings):
+    """Save failsafe settings"""
+    save("failsafe_settings", settings)
+
+def load_failsafe_settings():
+    """Load failsafe settings"""
+    return load("failsafe_settings", {})
 
 # ═══════════════════════════════════════════════════════════════
 # UTILITY FUNCTIONS
