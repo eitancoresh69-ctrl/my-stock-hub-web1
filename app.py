@@ -470,4 +470,200 @@ with tabs[26]: tax_fees_ai.render_tax_optimization()
 
 # ══ 27: מדריך + מילון מושגים ════════════════════════════════════════════════════
 with tabs[27]:
-    render_glossary()
+    st.markdown("""
+    <div class="ai-card" style="border-right-color: #ff6b6b;">
+    <b>🔄 ניהול סוכנים 24/7 - כלי למידה לסוחרים מתחילים</b>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    scheduler = get_scheduler()
+    status = scheduler.get_status()
+    
+    # ─── סטטוס ───────────────────────────────────────────────────────
+    st.subheader("⚙️ סטטוס ממוד")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        running_text = "✅ פעיל" if status["running"] else "❌ לא פעיל"
+        st.metric("Scheduler", running_text, delta="חוט daemon" if status["running"] else "")
+    
+    with col2:
+        thread_text = "✅ רץ" if status["thread_alive"] else "⏸️ השהוי"
+        st.metric("חוט עבודה", thread_text)
+    
+    with col3:
+        last_run = status["last_runs"].get("val_agent", "טרם הופעל")
+        if isinstance(last_run, str) and "T" in last_run:
+            display_time = last_run.split("T")[1][:5]
+        else:
+            display_time = "אין"
+        st.metric("ריצה אחרונה", display_time)
+    
+    st.divider()
+    
+    # ─── הפעלה ידנית ───────────────────────────────────────────────────
+    st.subheader("▶️ הפעל סוכנים ידנית")
+    st.write("💡 לחץ על כפתור כדי להפעיל סוכן עכשיו (בדרך כלל רץ אוטומטית)")
+    
+    col_a, col_b, col_c = st.columns(3)
+    
+    with col_a:
+        if st.button("▶️ סוכן ערך עכשיו", key="manual_val_agent", use_container_width=True):
+            with st.spinner("⏳ סוכן ערך רץ... (טיפול בעמדות וחיסכון)"):
+                scheduler.run_val_agent()
+            st.success("✅ סוכן ערך סיים - בדוק את היומן למטה")
+    
+    with col_b:
+        if st.button("▶️ סוכן יומי עכשיו", key="manual_day_agent", use_container_width=True):
+            with st.spinner("⏳ סוכן יומי רץ... (סחר בתוך היום)"):
+                scheduler.run_day_agent()
+            st.success("✅ סוכן יומי סיים")
+    
+    with col_c:
+        if st.button("▶️ ML אימון עכשיו", key="manual_ml", use_container_width=True):
+            with st.spinner("⏳ ML מתאמן... (זה יכול לקחת דקות)"):
+                scheduler.run_ml_training()
+            st.success("✅ ML סיים - בדוק דיוק למטה")
+    
+    st.divider()
+    
+    # ─── יומן עסקאות אחרונות ───────────────────────────────────────────
+    st.subheader("📋 עסקאות אחרונות (למידה)")
+    
+    col_val_trades, col_day_trades = st.columns(2)
+    
+    with col_val_trades:
+        st.markdown("### 💼 סוכן ערך - עסקאות יומיות")
+        val_trades = load("val_trades_log", [])
+        if val_trades:
+            st.write(f"**סה\"כ עסקאות: {len(val_trades)}**")
+            for i, trade in enumerate(val_trades[:3]):  # הראה 3 אחרונות
+                with st.expander(f"עסקה #{i+1}: {trade.get('📌', '?')} - {trade.get('↔️', '?')}", expanded=(i==0)):
+                    st.write(f"⏰ **זמן:** {trade.get('⏰', 'N/A')[:16]}")
+                    st.write(f"📌 **מניה:** {trade.get('📌', 'N/A')}")
+                    st.write(f"💰 **מחיר:** {trade.get('💰', 'N/A')}")
+                    st.write(f"💵 **סכום:** {trade.get('💵', 'N/A')}")
+                    st.write(f"📊 **רווח/הפסד:** {trade.get('📊', 'N/A')}")
+                    st.write(f"🎯 **סיבה:** {trade.get('🎯', 'N/A')}")
+                    st.write(f"📚 **מה למדנו:** {trade.get('📚', 'N/A')}")
+        else:
+            st.info("אין עדיין עסקאות - לחץ על 'הפעל סוכן ערך'")
+    
+    with col_day_trades:
+        st.markdown("### 📈 סוכן יומי - עסקאות היום")
+        day_trades = load("day_trades_log", [])
+        if day_trades:
+            st.write(f"**סה\"כ עסקאות היום: {len(day_trades)}**")
+            for i, trade in enumerate(day_trades[:3]):
+                with st.expander(f"עסקה #{i+1}: {trade.get('📌', '?')}", expanded=(i==0)):
+                    st.write(f"⏰ **זמן:** {trade.get('⏰', 'N/A')[:16]}")
+                    st.write(f"📌 **מניה/כל:** {trade.get('📌', 'N/A')}")
+                    st.write(f"📚 **למידה:** {trade.get('📚', 'N/A')}")
+        else:
+            st.info("אין עדיין עסקאות יומיות")
+    
+    st.divider()
+    
+    # ─── ML - מכונה למידה ───────────────────────────────────────────────
+    st.subheader("🤖 Machine Learning - למידה עצמית")
+    
+    col_ml_left, col_ml_right = st.columns(2)
+    
+    with col_ml_left:
+        st.markdown("### 📊 ביצועי המודל")
+        ml_accuracy = load("ml_accuracy", 0.0)
+        ml_runs = load("ml_runs", 0)
+        
+        st.metric("🎯 דיוק (Accuracy)", f"{ml_accuracy:.1%}")
+        st.metric("🔄 ריצות סה\"כ", f"{ml_runs}")
+        
+        if ml_accuracy > 0:
+            st.success(f"✅ המודל מנחש נכון {ml_accuracy:.0%} מהעת")
+    
+    with col_ml_right:
+        st.markdown("### 📚 הסברים למתחילים")
+        st.write("""
+        **דיוק (Accuracy):**
+        - אם 60% = המודל צודק 6 מתוך 10 פעמים
+        - אם 75% = המודל צודק 7.5 מתוך 10 פעמים
+        
+        **ריצות:**
+        - כל ריצה = למידה מחדש מנתונים חדשים
+        - יותר ריצות = מודל חזק יותר
+        - רץ אוטומטית כל 12 שעות
+        """)
+    
+    st.divider()
+    
+    # ─── הסברים עמוקים ───────────────────────────────────────────────
+    with st.expander("📖 הבנה עמוקה - איך זה עובד?", expanded=False):
+        
+        tab1, tab2, tab3 = st.tabs(["💼 סוכן ערך", "📈 סוכן יומי", "🤖 ML"])
+        
+        with tab1:
+            st.markdown("""
+            ### 💼 סוכן ערך (Value Agent) - קונה ומוכר אוטומטית
+            
+            **מה הסוכן עושה:**
+            1. **בודק** את כל מניה בתיק שלך
+            2. **מחשב** את הרווח או ההפסד באחוז
+            3. **מוכר אוטומטית** אם קרו שני דברים:
+               - ✅ **TAKE PROFIT (TP):** מניה עלתה 20% → מוכר (מנצח רווח)
+               - ⛔ **STOP LOSS (SL):** מניה ירדה 8% → מוכר (מונע הפסד גדול)
+            
+            **למה זה טוב למתחילים:**
+            - לא צריך לשמור על המסך כל הזמן
+            - אוטומטי מבטל רווחים טובים
+            - אוטומטי מונע הפסדים גדולים
+            - רץ כל 6 שעות 24/7
+            """)
+        
+        with tab2:
+            st.markdown("""
+            ### 📈 סוכן יומי (Day Agent) - סוחר בתוך כל יום
+            
+            **מה הסוכן עושה:**
+            1. **בבוקר (8:00-9:00):** קונה כמה מניות בהימורים קטנים
+            2. **בערב (15:00-16:00):** מוכר הכל
+            3. **בלילה:** משאיר נקודות פתוחות = בטוח יותר
+            
+            **למה זה טוב למתחילים:**
+            - תרגול סחר יומי בטוח
+            - בלי סיכון לתוספות לילה (פער מחירים)
+            - מתחיל מחדש כל יום
+            - רץ כל שעה בשעות עבודה
+            """)
+        
+        with tab3:
+            st.markdown("""
+            ### 🤖 Machine Learning - מכונה שמתאמנת
+            
+            **מה זה עושה:**
+            1. **אוסף נתונים:** 2 שנים מ-6 מניות
+            2. **בונה מאפיינים (Features):** RSI, MACD, Bollinger, Volume, וגם
+            3. **מאמן מודל:** RandomForest (כמו עץ החלטות)
+            4. **בודק עצמו:** 5-Fold Cross-Validation
+            5. **מחזיר דיוק:** אחוז הנחשות הנכונות
+            
+            **למה זה חשוב:**
+            - סוכנים צריכים לדעת **איזו מניה טובה**
+            - ML למד את זה מנתונים היסטוריים
+            - בעתיד: יוכל לעזור לסוכנים להחליט מה לקנות
+            """)
+    
+    st.divider()
+    
+    # ─── כלים רישום ───────────────────────────────────────────────────
+    st.subheader("📊 ערכים נוכחיים")
+    
+    col_debug1, col_debug2 = st.columns(2)
+    
+    with col_debug1:
+        st.write("**סוכן ערך:**")
+        val_cash = load("val_cash_ils", 5000.0)
+        st.metric("💰 מזומנים", f"₪{val_cash:,.2f}")
+    
+    with col_debug2:
+        st.write("**סוכן יומי:**")
+        day_cash = load("day_cash_ils", 5000.0)
+        st.metric("💰 מזומנים", f"₪{day_cash:,.2f}")
