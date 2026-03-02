@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# storage.py - Enhanced with Global ML System
+# storage.py - Complete version with all functions
 import json
 import os
 import hashlib
@@ -73,6 +73,23 @@ def load_all_to_session(session_state):
                     session_state[key] = value
     except:
         pass
+
+# ═══════════════════════════════════════════════════════════════
+# SIMULATOR FUNCTIONS (REQUIRED)
+# ═══════════════════════════════════════════════════════════════
+
+def save_simulator(state):
+    """Save simulator state"""
+    save("simulator_state", state)
+
+def reset_simulator():
+    """Reset simulator"""
+    delete("simulator_state")
+    save("simulator_reset", True)
+
+def load_simulator():
+    """Load simulator state"""
+    return load("simulator_state", {})
 
 # ═══════════════════════════════════════════════════════════════
 # USER MANAGEMENT
