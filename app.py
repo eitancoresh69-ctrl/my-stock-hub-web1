@@ -33,8 +33,11 @@ if not st.session_state.get("logged_in", False):
     user_manager.render_login_screen()
     st.stop()
 
-with st.sidebar:
-    st.markdown(f"👤 מחובר כ: **{st.session_state.get('username', '')}**")
+# ─── תפריט משתמש עליון (ללא סיידבר) ──────────────────────────────────────────
+user_col, empty_col, logout_col = st.columns([6, 2, 2])
+with user_col:
+    st.write(f"👤 מחובר כ: **{st.session_state.get('username', '')}**")
+with logout_col:
     if st.button("🚪 התנתק", use_container_width=True):
         st.session_state["logged_in"] = False
         st.session_state.clear()
