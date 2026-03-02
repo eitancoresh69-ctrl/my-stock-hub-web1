@@ -1,4 +1,4 @@
-# app.py — Investment Hub Elite 2026 — גרסה סופית + Tooltips עברית
+# app.py — Investment Hub Elite 2026 — גרסה סופית + התחברות חכמה + תיק ריק למשתמשים חדשים
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -206,7 +206,7 @@ tabs = st.tabs([
     "🧠 ML",          # 24
     "📡 נתונים חיים", # 25
     "💸 מיסים",       # 26
-    "📖 מדריך",       # 27 ← חדש!
+    "📖 מדריך",       # 27
 ])
 
 # ══ 0: התיק האישי ═════════════════════════════════════════════════════════════
@@ -243,30 +243,44 @@ with tabs[0]:
                     st.success(f"✅ {ns} נוסף!")
                     st.rerun()
 
+    # שינוי הלוגיקה כאן: הצגת תיק ריק למשתמשים חדשים
     if "portfolio" not in st.session_state:
         saved_prices = st.session_state.get("portfolio_buy_prices", {})
         saved_qty    = st.session_state.get("portfolio_quantities",  {})
-        st.session_state.portfolio = pd.DataFrame([
-            {"Symbol":t,"BuyPrice":saved_prices.get(t,0.0),"Qty":saved_qty.get(t,0)}
-            for t in list(set(MY_STOCKS_BASE))
-        ])
+        
+        # שולף רק את המניות שהמשתמש שמר. אם הוא לא שמר כלום, התיק יהיה ריק
+        saved_symbols = list(set(list(saved_prices.keys()) + list(saved_qty.keys())))
+        
+        if saved_symbols:
+            st.session_state.portfolio = pd.DataFrame([
+                {"Symbol": t, "BuyPrice": saved_prices.get(t, 0.0), "Qty": saved_qty.get(t, 0)}
+                for t in saved_symbols
+            ])
+        else:
+            # תיק ריק לחלוטין!
+            st.session_state.portfolio = pd.DataFrame(columns=["Symbol", "BuyPrice", "Qty"])
 
     if not df_all.empty:
         merged = pd.merge(st.session_state.portfolio, df_all, on="Symbol", how="left")
-        merged["Price"]    = merged["Price"].fillna(0)
-        merged["PriceStr"] = merged.apply(
-            lambda r: str(r.get("PriceStr","")) or f"${r['Price']:.2f}", axis=1)
-        merged["PL"]    = (merged["Price"]-merged["BuyPrice"])*merged["Qty"]
-        merged["Yield"] = merged.apply(
-            lambda r: ((r["Price"]/r["BuyPrice"])-1)*100 if r["BuyPrice"]>0 else 0, axis=1)
-        merged["Emoji"] = merged["Symbol"].apply(
-            lambda s: "🥇" if "GC" in s else "🛢️" if any(x in s for x in ["CL","BZ","NG"]) else
-                      "₿" if "BTC" in s else "Ξ" if "ETH" in s else
-                      "🇮🇱" if s.endswith(".TA") else "📈")
-
-        disp = merged[["Symbol","Emoji","PriceStr","BuyPrice","Qty","PL","Yield"]].copy()
-        disp["Score"]  = merged["Score"].values  if "Score"  in merged.columns else 0
-        disp["Action"] = merged["Action"].values if "Action" in merged.columns else "—"
+        # נוודא שגם כשהתיק ריק, הקוד לא קורס
+        if not merged.empty:
+            merged["Price"]    = merged["Price"].fillna(0)
+            merged["PriceStr"] = merged.apply(
+                lambda r: str(r.get("PriceStr","")) or f"${r['Price']:.2f}", axis=1)
+            merged["PL"]    = (merged["Price"]-merged["BuyPrice"])*merged["Qty"]
+            merged["Yield"] = merged.apply(
+                lambda r: ((r["Price"]/r["BuyPrice"])-1)*100 if r["BuyPrice"]>0 else 0, axis=1)
+            merged["Emoji"] = merged["Symbol"].apply(
+                lambda s: "🥇" if "GC" in s else "🛢️" if any(x in s for x in ["CL","BZ","NG"]) else
+                          "₿" if "BTC" in s else "Ξ" if "ETH" in s else
+                          "🇮🇱" if s.endswith(".TA") else "📈")
+    
+            disp = merged[["Symbol","Emoji","PriceStr","BuyPrice","Qty","PL","Yield"]].copy()
+            disp["Score"]  = merged["Score"].values  if "Score"  in merged.columns else 0
+            disp["Action"] = merged["Action"].values if "Action" in merged.columns else "—"
+        else:
+            # במקרה של תיק ריק, נכין טבלה ריקה עם עמודות מסודרות
+            disp = pd.DataFrame(columns=["Symbol","Emoji","PriceStr","BuyPrice","Qty","PL","Yield","Score","Action"])
 
         edited = st.data_editor(
             disp,
@@ -287,19 +301,22 @@ with tabs[0]:
         save("portfolio_buy_prices", dict(zip(edited["Symbol"], edited["BuyPrice"])))
         save("portfolio_quantities",  dict(zip(edited["Symbol"], edited["Qty"])))
 
-        active = merged[merged["Qty"]>0].copy()
-        if not active.empty:
-            active["PL"] = (active["Price"]-active["BuyPrice"])*active["Qty"]
-            total_pl     = active["PL"].sum()
-            total_val    = (active["Price"]*active["Qty"]).sum()
-            st.divider()
-            s1,s2,s3,s4 = st.columns(4)
-            s1.metric("📊 נכסים פעילים", len(active))
-            s2.metric("💼 שווי תיק",     f"${total_val:,.0f}")
-            s3.metric("📈 רווח/הפסד",
-                      f"{'🟢 +' if total_pl>=0 else '🔴 '}${abs(total_pl):,.0f}")
-            s4.metric("⭐ ציון ממוצע",
-                      f"{active['Score'].mean():.1f}/6" if "Score" in active.columns else "—")
+        if not merged.empty:
+            active = merged[merged["Qty"]>0].copy()
+            if not active.empty:
+                active["PL"] = (active["Price"]-active["BuyPrice"])*active["Qty"]
+                total_pl     = active["PL"].sum()
+                total_val    = (active["Price"]*active["Qty"]).sum()
+                st.divider()
+                s1,s2,s3,s4 = st.columns(4)
+                s1.metric("📊 נכסים פעילים", len(active))
+                s2.metric("💼 שווי תיק",     f"${total_val:,.0f}")
+                s3.metric("📈 רווח/הפסד",
+                          f"{'🟢 +' if total_pl>=0 else '🔴 '}${abs(total_pl):,.0f}")
+                s4.metric("⭐ ציון ממוצע",
+                          f"{active['Score'].mean():.1f}/6" if "Score" in active.columns else "—")
+        else:
+            st.info("💡 התיק שלך כרגע ריק. לחץ על 'הוסף נכס' כדי להתחיל לעקוב אחרי מניות!")
 
 # ══ 1 ── תיק AI מנוהל ═════════════════════════════════════════════════════════
 with tabs[1]:
