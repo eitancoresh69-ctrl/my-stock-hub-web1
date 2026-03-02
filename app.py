@@ -1,161 +1,55 @@
 import streamlit as st
 from storage import UserManager
 
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.username = None
-
-if not st.session_state.logged_in:
-    st.set_page_config(page_title="Investment Hub Elite 2026", page_icon="🤖", layout="centered")
-    st.markdown("<h1 style='text-align: center; color: #1976d2;'>🤖 Investment Hub Elite 2026</h1>", unsafe_allow_html=True)
-    
-    tab1, tab2 = st.tabs(["🔓 Login", "📝 Register"])
-    
-    with tab1:
-        st.markdown("### Login")
-        login_user = st.text_input("Username", placeholder="Enter username")
-        login_pass = st.text_input("Password", type="password", placeholder="Enter password")
-        
-        if st.button("🔓 Login", use_container_width=True):
-            if login_user and login_pass:
-                success, data = UserManager.login(login_user, login_pass)
-                if success:
-                    st.session_state.logged_in = True
-                    st.session_state.username = login_user
-                    st.success("✅ Logged in!")
-                    st.rerun()
-                else:
-                    st.error(f"❌ {data}")
-    
-    with tab2:
-        st.markdown("### Register")
-        reg_user = st.text_input("Username", placeholder="Choose username")
-        reg_pass = st.text_input("Password", type="password", placeholder="Create password")
-        
-        if st.button("📝 Register", use_container_width=True):
-            if reg_user and reg_pass:
-                success, msg = UserManager.register_user(reg_user, reg_pass)
-                if success:
-                    st.success("✅ Registered! Login now.")
-                else:
-                    st.error(f"❌ {msg}")
-    
-    st.stop()
-
-# ═══════════════════════════════════════════════════════════════
-# YOUR ORIGINAL APP CODE STARTS HERE - ALL YOUR ORIGINAL CODE
-# DON'T CHANGE ANYTHING BELOW THIS LINE
-# ═══════════════════════════════════════════════════════════════
-```
-
-### Step 3: Add this to sidebar (after your original sidebar code)
-
-```python
-# Add user info
-with st.sidebar:
-    if st.session_state.logged_in:
-        st.write(f"👤 {st.session_state.username}")
-        if st.button("🚪 Logout"):
-            st.session_state.logged_in = False
-            st.rerun()
-```
-
-### Step 4: Update storage.py
-
-Copy `storage_FINAL.py` and rename to `storage.py`
-(It has the UserManager class needed for login)
-
-### Step 5: Commit and Push
-
-```bash
-git add app.py storage.py
-git commit -m "feat: Add multi-user login system"
-git push origin main
-```
-
-═══════════════════════════════════════════════════════════════
-
-## 🎯 SUMMARY
-
-1. Add login code at TOP of app.py ← Before anything else!
-2. Keep all original code below ← Don't change!
-3. Update storage.py ← Add UserManager class
-4. Push to GitHub ← Streamlit updates automatically!
-
-═══════════════════════════════════════════════════════════════
-
-## ✅ RESULT
-
-After updating:
-- Users see LOGIN screen first ✅
-- Existing data loads after login ✅
-- All dashboards work ✅
-- No breaking changes ✅
-
-═══════════════════════════════════════════════════════════════
-
-## 🔍 FILES NEEDED
-
-1. storage_FINAL.py → rename to storage.py
-2. Original app.py + login code at top
-
-That's it! Simple!
-
-═══════════════════════════════════════════════════════════════
-
-# app.py — Investment Hub Elite 2026 — With Multi-User Login (ONLY at top)
-import streamlit as st
-from storage import UserManager
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# AUTHENTICATION SYSTEM - ONLY ADDITION
-# ═══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
+# מערכת התחברות
+# ==============================================================================
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = None
 
 if not st.session_state.logged_in:
-    st.set_page_config(page_title="Investment Hub Elite 2026", page_icon="🤖", layout="centered")
+    st.set_page_config(page_title="מרכז השקעות עלית 2026", page_icon="🤖", layout="centered")
     
-    st.markdown("<h1 style='text-align: center; color: #1976d2;'>🤖 Investment Hub Elite 2026</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #1976d2;'>🤖 מרכז השקעות עלית 2026</h1>", unsafe_allow_html=True)
     
-    tab1, tab2 = st.tabs(["🔓 Login", "📝 Register"])
+    tab1, tab2 = st.tabs(["🔓 התחברות", "📝 הרשמה"])
     
     with tab1:
-        st.markdown("### Login to Your Account")
-        login_user = st.text_input("Username", placeholder="Enter username")
-        login_pass = st.text_input("Password", type="password", placeholder="Enter password")
+        st.markdown("### התחבר לחשבונך")
+        login_user = st.text_input("שם משתמש", placeholder="הזן שם משתמש")
+        login_pass = st.text_input("סיסמה", type="password", placeholder="הזן סיסמה")
         
-        if st.button("🔓 Login", use_container_width=True):
+        if st.button("🔓 התחברות", use_container_width=True):
             if login_user and login_pass:
                 success, data = UserManager.login(login_user, login_pass)
                 if success:
                     st.session_state.logged_in = True
                     st.session_state.username = login_user
-                    st.success("✅ Logged in!")
+                    st.success("✅ התחברת בהצלחה!")
                     st.rerun()
                 else:
                     st.error(f"❌ {data}")
     
     with tab2:
-        st.markdown("### Create New Account")
-        reg_user = st.text_input("Username", placeholder="Choose username")
-        reg_pass = st.text_input("Password", type="password", placeholder="Create password")
+        st.markdown("### צור חשבון חדש")
+        reg_user = st.text_input("שם משתמש (הרשמה)", placeholder="בחר שם משתמש")
+        reg_pass = st.text_input("סיסמה (הרשמה)", type="password", placeholder="צור סיסמה")
         
-        if st.button("📝 Register", use_container_width=True):
+        if st.button("📝 הרשמה", use_container_width=True):
             if reg_user and reg_pass:
                 success, msg = UserManager.register_user(reg_user, reg_pass)
                 if success:
-                    st.success("✅ Registered! Login now.")
+                    st.success("✅ נרשמת בהצלחה! תוכל להתחבר כעת.")
                 else:
                     st.error(f"❌ {msg}")
     
     st.stop()
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# ORIGINAL APP CODE STARTS HERE - ALL YOUR ORIGINAL CODE
-# ═══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
+# קוד האפליקציה המקורי
+# ==============================================================================
 
 import pandas as pd
 import yfinance as yf
@@ -177,7 +71,7 @@ import social_sentiment_ai, tax_fees_ai, market_scanner
 import ai_portfolio, commodities_tab, pattern_ai, portfolio_optimizer
 
 st.set_page_config(
-    page_title="Investment Hub Elite 2026",
+    page_title="מרכז השקעות עלית 2026",
     page_icon="🌐",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -190,15 +84,15 @@ try:
 except Exception:
     pass
 
-# Add user info to sidebar
+# הוספת פרטי משתמש לסרגל הצד
 with st.sidebar:
-    st.markdown("### 👤 User")
+    st.markdown("### 👤 משתמש")
     st.write(f"**{st.session_state.username}**")
-    if st.button("🚪 Logout"):
+    if st.button("🚪 התנתק"):
         st.session_state.logged_in = False
         st.rerun()
 
-# ─── עיצוב + Tooltips ────────────────────────────────────────────────────────
+# עיצוב + Tooltips
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;800&display=swap');
@@ -220,13 +114,13 @@ html, body, [class*="css"] { font-family:'Heebo',sans-serif !important; directio
 
 inject_tooltip_css()
 
-# ─── Header ────────────────────────────────────────────────────────────────────
+# כותרת עליונה
 col1, col2 = st.columns([3, 1])
 with col1:
     st.markdown(f"""
     <div class="hub-header">
-    <h2>🌐 Investment Hub Elite 2026</h2>
-    <p>Welcome back, <b>{st.session_state.username}!</b></p>
+    <h2>🌐 מרכז השקעות עלית 2026</h2>
+    <p>ברוך שובך, <b>{st.session_state.username}!</b></p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -238,206 +132,204 @@ with col2:
     </div>
     """, unsafe_allow_html=True)
 
-# ─── Main Tabs ────────────────────────────────────────────────────────────────
-
+# כרטיסיות ראשיות
 tabs = st.tabs([
-    "📊 Dashboard", "📈 Real-time", "🎯 Market AI", "📰 News", "🎙️ Podcasts",
-    "🔔 Alerts", "💰 Portfolio", "📉 Analytics", "🇮🇱 TASE", "🇺🇸 US Stocks",
-    "🪙 Crypto", "📦 Commodities", "💎 Premium", "🚀 Pro Tools", "📊 ML Learning",
-    "⚡ Execution", "🛡️ Failsafes", "📋 AI Portfolio", "💹 Backtest", "🎨 Pattern",
-    "📑 Report", "⚙️ Settings", "🔐 Security", "📞 Support", "ℹ️ About",
-    "🏆 Rankings", "💬 Community", "📚 Education", "🔧 Tools", "✨ AI Hub"
+    "📊 לוח בקרה", "📈 זמן אמת", "🎯 בינה מלאכותית", "📰 חדשות", "🎙️ פודקאסטים",
+    "🔔 התראות", "💰 תיק השקעות", "📉 אנליטיקה", "🇮🇱 בורסת ת\"א", "🇺🇸 מניות ארה\"ב",
+    "🪙 קריפטו", "📦 סחורות", "💎 פרימיום", "🚀 כלי פרו", "📊 למידת מכונה",
+    "⚡ ביצוע", "🛡️ הגנות", "📋 תיק AI", "💹 טסטים (Backtest)", "🎨 תבניות",
+    "📑 דוחות", "⚙️ הגדרות", "🔐 אבטחה", "📞 תמיכה", "ℹ️ אודות",
+    "🏆 דירוגים", "💬 קהילה", "📚 חינוך", "🔧 כלים", "✨ מרכז AI"
 ])
 
-# Tabs content - KEEP YOUR ORIGINAL FUNCTIONS
 try:
     with tabs[0]:
-        st.subheader("📊 Dashboard")
+        st.subheader("📊 לוח בקרה")
         try:
             realtime_data.show_dashboard()
         except:
-            st.write("Dashboard loading...")
+            st.write("טוען לוח בקרה...")
     
     with tabs[1]:
-        st.subheader("📈 Real-time Market Data")
+        st.subheader("📈 נתוני שוק בזמן אמת")
         try:
             realtime_data.show_realtime()
         except:
-            st.write("Real-time data loading...")
+            st.write("טוען נתוני זמן אמת...")
     
     with tabs[2]:
-        st.subheader("🎯 Market AI")
+        st.subheader("🎯 ניתוח שוק - בינה מלאכותית")
         try:
             market_ai.show_market_analysis()
         except:
-            st.write("Market AI loading...")
+            st.write("טוען בינה מלאכותית לשוק...")
     
     with tabs[3]:
-        st.subheader("📰 News")
+        st.subheader("📰 חדשות")
         try:
             news_ai.show_news()
         except:
-            st.write("News loading...")
+            st.write("טוען חדשות...")
     
     with tabs[4]:
-        st.subheader("🎙️ Podcasts")
+        st.subheader("🎙️ פודקאסטים")
         try:
             podcasts_ai.show_podcasts()
         except:
-            st.write("Podcasts loading...")
+            st.write("טוען פודקאסטים...")
     
     with tabs[5]:
-        st.subheader("🔔 Alerts")
+        st.subheader("🔔 התראות")
         try:
             alerts_ai.show_alerts()
         except:
-            st.write("Alerts loading...")
+            st.write("טוען התראות...")
     
     with tabs[6]:
-        st.subheader("💰 Portfolio")
+        st.subheader("💰 תיק השקעות")
         try:
             ai_portfolio.show_portfolio()
         except:
-            st.write("Portfolio loading...")
+            st.write("טוען תיק השקעות...")
     
     with tabs[7]:
-        st.subheader("📉 Analytics")
+        st.subheader("📉 אנליטיקה")
         try:
             analytics_ai.show_analytics()
         except:
-            st.write("Analytics loading...")
+            st.write("טוען אנליטיקה...")
     
     with tabs[8]:
-        st.subheader("🇮🇱 TASE")
+        st.subheader("🇮🇱 בורסת תל אביב")
         try:
             market_scanner.show_tase()
         except:
-            st.write("TASE loading...")
+            st.write("טוען נתוני בורסת תל אביב...")
     
     with tabs[9]:
-        st.subheader("🇺🇸 US Stocks")
+        st.subheader("🇺🇸 מניות ארה\"ב")
         try:
             market_scanner.show_us()
         except:
-            st.write("US Stocks loading...")
+            st.write("טוען נתוני מניות ארה\"ב...")
     
     with tabs[10]:
-        st.subheader("🪙 Crypto")
+        st.subheader("🪙 קריפטו")
         try:
             crypto_ai.show_crypto()
         except:
-            st.write("Crypto loading...")
+            st.write("טוען קריפטו...")
     
     with tabs[11]:
-        st.subheader("📦 Commodities")
+        st.subheader("📦 סחורות")
         try:
             commodities_tab.show_commodities()
         except:
-            st.write("Commodities loading...")
+            st.write("טוען סחורות...")
     
     with tabs[12]:
-        st.subheader("💎 Premium")
+        st.subheader("💎 אזור פרימיום")
         try:
             premium_agents_ai.show_premium()
         except:
-            st.write("Premium loading...")
+            st.write("טוען כלי פרימיום...")
     
     with tabs[13]:
-        st.subheader("🚀 Pro Tools")
+        st.subheader("🚀 כלי פרו")
         try:
             pro_tools_ai.show_pro_tools()
         except:
-            st.write("Pro Tools loading...")
+            st.write("טוען כלי פרו...")
     
     with tabs[14]:
-        st.subheader("📊 ML Learning")
+        st.subheader("📊 למידת מכונה (ML)")
         try:
             ml_learning_ai.show_ml_learning()
         except:
-            st.write("ML Learning loading...")
+            st.write("טוען מודלי למידת מכונה...")
     
     with tabs[15]:
-        st.subheader("⚡ Execution")
+        st.subheader("⚡ ביצוע פעולות")
         try:
             execution_ai.show_execution()
         except:
-            st.write("Execution loading...")
+            st.write("טוען מסך ביצוע...")
     
     with tabs[16]:
-        st.subheader("🛡️ Failsafes")
+        st.subheader("🛡️ מנגנוני הגנה")
         try:
             failsafes_ai.show_failsafes()
         except:
-            st.write("Failsafes loading...")
+            st.write("טוען מנגנוני הגנה...")
     
     with tabs[17]:
-        st.subheader("📋 AI Portfolio")
+        st.subheader("📋 תיק מבוסס בינה מלאכותית")
         try:
             ai_portfolio.show_ai_portfolio()
         except:
-            st.write("AI Portfolio loading...")
+            st.write("טוען תיק בינה מלאכותית...")
     
     with tabs[18]:
-        st.subheader("💹 Backtest")
+        st.subheader("💹 בדיקת ביצועי עבר (Backtest)")
         try:
             backtest_ai.show_backtest()
         except:
-            st.write("Backtest loading...")
+            st.write("טוען מערכת בדיקת עבר...")
     
     with tabs[19]:
-        st.subheader("🎨 Pattern")
+        st.subheader("🎨 תבניות טכניות")
         try:
             pattern_ai.show_patterns()
         except:
-            st.write("Pattern loading...")
+            st.write("טוען זיהוי תבניות...")
     
     with tabs[20]:
-        st.subheader("📑 Report")
+        st.subheader("📑 דוחות")
         try:
             analytics_ai.show_report()
         except:
-            st.write("Report loading...")
+            st.write("טוען מערכת דוחות...")
     
     with tabs[21]:
-        st.subheader("⚙️ Settings")
-        st.write("Configure your preferences")
+        st.subheader("⚙️ הגדרות")
+        st.write("כאן תוכל לנהל את ההגדרות שלך")
     
     with tabs[22]:
-        st.subheader("🔐 Security")
-        st.write("Manage security settings")
+        st.subheader("🔐 אבטחה")
+        st.write("ניהול הגדרות אבטחה")
     
     with tabs[23]:
-        st.subheader("📞 Support")
-        st.write("Get help and support")
+        st.subheader("📞 תמיכה")
+        st.write("קבלת עזרה ותמיכה טכנית")
     
     with tabs[24]:
-        st.subheader("ℹ️ About")
-        st.write("About Investment Hub Elite 2026")
+        st.subheader("ℹ️ אודות")
+        st.write("אודות מרכז השקעות עלית 2026")
     
     with tabs[25]:
-        st.subheader("🏆 Rankings")
-        st.write("Leaderboard and rankings")
+        st.subheader("🏆 דירוגים")
+        st.write("טבלת מובילים ודירוגי סוחרים")
     
     with tabs[26]:
-        st.subheader("💬 Community")
-        st.write("Community features")
+        st.subheader("💬 קהילה")
+        st.write("פיצ'רים של הקהילה ושיתופי פעולה")
     
     with tabs[27]:
-        st.subheader("📚 Education")
-        st.write("Educational content")
+        st.subheader("📚 חינוך")
+        st.write("תוכן לימודי ומדריכים")
     
     with tabs[28]:
-        st.subheader("🔧 Tools")
-        st.write("Additional tools")
+        st.subheader("🔧 כלים")
+        st.write("כלים נוספים למסחר")
     
     with tabs[29]:
-        st.subheader("✨ AI Hub")
-        st.write("AI features hub")
+        st.subheader("✨ מרכז בינה מלאכותית")
+        st.write("מרכז הפיצ'רים המבוססים על בינה מלאכותית")
 
 except Exception as e:
-    st.error(f"Error loading tabs: {e}")
+    st.error(f"שגיאה בטעינת הכרטיסיות: {e}")
 
-# Start scheduler
+# הפעלת תזמון ברקע
 try:
     start_background_scheduler()
 except:
