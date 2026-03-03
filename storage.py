@@ -589,5 +589,77 @@ def load_ai_portfolio(session_state):
     if portfolio:
         session_state["ai_portfolio"] = portfolio
 
+# ═══════════════════════════════════════════════════════════════
+# SIMULATOR FUNCTIONS
+# ═══════════════════════════════════════════════════════════════
+
+def save_simulator(state):
+    """Save simulator state"""
+    save("simulator_state", state)
+
+def reset_simulator():
+    """Reset simulator"""
+    delete("simulator_state")
+    save("simulator_reset", True)
+
+def load_simulator():
+    """Load simulator state"""
+    return load("simulator_state", {})
+
+# ═══════════════════════════════════════════════════════════════
+# ML & EXECUTION FUNCTIONS
+# ═══════════════════════════════════════════════════════════════
+
+def save_ml(model_data):
+    """Save ML model and data"""
+    try:
+        if isinstance(model_data, dict):
+            save("ml_model_data", model_data)
+        else:
+            serialized = base64.b64encode(pickle.dumps(model_data)).decode()
+            save("ml_model_serialized", serialized)
+        return True
+    except:
+        return False
+
+def load_ml(key="ml_model_data"):
+    """Load ML model or data"""
+    return load(key, {})
+
+def save_execution_log(log_entry):
+    """Save execution log"""
+    logs = load("execution_logs", [])
+    logs.append(log_entry)
+    save("execution_logs", logs)
+
+def load_execution_logs():
+    """Load execution logs"""
+    return load("execution_logs", [])
+
+def save_failsafe_settings(settings):
+    """Save failsafe settings"""
+    save("failsafe_settings", settings)
+
+def load_failsafe_settings():
+    """Load failsafe settings"""
+    return load("failsafe_settings", {})
+
+def delete(key):
+    """Delete data from storage"""
+    try:
+        if os.path.exists(STORAGE_FILE):
+            with open(STORAGE_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            if key in data:
+                del data[key]
+            
+            with open(STORAGE_FILE, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            
+            return True
+    except:
+        return False
+
 # Initialize system on import
 backup_database()
