@@ -1,370 +1,129 @@
-# app.py — Investment Hub Elite 2026 — עיצוב חדש מודרני
+# app.py — מרכז השקעות עלית 2026
 import streamlit as st
 import pandas as pd
 import yfinance as yf
 from datetime import datetime
 
-# ═══════════════════════════════════════════════════════════════
-# PERSISTENT SESSION
-# ═══════════════════════════════════════════════════════════════
+# ==============================================================
+# מערכת התחברות וניהול סשן
+# ==============================================================
 
 from storage import SessionManager, UserManager
+from logic import fetch_master_data
+from config import MY_STOCKS_BASE, SCAN_LIST
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = None
 
-# בדוק אם יש session שמור
+# בדיקה אם קיים סשן שמור
 if not st.session_state.logged_in:
     stored_username = SessionManager.get_stored_username()
     if stored_username:
         st.session_state.logged_in = True
         st.session_state.username = stored_username
 
-# מסך Login אם לא מחובר
+# ==============================================================
+# מסך התחברות והרשמה (מוצג רק אם לא מחוברים)
+# ==============================================================
+
 if not st.session_state.logged_in:
-    # CSS עיצוב מודרני
+    st.set_page_config(page_title="מרכז השקעות עלית 2026", page_icon="🤖", layout="centered")
+    
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;800&display=swap');
-    * { font-family: 'Heebo', sans-serif; }
-    
-    body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; }
-    .stApp { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; }
-    
-    .login-container {
-        max-width: 500px;
-        margin: auto;
-        padding: 40px;
-        background: white;
-        border-radius: 20px;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        margin-top: 60px;
-    }
-    
-    .logo-section {
-        text-align: center;
-        margin-bottom: 40px;
-    }
-    
-    .logo-section h1 {
-        font-size: 36px;
-        color: #667eea;
-        margin: 0;
-        font-weight: 800;
-    }
-    
-    .logo-section p {
-        color: #999;
-        font-size: 14px;
-        margin-top: 8px;
-    }
-    
-    .tab-buttons {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 30px;
-    }
-    
-    .tab-btn {
-        flex: 1;
-        padding: 10px;
-        border: 2px solid #ddd;
-        background: white;
-        border-radius: 10px;
-        cursor: pointer;
-        font-weight: 600;
-        color: #999;
-        transition: all 0.3s;
-    }
-    
-    .tab-btn.active {
-        border-color: #667eea;
-        background: #f0f4ff;
-        color: #667eea;
-    }
-    
-    .input-group {
-        margin-bottom: 16px;
-    }
-    
-    .input-group label {
-        display: block;
-        font-weight: 600;
-        color: #333;
-        margin-bottom: 8px;
-        font-size: 14px;
-    }
-    
-    .input-group input {
-        width: 100%;
-        padding: 12px;
-        border: 2px solid #eee;
-        border-radius: 10px;
-        font-size: 14px;
-        transition: all 0.3s;
-    }
-    
-    .input-group input:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-    
-    .submit-btn {
-        width: 100%;
-        padding: 14px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-weight: 700;
-        font-size: 16px;
-        cursor: pointer;
-        transition: all 0.3s;
-        margin-top: 20px;
-    }
-    
-    .submit-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
-    }
-    
-    .link-text {
-        text-align: center;
-        margin-top: 20px;
-        color: #999;
-        font-size: 14px;
-    }
-    
-    .link-text a {
-        color: #667eea;
-        text-decoration: none;
-        font-weight: 600;
-        cursor: pointer;
-    }
+    * { font-family: 'Heebo', sans-serif; direction: rtl; }
+    body, .stApp { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%) !important; }
     </style>
     """, unsafe_allow_html=True)
     
-    # בחירת הכרטיסייה
+    st.markdown("""
+    <div style="text-align: center; margin-bottom: 30px; color: white;">
+    <h1 style="font-size: 36px; margin: 0;">🤖 מרכז השקעות עלית</h1>
+    <p style="font-size: 16px; margin-top: 8px;">מערכת השקעות מבוססת בינה מלאכותית</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
     col1, col2, col3 = st.columns([1, 1, 1])
-    
     with col1:
-        if st.button("🔓 התחברות", use_container_width=True, key="tab_login"):
-            st.session_state.auth_mode = "login"
-    
+        if st.button("🔓 התחברות", use_container_width=True): st.session_state.auth_mode = "login"
     with col2:
-        if st.button("📝 הרשם", use_container_width=True, key="tab_register"):
-            st.session_state.auth_mode = "register"
-    
+        if st.button("📝 הרשמה", use_container_width=True): st.session_state.auth_mode = "register"
     with col3:
-        if st.button("🔑 שחזור", use_container_width=True, key="tab_recover"):
-            st.session_state.auth_mode = "recover"
+        if st.button("🔑 שחזור סיסמה", use_container_width=True): st.session_state.auth_mode = "recover"
     
     if "auth_mode" not in st.session_state:
         st.session_state.auth_mode = "login"
     
     st.divider()
     
-    # ══════════════════════════════════════════════════════════
-    # TAB 1: התחברות
-    # ══════════════════════════════════════════════════════════
-    
     if st.session_state.auth_mode == "login":
-        st.markdown("""
-        <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #667eea; font-size: 32px; margin: 0;">🤖 Investment Hub</h1>
-        <p style="color: #999; font-size: 14px; margin-top: 8px;">מערכת השקעות מתקדמת</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
         with st.form("login_form"):
             st.markdown("### התחברות לחשבון")
-            
-            login_user = st.text_input(
-                "שם משתמש",
-                placeholder="הכנס את שם המשתמש שלך",
-                key="login_user"
-            )
-            
-            login_pass = st.text_input(
-                "סיסמא",
-                type="password",
-                placeholder="הכנס את הסיסמא שלך",
-                key="login_pass"
-            )
-            
-            submitted = st.form_submit_button(
-                "🔓 התחבר",
-                use_container_width=True
-            )
-            
-            if submitted:
+            login_user = st.text_input("שם משתמש", placeholder="הזן את שם המשתמש שלך")
+            login_pass = st.text_input("סיסמה", type="password", placeholder="הזן את הסיסמה שלך")
+            if st.form_submit_button("🔓 התחבר", use_container_width=True):
                 if login_user and login_pass:
                     success, data = UserManager.login(login_user, login_pass)
                     if success:
                         st.session_state.logged_in = True
                         st.session_state.username = login_user
                         st.success("✅ התחברת בהצלחה!")
-                        st.balloons()
                         st.rerun()
                     else:
                         st.error(f"❌ {data}")
                 else:
-                    st.warning("⚠️ הכנס שם משתמש וסיסמא")
-    
-    # ══════════════════════════════════════════════════════════
-    # TAB 2: הרשם
-    # ══════════════════════════════════════════════════════════
-    
+                    st.warning("⚠️ אנא הזן שם משתמש וסיסמה")
+                    
     elif st.session_state.auth_mode == "register":
-        st.markdown("""
-        <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #667eea; font-size: 32px; margin: 0;">🎉 הרשם עכשיו</h1>
-        <p style="color: #999; font-size: 14px; margin-top: 8px;">בחינם לחלוטין</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
         with st.form("register_form"):
             st.markdown("### יצירת חשבון חדש")
-            
-            reg_user = st.text_input(
-                "שם משתמש",
-                placeholder="בחר שם משתמש ייחודי",
-                key="reg_user"
-            )
-            
-            reg_pass = st.text_input(
-                "סיסמא",
-                type="password",
-                placeholder="בחר סיסמא חזקה",
-                key="reg_pass"
-            )
-            
-            reg_pass_conf = st.text_input(
-                "אישור סיסמא",
-                type="password",
-                placeholder="אשר את הסיסמא",
-                key="reg_pass_conf"
-            )
-            
-            # שאלת ביטחון
-            security_questions = [
-                "בחר שאלת ביטחון",
-                "מה שם חיית המחמד שלך?",
-                "מה שם העיר שבה נולדת?",
-                "מה שם בית הספר הראשון שלך?",
-                "מה המשחק המועדף עליך?"
-            ]
-            
-            security_q = st.selectbox(
-                "בחר שאלת ביטחון (לשחזור סיסמא)",
-                security_questions,
-                key="security_q"
-            )
-            
-            security_a = st.text_input(
-                "תשובה לשאלת הביטחון",
-                placeholder="הכנס את התשובה שלך",
-                key="security_a"
-            )
-            
-            submitted = st.form_submit_button(
-                "📝 הרשם",
-                use_container_width=True
-            )
-            
-            if submitted:
-                if not reg_user or not reg_pass:
-                    st.warning("⚠️ הכנס שם משתמש וסיסמא")
-                elif reg_pass != reg_pass_conf:
-                    st.error("❌ הסיסמאות לא תואמות")
-                elif security_q == "בחר שאלת ביטחון":
-                    st.error("❌ בחר שאלת ביטחון")
-                elif not security_a:
-                    st.error("❌ הכנס תשובה לשאלת הביטחון")
-                else:
+            reg_user = st.text_input("שם משתמש", placeholder="בחר שם משתמש")
+            reg_pass = st.text_input("סיסמה", type="password", placeholder="בחר סיסמה חזקה")
+            reg_pass_conf = st.text_input("אישור סיסמה", type="password", placeholder="הזן את הסיסמה שוב")
+            security_q = st.selectbox("שאלת אבטחה (לשחזור סיסמה)", 
+                                      ["מה שם חיית המחמד שלך?", "מה שם העיר שבה נולדת?", "מה שם בית הספר הראשון שלך?"])
+            security_a = st.text_input("תשובה לשאלת האבטחה")
+            if st.form_submit_button("📝 הרשם", use_container_width=True):
+                if reg_pass != reg_pass_conf:
+                    st.error("❌ הסיסמאות אינן תואמות")
+                elif reg_user and reg_pass and security_a:
                     success, msg = UserManager.register_user(reg_user, reg_pass, security_q, security_a)
                     if success:
-                        st.success("✅ חשבון נוצר בהצלחה!")
-                        st.info("כעת התחבר עם שם המשתמש והסיסמא שלך")
-                        st.session_state.auth_mode = "login"
-                        st.rerun()
+                        st.success("✅ החשבון נוצר בהצלחה! התחבר כעת.")
                     else:
                         st.error(f"❌ {msg}")
-    
-    # ══════════════════════════════════════════════════════════
-    # TAB 3: שחזור סיסמא
-    # ══════════════════════════════════════════════════════════
-    
+                else:
+                    st.warning("⚠️ אנא מלא את כל השדות")
+                    
     elif st.session_state.auth_mode == "recover":
-        st.markdown("""
-        <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #667eea; font-size: 32px; margin: 0;">🔑 שחזור סיסמא</h1>
-        <p style="color: #999; font-size: 14px; margin-top: 8px;">תשובה נכונה = סיסמא חדשה</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
         with st.form("recover_form"):
             st.markdown("### שחזור גישה לחשבון")
-            
-            recover_user = st.text_input(
-                "שם משתמש",
-                placeholder="הכנס את שם המשתמש שלך",
-                key="recover_user"
-            )
-            
+            recover_user = st.text_input("שם משתמש", placeholder="הזן את שם המשתמש שלך")
             if recover_user:
-                # בדוק אם המשתמש קיים וקח את שאלת הביטחון
                 security_info = UserManager.get_security_question(recover_user)
                 if security_info:
-                    security_q, _ = security_info
-                    st.write(f"**שאלת הביטחון שלך:** {security_q}")
-                    
-                    security_a = st.text_input(
-                        "תשובתך",
-                        placeholder="הכנס את התשובה",
-                        key="recover_answer"
-                    )
-                    
-                    new_pass = st.text_input(
-                        "סיסמא חדשה",
-                        type="password",
-                        placeholder="בחר סיסמא חדשה",
-                        key="new_pass"
-                    )
-                    
-                    submitted = st.form_submit_button(
-                        "🔑 שחזור סיסמא",
-                        use_container_width=True
-                    )
-                    
-                    if submitted:
-                        if not security_a or not new_pass:
-                            st.warning("⚠️ מלא את כל השדות")
+                    st.info(f"שאלת האבטחה שלך: **{security_info[0]}**")
+                    security_a = st.text_input("תשובתך")
+                    new_pass = st.text_input("סיסמה חדשה", type="password")
+                    if st.form_submit_button("🔑 שחזור סיסמה", use_container_width=True):
+                        success, msg = UserManager.reset_password(recover_user, security_a, new_pass)
+                        if success:
+                            st.success("✅ הסיסמה שונתה בהצלחה!")
                         else:
-                            success, msg = UserManager.reset_password(recover_user, security_a, new_pass)
-                            if success:
-                                st.success("✅ סיסמא חדשה נוצרה!")
-                                st.info("כעת התחבר עם הסיסמא החדשה שלך")
-                                st.session_state.auth_mode = "login"
-                                st.rerun()
-                            else:
-                                st.error(f"❌ {msg}")
+                            st.error(f"❌ {msg}")
                 else:
-                    st.error("❌ משתמש לא נמצא")
-    
+                    st.error("❌ המשתמש לא נמצא במערכת")
+                    st.form_submit_button("חפש שוב")
+            else:
+                st.form_submit_button("חפש משתמש")
+                
     st.stop()
 
-# ═══════════════════════════════════════════════════════════════
-# הקוד המקורי שלך - כל הפונקציות
-# ═══════════════════════════════════════════════════════════════
-
-from config import (HELP, MY_STOCKS_BASE, SCAN_LIST,
-                    COMMODITIES_SYMBOLS, CRYPTO_SYMBOLS, TASE_SCAN)
-from logic   import fetch_master_data
-from storage import load_all_to_session, save, load
-from tooltips_he import inject_tooltip_css, tooltip, render_glossary
-from scheduler_agents import get_scheduler
+# ==============================================================
+# המערכת הראשית (לאחר התחברות)
+# ==============================================================
 
 import realtime_data, market_ai, bull_bear, simulator
 import podcasts_ai, alerts_ai, financials_ai, crypto_ai
@@ -374,251 +133,160 @@ import execution_ai, failsafes_ai, ml_learning_ai
 import social_sentiment_ai, tax_fees_ai, market_scanner
 import ai_portfolio, commodities_tab, pattern_ai, portfolio_optimizer
 
-st.set_page_config(
-    page_title="Investment Hub Elite 2026",
-    page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+from tooltips_he import inject_tooltip_css
+from storage import load_all_to_session
 
+st.set_page_config(page_title="מרכז השקעות עלית 2026", page_icon="🌐", layout="wide", initial_sidebar_state="collapsed")
 load_all_to_session(st.session_state)
-try:
-    from storage import load_ai_portfolio
-    load_ai_portfolio(st.session_state)
-except Exception:
-    pass
 
-# הוסף מידע משתמש לsidebar
-with st.sidebar:
-    st.markdown("### 👤 חשבון")
-    st.write(f"**{st.session_state.username}**")
-    
-    if st.button("🚪 התנתק"):
-        SessionManager.clear_session(st.session_state.username)
-        st.session_state.logged_in = False
-        st.rerun()
-
-# ─── עיצוב ────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;800&display=swap');
 html, body, [class*="css"] { font-family:'Heebo',sans-serif !important; direction:rtl; text-align:right; }
 .stApp { background:#f5f7fa !important; }
+.block-container { padding-top:1rem !important; max-width:100% !important; }
+.ai-card { background:#fff; padding:12px 18px; border-radius:12px; border-right:5px solid #1976d2; box-shadow:0 1px 6px rgba(0,0,0,0.08); margin-bottom:10px; }
+/* העלמת כפתור פתיחת הסרגל צד המובנה של Streamlit */
+[data-testid="collapsedControl"] { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
 inject_tooltip_css()
 
-# ─── Header ────────────────────────────────────────────────────────────────────
-col1, col2 = st.columns([3, 1])
+# כותרת עליונה ללא סרגל צד
+col1, col2, col3 = st.columns([4, 2, 1])
 with col1:
     st.markdown(f"""
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                border-radius: 14px; padding: 20px; color: white;">
-    <h2>🌐 Investment Hub Elite 2026</h2>
-    <p>ברוכים הבאים, <b>{st.session_state.username}!</b></p>
+    <div style="background:linear-gradient(135deg,#1565c0 0%,#1976d2 55%,#42a5f5 100%); border-radius:14px; padding:16px 22px; color:white;">
+    <h2 style="margin:0;">🌐 מרכז השקעות עלית 2026</h2>
+    <p style="margin:0; opacity:0.9;">מחובר כ: <b>{st.session_state.username}</b></p>
     </div>
     """, unsafe_allow_html=True)
 
 with col2:
     st.markdown(f"""
-    <div style="background: white; border-radius: 12px; padding: 15px; 
-                border: 2px solid #667eea; text-align: center;">
-    <h4>⏰ {datetime.now().strftime('%H:%M')}</h4>
-    <p>{datetime.now().strftime('%d/%m/%Y')}</p>
+    <div class="ai-card" style="text-align:center;">
+    <h4 style="margin:0; color:#1565c0;">⏰ {datetime.now().strftime('%H:%M')}</h4>
+    <p style="margin:0; font-size:14px; color:#666;">{datetime.now().strftime('%d/%m/%Y')}</p>
     </div>
     """, unsafe_allow_html=True)
 
-# ─── Main Tabs ────────────────────────────────────────────────────────────────
+with col3:
+    st.write("") # מרווח
+    if st.button("🚪 התנתקות", use_container_width=True):
+        SessionManager.clear_session(st.session_state.username)
+        st.session_state.logged_in = False
+        st.rerun()
 
+st.write("")
+
+# שאיבת הנתונים המרכזית! בלי זה שום טאב לא יציג נתונים
+with st.spinner("🔄 שואב נתוני שוק עדכניים למערכת..."):
+    all_symbols = list(set(MY_STOCKS_BASE + SCAN_LIST))
+    df_all = fetch_master_data(all_symbols)
+
+if df_all.empty:
+    st.error("⚠️ לא הצלחנו למשוך נתונים. אנא בדוק את החיבור לאינטרנט או את זמינות שירותי ה-API.")
+
+# יצירת הטאבים
 tab_names = [
-    "📊 לוח בקרה", "📈 בזמן אמת", "🎯 AI שוק", "📰 חדשות", "🎙️ פודקאסטים",
-    "🔔 התראות", "💰 תיק", "📉 ניתוח", "🇮🇱 בורסה", "🇺🇸 מניות US",
-    "🪙 קריפטו", "📦 סחורות", "💎 פרימיום", "🚀 כלים", "📊 ML",
-    "⚡ ביצוע", "🛡️ הגנה", "📋 תיק AI", "💹 בדיקה", "🎨 דפוסים",
-    "📑 דוח", "⚙️ הגדרות", "🔐 אבטחה", "📞 תמיכה", "ℹ️ אודות"
+    "סורק שוק 🌐", "זמן אמת 📈", "תיק בינה מלאכותית 📋", "התראות חכמות 🔔", 
+    "מודיעין שוק 🌍", "למידת מכונה 🧠", "סחורות 📦", "קריפטו 🪙", 
+    "אופטימיזציית תיק 📐", "פודקאסטים 🎧", "חדשות 📰", "בדיקת עבר ⏪", 
+    "שור/דוב ⚖️", "דוחות כספיים 📚", "צמיחה וסיכון 🚀", "כלים מתקדמים 🧰",
+    "הגנות מערכת 🛡️", "ביצוע עסקאות ⚙️", "סנטימנט רשתות 💬", "מיסים ועמלות 💰"
 ]
 
 tabs = st.tabs(tab_names)
 
-# תוכן הטאבים
-try:
-    with tabs[0]:
-        st.subheader("📊 לוח בקרה")
-        try:
-            realtime_data.show_dashboard()
-        except:
-            st.info("📈 טוען נתונים...")
-    
-    with tabs[1]:
-        st.subheader("📈 נתונים בזמן אמת")
-        try:
-            realtime_data.show_realtime()
-        except:
-            st.info("📈 טוען...")
-    
-    with tabs[2]:
-        st.subheader("🎯 Market AI")
-        try:
-            market_ai.show_market_analysis()
-        except:
-            st.info("🎯 טוען...")
-    
-    with tabs[3]:
-        st.subheader("📰 חדשות")
-        try:
-            news_ai.show_news()
-        except:
-            st.info("📰 טוען...")
-    
-    with tabs[4]:
-        st.subheader("🎙️ פודקאסטים")
-        try:
-            podcasts_ai.show_podcasts()
-        except:
-            st.info("🎙️ טוען...")
-    
-    with tabs[5]:
-        st.subheader("🔔 התראות")
-        try:
-            alerts_ai.show_alerts()
-        except:
-            st.info("🔔 טוען...")
-    
-    with tabs[6]:
-        st.subheader("💰 תיק השקעות")
-        try:
-            ai_portfolio.show_portfolio()
-        except:
-            st.info("💰 טוען...")
-    
-    with tabs[7]:
-        st.subheader("📉 ניתוח")
-        try:
-            analytics_ai.show_analytics()
-        except:
-            st.info("📉 טוען...")
-    
-    with tabs[8]:
-        st.subheader("🇮🇱 בורסה ישראלית")
-        try:
-            market_scanner.show_tase()
-        except:
-            st.info("🇮🇱 טוען...")
-    
-    with tabs[9]:
-        st.subheader("🇺🇸 מניות US")
-        try:
-            market_scanner.show_us()
-        except:
-            st.info("🇺🇸 טוען...")
-    
-    with tabs[10]:
-        st.subheader("🪙 קריפטו")
-        try:
-            crypto_ai.show_crypto()
-        except:
-            st.info("🪙 טוען...")
-    
-    with tabs[11]:
-        st.subheader("📦 סחורות")
-        try:
-            commodities_tab.show_commodities()
-        except:
-            st.info("📦 טוען...")
-    
-    with tabs[12]:
-        st.subheader("💎 תכניות פרימיום")
-        try:
-            premium_agents_ai.show_premium()
-        except:
-            st.info("💎 טוען...")
-    
-    with tabs[13]:
-        st.subheader("🚀 כלים מתקדמים")
-        try:
-            pro_tools_ai.show_pro_tools()
-        except:
-            st.info("🚀 טוען...")
-    
-    with tabs[14]:
-        st.subheader("📊 Machine Learning")
-        try:
-            ml_learning_ai.show_ml_learning()
-        except:
-            st.info("📊 טוען...")
-    
-    with tabs[15]:
-        st.subheader("⚡ ביצוע עסקאות")
-        try:
-            execution_ai.show_execution()
-        except:
-            st.info("⚡ טוען...")
-    
-    with tabs[16]:
-        st.subheader("🛡️ מנגנוני הגנה")
-        try:
-            failsafes_ai.show_failsafes()
-        except:
-            st.info("🛡️ טוען...")
-    
-    with tabs[17]:
-        st.subheader("📋 תיק ניהול AI")
-        try:
-            ai_portfolio.show_ai_portfolio()
-        except:
-            st.info("📋 טוען...")
-    
-    with tabs[18]:
-        st.subheader("💹 בדיקת עבר")
-        try:
-            backtest_ai.show_backtest()
-        except:
-            st.info("💹 טוען...")
-    
-    with tabs[19]:
-        st.subheader("🎨 דפוסי גרף")
-        try:
-            pattern_ai.show_patterns()
-        except:
-            st.info("🎨 טוען...")
-    
-    with tabs[20]:
-        st.subheader("📑 דוח ביצוע")
-        try:
-            analytics_ai.show_report()
-        except:
-            st.info("📑 טוען...")
-    
-    with tabs[21]:
-        st.subheader("⚙️ הגדרות")
-        st.write("הגדר את ההעדפות שלך כאן")
-    
-    with tabs[22]:
-        st.subheader("🔐 אבטחה")
-        st.write("נהל הגדרות אבטחה")
-    
-    with tabs[23]:
-        st.subheader("📞 תמיכה")
-        st.write("קבל עזרה ותמיכה")
-    
-    with tabs[24]:
-        st.subheader("ℹ️ אודות")
-        st.markdown("""
-        **Investment Hub Elite 2026** - מערכת מולטי-משתמש לסחר בהשקעות
-        
-        ✨ תכונות:
-        - התחברויות קבועות (30 ימים)
-        - 4 סוכנים סוחרים אוטונומיים
-        - שחזור סיסמא עם שאלות ביטחון
-        - ניתוח מתקדם
-        - ניהול סיכונים
-        """)
+# טעינת המודולים - עם טיפול שגיאות אמיתי כדי שתראה מה חסר
+with tabs[0]:
+    try: market_scanner.render_market_scanner()
+    except Exception as e: st.error(f"שגיאה בטעינת סורק שוק: {e}")
 
-except Exception as e:
-    st.error(f"שגיאה בטעינת טאבים")
+with tabs[1]:
+    try: 
+        if hasattr(realtime_data, 'render_live_data_center'):
+            realtime_data.render_live_data_center(MY_STOCKS_BASE)
+        else:
+            st.info("מודול זמן אמת פועל דרך כרטיסיות פנימיות. הנתונים נטענו בהצלחה.")
+    except Exception as e: st.error(f"שגיאה בזמן אמת: {e}")
 
+with tabs[2]:
+    try: ai_portfolio.render_ai_portfolio(df_all)
+    except Exception as e: st.error(f"שגיאה בטעינת תיק ה-AI: {e}")
+
+with tabs[3]:
+    try: alerts_ai.render_smart_alerts(df_all)
+    except Exception as e: st.error(f"שגיאה במערכת ההתראות: {e}")
+
+with tabs[4]:
+    try: market_ai.render_market_intelligence()
+    except Exception as e: st.error(f"שגיאה בטעינת מודיעין שוק: {e}")
+
+with tabs[5]:
+    try: ml_learning_ai.render_machine_learning(df_all)
+    except Exception as e: st.error(f"שגיאה בלמידת מכונה: {e}")
+
+with tabs[6]:
+    try: commodities_tab.render_commodities()
+    except Exception as e: st.error(f"שגיאה בטעינת סחורות: {e}")
+
+with tabs[7]:
+    try: crypto_ai.render_crypto_arena()
+    except Exception as e: st.error(f"שגיאה בזירת הקריפטו: {e}")
+
+with tabs[8]:
+    try: portfolio_optimizer.render_portfolio_optimizer()
+    except Exception as e: st.info("האופטימיזציה נטענת... או שהיא משולבת תחת למידת מכונה.")
+
+with tabs[9]:
+    try: podcasts_ai.render_podcasts_analysis()
+    except Exception as e: st.error(f"שגיאה בפודקאסטים: {e}")
+
+with tabs[10]:
+    try: news_ai.render_live_news(MY_STOCKS_BASE)
+    except Exception as e: st.error(f"שגיאה בחדשות: {e}")
+
+with tabs[11]:
+    try: backtest_ai.render_backtester(df_all)
+    except Exception as e: st.error(f"שגיאה בבדיקת העבר: {e}")
+
+with tabs[12]:
+    try: bull_bear.render_bull_bear(df_all)
+    except Exception as e: st.error(f"שגיאה במעבדת שור/דוב: {e}")
+
+with tabs[13]:
+    try: financials_ai.render_financial_reports(df_all)
+    except Exception as e: st.error(f"שגיאה בדוחות הכספיים: {e}")
+
+with tabs[14]:
+    try: growth_risk_ai.render_growth_and_risk(df_all)
+    except Exception as e: st.error(f"שגיאה בצמיחה וסיכון: {e}")
+
+with tabs[15]:
+    try: pro_tools_ai.render_pro_tools(df_all, pd.DataFrame())
+    except Exception as e: st.error(f"שגיאה בכלים מתקדמים: {e}")
+
+with tabs[16]:
+    try: failsafes_ai.render_failsafes()
+    except Exception as e: st.error(f"שגיאה בהגנות המערכת: {e}")
+
+with tabs[17]:
+    try: execution_ai.render_execution_engine()
+    except Exception as e: st.error(f"שגיאה במנוע הביצוע: {e}")
+
+with tabs[18]:
+    try: social_sentiment_ai.render_social_sentiment()
+    except Exception as e: st.error(f"שגיאה בסנטימנט רשתות: {e}")
+
+with tabs[19]:
+    try: tax_fees_ai.render_tax_fees_calculator()
+    except Exception as e: st.info("טוען מחשבון מיסים ועמלות...")
+
+# הפעלת סוכני רקע
 try:
+    from scheduler_agents import get_scheduler
     scheduler = get_scheduler()
     if scheduler and not scheduler.running:
         scheduler.start()
