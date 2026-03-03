@@ -89,6 +89,16 @@ if not st.session_state.get("current_user"):
     st.stop()  # עוצר את טעינת האתר אם המשתמש לא מחובר
 
 # ─── שליפת נתונים גלובליים ועדכון הסוכנים מיד עם טעינת האתר ──────────────────────
+# ייבוא בטוח למניעת שגיאות
+try:
+    from config import MY_STOCKS_BASE, SCAN_LIST
+except ImportError:
+    MY_STOCKS_BASE, SCAN_LIST = ["AAPL", "MSFT", "NVDA"], []
+try:
+    from config import TASE_SCAN
+except ImportError:
+    TASE_SCAN = []
+
 ALL_TICKERS = list(set(MY_STOCKS_BASE + SCAN_LIST + TASE_SCAN))
 
 try:
