@@ -10,7 +10,6 @@ from datetime import datetime
 
 from storage import SessionManager, UserManager
 from logic import fetch_master_data
-from config import MY_STOCKS_BASE, SCAN_LIST
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -30,11 +29,14 @@ if not st.session_state.logged_in:
 if not st.session_state.logged_in:
     st.set_page_config(page_title="מרכז השקעות עלית 2026", page_icon="🤖", layout="centered")
     
+    # CSS להסרת סרגל הצד ועיצוב
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;800&display=swap');
     * { font-family: 'Heebo', sans-serif; direction: rtl; }
     body, .stApp { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%) !important; }
+    [data-testid="stSidebar"] { display: none !important; }
+    [data-testid="collapsedControl"] { display: none !important; }
     </style>
     """, unsafe_allow_html=True)
     
@@ -139,6 +141,7 @@ from storage import load_all_to_session
 st.set_page_config(page_title="מרכז השקעות עלית 2026", page_icon="🌐", layout="wide", initial_sidebar_state="collapsed")
 load_all_to_session(st.session_state)
 
+# CSS להסרת סרגל הצד לחלוטין ולעיצוב כללי
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;800&display=swap');
@@ -146,14 +149,17 @@ html, body, [class*="css"] { font-family:'Heebo',sans-serif !important; directio
 .stApp { background:#f5f7fa !important; }
 .block-container { padding-top:1rem !important; max-width:100% !important; }
 .ai-card { background:#fff; padding:12px 18px; border-radius:12px; border-right:5px solid #1976d2; box-shadow:0 1px 6px rgba(0,0,0,0.08); margin-bottom:10px; }
-/* העלמת כפתור פתיחת הסרגל צד המובנה של Streamlit */
-[data-testid="collapsedControl"] { display: none; }
+
+/* העלמת סרגל הצד לחלוטין מכל הכיוונים */
+[data-testid="stSidebar"] { display: none !important; }
+[data-testid="collapsedControl"] { display: none !important; }
+section[data-testid="stSidebar"] { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
 inject_tooltip_css()
 
-# כותרת עליונה ללא סרגל צד
+# כותרת עליונה משולבת עם פרטי משתמש
 col1, col2, col3 = st.columns([4, 2, 1])
 with col1:
     st.markdown(f"""
@@ -172,7 +178,7 @@ with col2:
     """, unsafe_allow_html=True)
 
 with col3:
-    st.write("") # מרווח
+    st.write("") 
     if st.button("🚪 התנתקות", use_container_width=True):
         SessionManager.clear_session(st.session_state.username)
         st.session_state.logged_in = False
@@ -180,109 +186,129 @@ with col3:
 
 st.write("")
 
-# שאיבת הנתונים המרכזית! בלי זה שום טאב לא יציג נתונים
-with st.spinner("🔄 שואב נתוני שוק עדכניים למערכת..."):
-    all_symbols = list(set(MY_STOCKS_BASE + SCAN_LIST))
-    df_all = fetch_master_data(all_symbols)
-
-if df_all.empty:
-    st.error("⚠️ לא הצלחנו למשוך נתונים. אנא בדוק את החיבור לאינטרנט או את זמינות שירותי ה-API.")
-
-# יצירת הטאבים
-tab_names = [
-    "סורק שוק 🌐", "זמן אמת 📈", "תיק בינה מלאכותית 📋", "התראות חכמות 🔔", 
-    "מודיעין שוק 🌍", "למידת מכונה 🧠", "סחורות 📦", "קריפטו 🪙", 
-    "אופטימיזציית תיק 📐", "פודקאסטים 🎧", "חדשות 📰", "בדיקת עבר ⏪", 
-    "שור/דוב ⚖️", "דוחות כספיים 📚", "צמיחה וסיכון 🚀", "כלים מתקדמים 🧰",
-    "הגנות מערכת 🛡️", "ביצוע עסקאות ⚙️", "סנטימנט רשתות 💬", "מיסים ועמלות 💰"
+# הגדרת תיק המניות המלא והאישי שלך ישירות בקובץ הראשי!
+MY_PERSONAL_PORTFOLIO = [
+    "MSFT", "AAPL", "NVDA", "TSLA", "PLTR", # ארה"ב
+    "ENLT.TA", "POLI.TA", "LUMI.TA"         # ישראל
 ]
 
-tabs = st.tabs(tab_names)
+MAIN_SCAN_LIST = [
+    "AMZN", "META", "GOOGL",                # ענקיות נוספות
+    "ICL.TA", "TSEM.TA",                    # תל אביב
+    "GC=F", "SI=F", "CL=F",                 # סחורות: זהב, כסף, נפט
+    "BTC-USD", "ETH-USD"                    # קריפטו
+]
 
-# טעינת המודולים - עם טיפול שגיאות אמיתי כדי שתראה מה חסר
-with tabs[0]:
-    try: market_scanner.render_market_scanner()
-    except Exception as e: st.error(f"שגיאה בטעינת סורק שוק: {e}")
+all_symbols = list(set(MY_PERSONAL_PORTFOLIO + MAIN_SCAN_LIST))
 
-with tabs[1]:
-    try: 
-        if hasattr(realtime_data, 'render_live_data_center'):
-            realtime_data.render_live_data_center(MY_STOCKS_BASE)
-        else:
-            st.info("מודול זמן אמת פועל דרך כרטיסיות פנימיות. הנתונים נטענו בהצלחה.")
-    except Exception as e: st.error(f"שגיאה בזמן אמת: {e}")
+# שאיבת הנתונים 
+with st.spinner("🔄 שואב נתוני שוק עדכניים לתיק שלך..."):
+    try:
+        df_all = fetch_master_data(all_symbols)
+    except Exception as e:
+        df_all = pd.DataFrame()
+        st.error(f"שגיאה בשאיבת הנתונים מ-logic.py: {e}")
 
-with tabs[2]:
-    try: ai_portfolio.render_ai_portfolio(df_all)
-    except Exception as e: st.error(f"שגיאה בטעינת תיק ה-AI: {e}")
+if df_all is None or df_all.empty:
+    st.error("⚠️ לא הצלחנו למשוך נתונים כלל. אנא בדוק את החיבור לאינטרנט או שהבורסה סגורה ואין נתונים זמינים.")
+else:
+    # יצירת הטאבים - הכל מתורגם
+    tab_names = [
+        "סורק שוק 🌐", "זמן אמת 📈", "תיק מנוהל 📋", "התראות חכמות 🔔", 
+        "מודיעין שוק 🌍", "למידת מכונה 🧠", "סחורות 📦", "קריפטו 🪙", 
+        "אופטימיזציית תיק 📐", "פודקאסטים 🎧", "חדשות 📰", "בדיקת עבר ⏪", 
+        "שור/דוב ⚖️", "דוחות כספיים 📚", "צמיחה וסיכון 🚀", "כלים מתקדמים 🧰",
+        "הגנות מערכת 🛡️", "ביצוע עסקאות ⚙️", "סנטימנט רשתות 💬", "מיסים ועמלות 💰"
+    ]
 
-with tabs[3]:
-    try: alerts_ai.render_smart_alerts(df_all)
-    except Exception as e: st.error(f"שגיאה במערכת ההתראות: {e}")
+    tabs = st.tabs(tab_names)
 
-with tabs[4]:
-    try: market_ai.render_market_intelligence()
-    except Exception as e: st.error(f"שגיאה בטעינת מודיעין שוק: {e}")
+    # טעינת המודולים עם הצגת שגיאות מפורטות כדי שנדע בדיוק מה תוקע את המערכת
+    with tabs[0]:
+        try: market_scanner.render_market_scanner() # או שם הפונקציה המקורית שלך
+        except Exception as e: st.error(f"שגיאה בטעינת סורק שוק: {e}")
 
-with tabs[5]:
-    try: ml_learning_ai.render_machine_learning(df_all)
-    except Exception as e: st.error(f"שגיאה בלמידת מכונה: {e}")
+    with tabs[1]:
+        try: 
+            if hasattr(realtime_data, 'render_live_data_center'):
+                realtime_data.render_live_data_center(MY_PERSONAL_PORTFOLIO)
+            elif hasattr(realtime_data, 'show_realtime'):
+                realtime_data.show_realtime()
+            else:
+                st.info("מודול זמן אמת פועל. הנתונים נטענו בהצלחה במערכת.")
+        except Exception as e: st.error(f"שגיאה בזמן אמת: {e}")
 
-with tabs[6]:
-    try: commodities_tab.render_commodities()
-    except Exception as e: st.error(f"שגיאה בטעינת סחורות: {e}")
+    with tabs[2]:
+        try: ai_portfolio.render_ai_portfolio(df_all)
+        except Exception as e: st.error(f"שגיאה בטעינת תיק ה-AI: {e}")
 
-with tabs[7]:
-    try: crypto_ai.render_crypto_arena()
-    except Exception as e: st.error(f"שגיאה בזירת הקריפטו: {e}")
+    with tabs[3]:
+        try: alerts_ai.render_smart_alerts(df_all)
+        except Exception as e: st.error(f"שגיאה במערכת ההתראות: {e}")
 
-with tabs[8]:
-    try: portfolio_optimizer.render_portfolio_optimizer()
-    except Exception as e: st.info("האופטימיזציה נטענת... או שהיא משולבת תחת למידת מכונה.")
+    with tabs[4]:
+        try: market_ai.render_market_intelligence()
+        except Exception as e: st.error(f"שגיאה בטעינת מודיעין שוק: {e}")
 
-with tabs[9]:
-    try: podcasts_ai.render_podcasts_analysis()
-    except Exception as e: st.error(f"שגיאה בפודקאסטים: {e}")
+    with tabs[5]:
+        try: ml_learning_ai.render_machine_learning(df_all)
+        except Exception as e: st.error(f"שגיאה בלמידת מכונה: {e}")
 
-with tabs[10]:
-    try: news_ai.render_live_news(MY_STOCKS_BASE)
-    except Exception as e: st.error(f"שגיאה בחדשות: {e}")
+    with tabs[6]:
+        try: commodities_tab.render_commodities()
+        except Exception as e: st.error(f"שגיאה בטעינת סחורות: {e}")
 
-with tabs[11]:
-    try: backtest_ai.render_backtester(df_all)
-    except Exception as e: st.error(f"שגיאה בבדיקת העבר: {e}")
+    with tabs[7]:
+        try: crypto_ai.render_crypto_arena()
+        except Exception as e: st.error(f"שגיאה בזירת הקריפטו: {e}")
 
-with tabs[12]:
-    try: bull_bear.render_bull_bear(df_all)
-    except Exception as e: st.error(f"שגיאה במעבדת שור/דוב: {e}")
+    with tabs[8]:
+        try: portfolio_optimizer.render_portfolio_optimizer()
+        except Exception as e: st.info("האופטימיזציה נטענת או שהיא משולבת במערכת הלמידה.")
 
-with tabs[13]:
-    try: financials_ai.render_financial_reports(df_all)
-    except Exception as e: st.error(f"שגיאה בדוחות הכספיים: {e}")
+    with tabs[9]:
+        try: podcasts_ai.render_podcasts_analysis()
+        except Exception as e: st.error(f"שגיאה בפודקאסטים: {e}")
 
-with tabs[14]:
-    try: growth_risk_ai.render_growth_and_risk(df_all)
-    except Exception as e: st.error(f"שגיאה בצמיחה וסיכון: {e}")
+    with tabs[10]:
+        try: news_ai.render_live_news(MY_PERSONAL_PORTFOLIO)
+        except Exception as e: st.error(f"שגיאה בחדשות: {e}")
 
-with tabs[15]:
-    try: pro_tools_ai.render_pro_tools(df_all, pd.DataFrame())
-    except Exception as e: st.error(f"שגיאה בכלים מתקדמים: {e}")
+    with tabs[11]:
+        try: backtest_ai.render_backtester(df_all)
+        except Exception as e: st.error(f"שגיאה בבדיקת העבר: {e}")
 
-with tabs[16]:
-    try: failsafes_ai.render_failsafes()
-    except Exception as e: st.error(f"שגיאה בהגנות המערכת: {e}")
+    with tabs[12]:
+        try: bull_bear.render_bull_bear(df_all)
+        except Exception as e: st.error(f"שגיאה במעבדת שור/דוב: {e}")
 
-with tabs[17]:
-    try: execution_ai.render_execution_engine()
-    except Exception as e: st.error(f"שגיאה במנוע הביצוע: {e}")
+    with tabs[13]:
+        try: financials_ai.render_financial_reports(df_all)
+        except Exception as e: st.error(f"שגיאה בדוחות הכספיים: {e}")
 
-with tabs[18]:
-    try: social_sentiment_ai.render_social_sentiment()
-    except Exception as e: st.error(f"שגיאה בסנטימנט רשתות: {e}")
+    with tabs[14]:
+        try: growth_risk_ai.render_growth_and_risk(df_all)
+        except Exception as e: st.error(f"שגיאה בצמיחה וסיכון: {e}")
 
-with tabs[19]:
-    try: tax_fees_ai.render_tax_fees_calculator()
-    except Exception as e: st.info("טוען מחשבון מיסים ועמלות...")
+    with tabs[15]:
+        try: pro_tools_ai.render_pro_tools(df_all, pd.DataFrame())
+        except Exception as e: st.error(f"שגיאה בכלים מתקדמים: {e}")
+
+    with tabs[16]:
+        try: failsafes_ai.render_failsafes()
+        except Exception as e: st.error(f"שגיאה בהגנות המערכת: {e}")
+
+    with tabs[17]:
+        try: execution_ai.render_execution_engine()
+        except Exception as e: st.error(f"שגיאה במנוע הביצוע: {e}")
+
+    with tabs[18]:
+        try: social_sentiment_ai.render_social_sentiment()
+        except Exception as e: st.error(f"שגיאה בסנטימנט רשתות: {e}")
+
+    with tabs[19]:
+        try: tax_fees_ai.render_tax_fees_calculator()
+        except Exception as e: st.info("טוען מחשבון מיסים ועמלות...")
 
 # הפעלת סוכני רקע
 try:
