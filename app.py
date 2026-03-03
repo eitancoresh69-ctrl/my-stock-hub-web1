@@ -1,4 +1,4 @@
-# app.py — Investment Hub Elite 2026 — גרסה סופית + Tooltips עברית
+# app.py — Investment Hub Elite 2026 — גרסה סופית + Tooltips עברית + משתמשים
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -19,6 +19,9 @@ import execution_ai, failsafes_ai, ml_learning_ai
 import social_sentiment_ai, tax_fees_ai, market_scanner
 import ai_portfolio, commodities_tab, pattern_ai, portfolio_optimizer
 
+# --- מודול ניהול משתמשים חדש ---
+from user_manager import init_user_session, render_login_page, save_user_data
+
 st.set_page_config(
     page_title="Investment Hub Elite 2026",
     page_icon="🌐",
@@ -26,20 +29,17 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-load_all_to_session(st.session_state)
-try:
-    from storage import load_ai_portfolio
-    load_ai_portfolio(st.session_state)
-except Exception:
-    pass
-
-# ─── עיצוב + Tooltips ────────────────────────────────────────────────────────
+# ─── עיצוב + הסרת סרגל הצד (Sidebar) לחלוטין ────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;800&display=swap');
 html, body, [class*="css"] { font-family:'Heebo',sans-serif !important; direction:rtl; text-align:right; }
 .stApp { background:#f5f7fa !important; }
 .block-container { padding-top:0.5rem !important; max-width:100% !important; }
+/* הסתרה מוחלטת של סרגל הצד */
+[data-testid="stSidebar"] { display: none !important; }
+[data-testid="collapsedControl"] { display: none !important; }
+
 .ai-card {
     background:#fff; padding:12px 18px; border-radius:12px;
     border-right:5px solid #1976d2;
@@ -72,33 +72,56 @@ input, textarea, select { border-radius:8px !important; border:1px solid #cfd8dc
 </style>
 """, unsafe_allow_html=True)
 
-inject_tooltip_css()   # ← מזריק CSS לטולטיפים
+inject_tooltip_css()   
 
-# ─── שליפת נתונים ─────────────────────────────────────────────────────────────
+load_all_to_session(st.session_state)
+try:
+    from storage import load_ai_portfolio
+    load_ai_portfolio(st.session_state)
+except Exception:
+    pass
+
+# ─── אתחול סשן משתמש ובדיקת התחברות ──────────────────────────────────────────
+init_user_session()
+
+if not st.session_state.get("current_user"):
+    render_login_page()
+    st.stop()  # עוצר את טעינת האתר אם המשתמש לא מחובר
+
+# ─── שליפת נתונים גלובליים ─────────────────────────────────────────────────────
 ALL_TICKERS = list(set(MY_STOCKS_BASE + SCAN_LIST + TASE_SCAN))
 try:
-    with st.spinner("☁️ שואב נתוני שוק..."):
+    with st.spinner("☁️ שואב נתוני שוק למערכת..."):
         df_all = fetch_master_data(ALL_TICKERS)
 except Exception:
     st.error("⚠️ שגיאה זמנית.")
     df_all = pd.DataFrame()
 
-# ─── כותרת ────────────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="hub-header">
-  <div style="display:flex;align-items:center;gap:14px;">
-    <div style="font-size:36px;line-height:1;">🌐</div>
-    <div>
-      <div style="font-size:21px;font-weight:900;color:#fff;letter-spacing:-0.5px;">
-        Investment Hub Elite 2026
-      </div>
-      <div style="font-size:12px;color:#bbdefb;margin-top:3px;">
-        מניות · סחורות · קריפטו · תל אביב · AI Manager · ML · Telegram
+# ─── כותרת ופאנל התנתקות משתמש ───────────────────────────────────────────────
+col_head1, col_head2 = st.columns([8, 2])
+with col_head1:
+    st.markdown("""
+    <div class="hub-header">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="font-size:36px;line-height:1;">🌐</div>
+        <div>
+          <div style="font-size:21px;font-weight:900;color:#fff;letter-spacing:-0.5px;">
+            Investment Hub Elite 2026
+          </div>
+          <div style="font-size:12px;color:#bbdefb;margin-top:3px;">
+            מניות · סחורות · קריפטו · תל אביב · AI Manager · ML · Telegram
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+with col_head2:
+    st.markdown(f"<div style='background:#fff; padding:10px; border-radius:10px; text-align:center; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom: 5px;'>👤 <b>{st.session_state['current_user']}</b></div>", unsafe_allow_html=True)
+    if st.button("🚪 התנתק", use_container_width=True):
+        st.session_state["current_user"] = None
+        if "portfolio" in st.session_state:
+            del st.session_state["portfolio"]
+        st.rerun()
 
 if st.session_state.get("kill_switch_active"):
     st.error("🚨 **מתג ההשמדה פעיל!** גש לטאב '🛡️ הגנה' לאיפוס.")
@@ -187,12 +210,11 @@ tabs = st.tabs([
     "🧠 ML",          # 24
     "📡 נתונים חיים", # 25
     "💸 מיסים",       # 26
-    "📖 מדריך",       # 27 ← חדש!
+    "📖 מדריך",       # 27 
 ])
 
 # ══ 0: התיק האישי ═════════════════════════════════════════════════════════════
 with tabs[0]:
-    # Tooltips לתיק
     st.markdown(
         '<div class="ai-card"><b>📌 התיק שלי</b> — לחץ פעמיים לעדכון קנייה/כמות<br>'
         + tooltip("⬆️ מה זה P/L?","P/L","❓")
@@ -217,22 +239,28 @@ with tabs[0]:
                 if ns not in port["Symbol"].values:
                     new_row = pd.DataFrame([{"Symbol":ns,"BuyPrice":nb,"Qty":nq}])
                     st.session_state.portfolio = pd.concat([port,new_row],ignore_index=True)
-                    save("portfolio_buy_prices", dict(zip(st.session_state.portfolio["Symbol"],
-                                                          st.session_state.portfolio["BuyPrice"])))
-                    save("portfolio_quantities",  dict(zip(st.session_state.portfolio["Symbol"],
-                                                           st.session_state.portfolio["Qty"])))
+                    # שמירה לפי משתמש
+                    st.session_state["portfolio_buy_prices"] = dict(zip(st.session_state.portfolio["Symbol"], st.session_state.portfolio["BuyPrice"]))
+                    st.session_state["portfolio_quantities"] = dict(zip(st.session_state.portfolio["Symbol"], st.session_state.portfolio["Qty"]))
+                    save_user_data()
                     st.success(f"✅ {ns} נוסף!")
                     st.rerun()
 
+    # אתחול התיק למשתמש החדש/הקיים מהסשן שלו
     if "portfolio" not in st.session_state:
         saved_prices = st.session_state.get("portfolio_buy_prices", {})
         saved_qty    = st.session_state.get("portfolio_quantities",  {})
-        st.session_state.portfolio = pd.DataFrame([
-            {"Symbol":t,"BuyPrice":saved_prices.get(t,0.0),"Qty":saved_qty.get(t,0)}
-            for t in list(set(MY_STOCKS_BASE))
-        ])
+        if saved_prices or saved_qty:
+            keys = set(list(saved_prices.keys()) + list(saved_qty.keys()))
+            st.session_state.portfolio = pd.DataFrame([
+                {"Symbol":t,"BuyPrice":saved_prices.get(t,0.0),"Qty":saved_qty.get(t,0)}
+                for t in keys
+            ])
+        else:
+            # תיק ריק למשתמש חדש
+            st.session_state.portfolio = pd.DataFrame(columns=["Symbol","BuyPrice","Qty"])
 
-    if not df_all.empty:
+    if not df_all.empty and not st.session_state.portfolio.empty:
         merged = pd.merge(st.session_state.portfolio, df_all, on="Symbol", how="left")
         merged["Price"]    = merged["Price"].fillna(0)
         merged["PriceStr"] = merged.apply(
@@ -265,8 +293,9 @@ with tabs[0]:
             use_container_width=True, hide_index=True,
         )
         st.session_state.portfolio = edited[["Symbol","BuyPrice","Qty"]]
-        save("portfolio_buy_prices", dict(zip(edited["Symbol"], edited["BuyPrice"])))
-        save("portfolio_quantities",  dict(zip(edited["Symbol"], edited["Qty"])))
+        st.session_state["portfolio_buy_prices"] = dict(zip(edited["Symbol"], edited["BuyPrice"]))
+        st.session_state["portfolio_quantities"] = dict(zip(edited["Symbol"], edited["Qty"]))
+        save_user_data()
 
         active = merged[merged["Qty"]>0].copy()
         if not active.empty:
@@ -281,10 +310,11 @@ with tabs[0]:
                       f"{'🟢 +' if total_pl>=0 else '🔴 '}${abs(total_pl):,.0f}")
             s4.metric("⭐ ציון ממוצע",
                       f"{active['Score'].mean():.1f}/6" if "Score" in active.columns else "—")
+    else:
+        st.info("התיק שלך ריק! הוסף נכסים חדשים כדי להתחיל.")
 
 # ══ 1 ── תיק AI מנוהל ═════════════════════════════════════════════════════════
 with tabs[1]:
-    # Tooltips רלוונטיים
     st.markdown(
         tooltip("ℹ️ Stop-Loss","StopLoss") + " &nbsp; " +
         tooltip("ℹ️ Take-Profit","TakeProfit") + " &nbsp; " +
@@ -468,9 +498,7 @@ with tabs[24]:
 with tabs[25]: realtime_data.render_full_realtime_panel(list(set(MY_STOCKS_BASE+SCAN_LIST)))
 with tabs[26]: tax_fees_ai.render_tax_optimization()
 
-# ══ 27: מדריך + מילון מושגים ════════════════════════════════════════════════════
-# הוסף את זה בתוך app.py, במקום הטאב הישן (with tabs[27]:)
-
+# ══ 27: מדריך + סטטוס סוכנים ════════════════════════════════════════════════════
 with tabs[27]:
     st.markdown("""
     <div class="ai-card" style="border-right-color: #ff6b6b;">
@@ -610,7 +638,7 @@ with tabs[27]:
     with col_ml2:
         if st.button("▶️ הפעל ML", use_container_width=True):
             with st.spinner("⏳ אימון (זמן)..."):
-                scheduler.run_ml_agent()
+                scheduler.run_ml_training()
             st.success("✅ סיים!")
     
     st.divider()
@@ -638,7 +666,6 @@ with tabs[27]:
         st.rerun()
     
     st.write(f"⏰ עודכן: {datetime.now().strftime('%H:%M:%S')}")
-    # ─── סטטוס ───────────────────────────────────────────────────────
     st.subheader("⚙️ סטטוס ממוד")
     col1, col2, col3 = st.columns(3)
     
@@ -660,7 +687,6 @@ with tabs[27]:
     
     st.divider()
     
-    # ─── הפעלה ידנית ───────────────────────────────────────────────────
     st.subheader("▶️ הפעל סוכנים ידנית")
     st.write("💡 לחץ על כפתור כדי להפעיל סוכן עכשיו (בדרך כלל רץ אוטומטית)")
     
@@ -686,7 +712,6 @@ with tabs[27]:
     
     st.divider()
     
-    # ─── יומן עסקאות אחרונות ───────────────────────────────────────────
     st.subheader("📋 עסקאות אחרונות (למידה)")
     
     col_val_trades, col_day_trades = st.columns(2)
@@ -696,7 +721,7 @@ with tabs[27]:
         val_trades = load("val_trades_log", [])
         if val_trades:
             st.write(f"**סה\"כ עסקאות: {len(val_trades)}**")
-            for i, trade in enumerate(val_trades[:3]):  # הראה 3 אחרונות
+            for i, trade in enumerate(val_trades[:3]): 
                 with st.expander(f"עסקה #{i+1}: {trade.get('📌', '?')} - {trade.get('↔️', '?')}", expanded=(i==0)):
                     st.write(f"⏰ **זמן:** {trade.get('⏰', 'N/A')[:16]}")
                     st.write(f"📌 **מניה:** {trade.get('📌', 'N/A')}")
@@ -723,7 +748,6 @@ with tabs[27]:
     
     st.divider()
     
-    # ─── ML - מכונה למידה ───────────────────────────────────────────────
     st.subheader("🤖 Machine Learning - למידה עצמית")
     
     col_ml_left, col_ml_right = st.columns(2)
@@ -754,7 +778,6 @@ with tabs[27]:
     
     st.divider()
     
-    # ─── הסברים עמוקים ───────────────────────────────────────────────
     with st.expander("📖 הבנה עמוקה - איך זה עובד?", expanded=False):
         
         tab1, tab2, tab3 = st.tabs(["💼 סוכן ערך", "📈 סוכן יומי", "🤖 ML"])
@@ -812,7 +835,6 @@ with tabs[27]:
     
     st.divider()
     
-    # ─── כלים רישום ───────────────────────────────────────────────────
     st.subheader("📊 ערכים נוכחיים")
     
     col_debug1, col_debug2 = st.columns(2)
