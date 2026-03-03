@@ -60,7 +60,8 @@ def _init_demo_state(prefix: str, initial_ils: float = 5000.0):
         full_key = _get_user_key(prefix, k_short)
         if full_key not in st.session_state:
             # מנסה לטעון מהענן (storage.py) או משתמש בברירת מחדל
-            st.session_state[full_key] = load(full_key, val)
+            loaded_val = load(full_key, val)
+            st.session_state[full_key] = loaded_val if loaded_val is not None else val
 
 def _save_state(prefix: str):
     """שמירת כל נתוני הסימולטור של המשתמש הנוכחי לענן"""
@@ -89,9 +90,9 @@ def render_value_agent(df_all: pd.DataFrame):
     u_log_key  = _get_user_key("val", "trades_log")
 
     port_ils = _calc_total_val("val", usd)
-    cash = st.session_state[u_cash_key]
+    cash = st.session_state.get(u_cash_key, 5000.0)
     total = cash + port_ils
-    initial = st.session_state[_get_user_key("val", "initial_ils")]
+    initial = st.session_state.get(_get_user_key("val", "initial_ils"), 5000.0)
 
     c1,c2,c3,c4 = st.columns(4)
     c1.metric("💵 מזומן דמו", f"₪{cash:,.2f}")
@@ -116,9 +117,9 @@ def render_value_agent(df_all: pd.DataFrame):
             _save_state("val")
             st.rerun()
 
-    if st.session_state[u_port_key]:
+    if st.session_state.get(u_port_key):
         st.write("### 📋 פוזיציות פתוחות")
-        st.dataframe(pd.DataFrame(st.session_state[u_port_key]), use_container_width=True)
+        st.dataframe(pd.DataFrame(st.session_state.get(u_port_key, [])), use_container_width=True)
         if st.button("💸 מכור הכל ואסוף מזומן", key="v_sell"):
             st.session_state[u_cash_key] = total
             st.session_state[u_port_key] = []
@@ -133,7 +134,7 @@ def render_day_trade_agent(df_all: pd.DataFrame):
     u_cash_key = _get_user_key("day", "cash_ils")
     u_port_key = _get_user_key("day", "portfolio")
     
-    cash = st.session_state[u_cash_key]
+    cash = st.session_state.get(u_cash_key, 5000.0)
     port_val = _calc_total_val("day", usd)
     
     c1,c2,c3 = st.columns(3)
@@ -157,9 +158,9 @@ def render_day_trade_agent(df_all: pd.DataFrame):
             _save_state("day")
             st.rerun()
             
-    if st.session_state[u_port_key]:
+    if st.session_state.get(u_port_key):
         st.write("### 📋 עסקאות יום פעילות")
-        st.dataframe(pd.DataFrame(st.session_state[u_port_key]), use_container_width=True)
+        st.dataframe(pd.DataFrame(st.session_state.get(u_port_key, [])), use_container_width=True)
         if st.button("🔄 סגור יום וממש רווחים", key="d_sell"):
             st.session_state[u_cash_key] = cash + port_val
             st.session_state[u_port_key] = []
