@@ -1,4 +1,4 @@
-# app.py — Investment Hub Elite 2026 — גרסה סופית + Tooltips עברית + משתמשים
+# app.py — Investment Hub Elite 2026 — גרסה סופית + Tooltips עברית + משתמשים + תיקוני סוכנים
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -88,17 +88,33 @@ if not st.session_state.get("current_user"):
     render_login_page()
     st.stop()  # עוצר את טעינת האתר אם המשתמש לא מחובר
 
-# ─── שליפת נתונים גלובליים ─────────────────────────────────────────────────────
+# ─── שליפת נתונים גלובליים ועדכון הסוכנים מיד עם טעינת האתר ──────────────────────
 ALL_TICKERS = list(set(MY_STOCKS_BASE + SCAN_LIST + TASE_SCAN))
+
 try:
-    with st.spinner("☁️ שואב נתוני שוק למערכת..."):
+    with st.spinner("☁️ שואב נתוני שוק וסורק מניות למערכת (עשוי לקחת מספר שניות)..."):
         df_all = fetch_master_data(ALL_TICKERS)
-except Exception:
-    st.error("⚠️ שגיאה זמנית.")
+        
+        # גיבוי קטן למקרה שהשרת חוסם בקשות גדולות
+        if df_all is None or df_all.empty:
+            st.warning("⚠️ עיכוב בקבלת הנתונים המלאים, טוען מניות מרכזיות...")
+            df_all = fetch_master_data(["AAPL", "MSFT", "NVDA", "TSLA"])
+            
+        if df_all is None:
+            df_all = pd.DataFrame()
+
+        # 🔥 דחיפת הנתונים ישירות לסוכנים כדי שלא יציגו שגיאות או יגידו שחסר מידע
+        st.session_state["df_all"] = df_all
+        st.session_state["agent_universe_df"] = df_all
+        st.session_state["agent_universe_short_df"] = df_all
+        
+except Exception as e:
+    st.error(f"⚠️ שגיאה זמנית בשאיבת נתונים: {e}")
     df_all = pd.DataFrame()
 
 # ─── כותרת ופאנל התנתקות משתמש ───────────────────────────────────────────────
-col_head1, col_head2 = st.columns([8, 2])
+# התיקון: היחס בין העמודות עודכן (7.5 ו-2.5) כדי שהשם לא ייחתך
+col_head1, col_head2 = st.columns([7.5, 2.5])
 with col_head1:
     st.markdown("""
     <div class="hub-header">
@@ -116,7 +132,8 @@ with col_head1:
     </div>
     """, unsafe_allow_html=True)
 with col_head2:
-    st.markdown(f"<div style='background:#fff; padding:10px; border-radius:10px; text-align:center; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom: 5px;'>👤 <b>{st.session_state['current_user']}</b></div>", unsafe_allow_html=True)
+    # nowrap דואג שהשם לא יירד שורה וייחתך, אלא יישאר בשורה אחת ישרה
+    st.markdown(f"<div style='background:#fff; padding:10px; border-radius:10px; text-align:center; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='{st.session_state.get('current_user', '')}'>👤 <b>{st.session_state.get('current_user', '')}</b></div>", unsafe_allow_html=True)
     if st.button("🚪 התנתק", use_container_width=True):
         st.session_state["current_user"] = None
         if "portfolio" in st.session_state:
