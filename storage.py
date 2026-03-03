@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Advanced Storage System with:
-- Persistent sessions (survives browser refresh/close)
-- Agent data and trades history
+- Persistent sessions
+- Security questions for password recovery
 - Database backup and recovery
 - Logging system
 - Health checks
@@ -82,7 +82,7 @@ def init_database():
         )
     ''')
     
-    # Sessions table (persistent)
+    # Sessions table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS sessions (
             id INTEGER PRIMARY KEY,
@@ -231,8 +231,8 @@ class UserManager:
         return hashlib.sha256(password.encode()).hexdigest()
     
     @staticmethod
-    def register_user(username, password):
-        """Register new user"""
+    def register_user(username, password, security_q="", security_a=""):
+        """Register new user with security question"""
         try:
             conn = sqlite3.connect(DATABASE_FILE)
             cursor = conn.cursor()
@@ -242,11 +242,18 @@ class UserManager:
                 return False, "User already exists"
             
             api_key = hashlib.sha256(f"{username}{time.time()}".encode()).hexdigest()[:32]
+            hashed_answer = hashlib.sha256(security_a.encode()).hexdigest() if security_a else ""
             
             cursor.execute('''
                 INSERT INTO users (username, password, created, subscription, cash, api_key)
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', (username, UserManager.hash_password(password), datetime.now(), "basic", 100000.0, api_key))
+            
+            # Save security question
+            cursor.execute('''
+                INSERT INTO logs (username, event_type, message, timestamp)
+                VALUES (?, ?, ?, ?)
+            ''', (username, "SECURITY_Q", f"{security_q}|{hashed_answer}", datetime.now()))
             
             conn.commit()
             conn.close()
@@ -273,7 +280,7 @@ class UserManager:
             if not user:
                 return False, "User not found"
             
-            if user[2] != UserManager.hash_password(password):  # user[2] is password
+            if user[2] != UserManager.hash_password(password):
                 return False, "Wrong password"
             
             # Update last login
@@ -293,6 +300,59 @@ class UserManager:
                 "api_key": user[6],
                 "token": token
             }
+        except Exception as e:
+            return False, str(e)
+    
+    @staticmethod
+    def get_security_question(username):
+        """Get user's security question"""
+        try:
+            conn = sqlite3.connect(DATABASE_FILE)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT message FROM logs 
+                WHERE username = ? AND event_type = 'SECURITY_Q'
+                LIMIT 1
+            ''', (username,))
+            
+            result = cursor.fetchone()
+            conn.close()
+            
+            if result:
+                parts = result[0].split('|')
+                if len(parts) == 2:
+                    return (parts[0], parts[1])
+            return None
+        except:
+            return None
+    
+    @staticmethod
+    def reset_password(username, security_answer, new_password):
+        """Reset password with security answer"""
+        try:
+            security_info = UserManager.get_security_question(username)
+            if not security_info:
+                return False, "User not found"
+            
+            _, stored_answer = security_info
+            provided_answer = hashlib.sha256(security_answer.encode()).hexdigest()
+            
+            if provided_answer != stored_answer:
+                return False, "Answer incorrect"
+            
+            conn = sqlite3.connect(DATABASE_FILE)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                UPDATE users SET password = ? WHERE username = ?
+            ''', (UserManager.hash_password(new_password), username))
+            
+            conn.commit()
+            conn.close()
+            
+            log_system(username, "PASSWORD_RESET", "Password reset via security question")
+            return True, "Password reset successfully"
         except Exception as e:
             return False, str(e)
     
@@ -321,7 +381,7 @@ class UserManager:
             return {}
 
 # ═══════════════════════════════════════════════════════════════
-# AGENT MANAGEMENT (24/7 Background Operation)
+# AGENT MANAGEMENT
 # ═══════════════════════════════════════════════════════════════
 
 class AgentManager:
@@ -351,35 +411,6 @@ class AgentManager:
             pass
     
     @staticmethod
-    def get_agent_data(username, agent_name):
-        """Get agent data"""
-        try:
-            conn = sqlite3.connect(DATABASE_FILE)
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                SELECT * FROM agents 
-                WHERE username = ? AND agent_name = ?
-            ''', (username, agent_name))
-            
-            agent = cursor.fetchone()
-            conn.close()
-            
-            if agent:
-                return {
-                    "agent_name": agent[2],
-                    "status": agent[3],
-                    "cash": agent[4],
-                    "portfolio_value": agent[5],
-                    "trades_count": agent[6],
-                    "wins": agent[7],
-                    "last_run": agent[8]
-                }
-            return {}
-        except:
-            return {}
-    
-    @staticmethod
     def get_all_agents(username):
         """Get all user agents"""
         try:
@@ -407,39 +438,6 @@ class AgentManager:
             return result
         except:
             return []
-    
-    @staticmethod
-    def update_agent_trade(username, agent_name, symbol, action, price, quantity, profit_loss):
-        """Record trade"""
-        try:
-            conn = sqlite3.connect(DATABASE_FILE)
-            cursor = conn.cursor()
-            
-            # Add trade to history
-            cursor.execute('''
-                INSERT INTO trades 
-                (username, agent_name, symbol, action, price, quantity, profit_loss, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (username, agent_name, symbol, action, price, quantity, profit_loss, datetime.now()))
-            
-            # Update agent stats
-            wins = 1 if profit_loss > 0 else 0
-            cursor.execute('''
-                UPDATE agents 
-                SET trades_count = trades_count + 1, 
-                    wins = wins + ?,
-                    last_run = ?
-                WHERE username = ? AND agent_name = ?
-            ''', (wins, datetime.now(), username, agent_name))
-            
-            conn.commit()
-            conn.close()
-            
-            log_system(username, "TRADE_EXECUTED", 
-                      f"{agent_name} traded {symbol}: {action} x{quantity} @ ₪{price}")
-            
-        except Exception as e:
-            log_system(username, "TRADE_ERROR", str(e))
 
 # ═══════════════════════════════════════════════════════════════
 # LOGGING SYSTEM
@@ -501,18 +499,6 @@ def backup_database():
         pass
     return False
 
-def restore_database(backup_file):
-    """Restore from backup"""
-    try:
-        import shutil
-        if os.path.exists(backup_file):
-            shutil.copy(backup_file, DATABASE_FILE)
-            log_system("SYSTEM", "BACKUP_RESTORED", f"Restored from: {backup_file}")
-            return True
-    except:
-        pass
-    return False
-
 # ═══════════════════════════════════════════════════════════════
 # HEALTH CHECK SYSTEM
 # ═══════════════════════════════════════════════════════════════
@@ -548,7 +534,7 @@ class HealthChecker:
     def check_storage():
         """Check storage file"""
         if os.path.exists(STORAGE_FILE):
-            size = os.path.getsize(STORAGE_FILE) / 1024  # KB
+            size = os.path.getsize(STORAGE_FILE) / 1024
             return {"status": "OK", "size_kb": size}
         return {"status": "OK", "size_kb": 0}
     
@@ -596,6 +582,12 @@ def load_all_to_session(session_state):
 def export_data():
     """Export all data"""
     return json.dumps(get_all(), ensure_ascii=False, indent=2)
+
+def load_ai_portfolio(session_state):
+    """Load AI portfolio from storage"""
+    portfolio = load("ai_portfolio", {})
+    if portfolio:
+        session_state["ai_portfolio"] = portfolio
 
 # Initialize system on import
 backup_database()
