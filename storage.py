@@ -1,291 +1,129 @@
-#!/usr/bin/env python3
-# storage.py - Complete with ALL required functions
-import json
+# storage.py — Cloud Edition (PostgreSQL / SQLite) עם סנכרון נתונים מלא
 import os
-import hashlib
-import time
-import pickle
-import base64
-from datetime import datetime
+import json
+from sqlalchemy import create_engine, Column, String, Text
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-STORAGE_FILE = "trading_data.json"
+# ─── חיבור למסד הנתונים בענן (או מקומי) ─────────────────────────────────────────
+# אם המערכת רצה ב-Render, היא תקרא את ה-URL אוטומטית. אחרת, תיצור קובץ DB מקומי.
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///local_hub_data.db")
 
-# ═══════════════════════════════════════════════════════════════
-# CORE STORAGE FUNCTIONS
-# ═══════════════════════════════════════════════════════════════
+# תיקון קטן שדרוש ל-Render ול-SQLAlchemy:
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+engine = create_engine(DATABASE_URL, echo=False)
+Base = declarative_base()
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# ─── סכמת טבלת הנתונים ───────────────────────────────────────────────────────
+class KVPair(Base):
+    __tablename__ = "storage_kv"
+    key = Column(String, primary_key=True, index=True)
+    value = Column(Text)  # שומרים את ה-JSON כטקסט
+
+# יצירת הטבלה אם אינה קיימת
+Base.metadata.create_all(bind=engine)
+
+# ─── פונקציות ליבה (שמירה וקריאה מול הענן) ────────────────────────────────────
 def load(key, default=None):
-    """Load data from storage"""
-    try:
-        if not os.path.exists(STORAGE_FILE):
-            return default
-        
-        with open(STORAGE_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        
-        return data.get(key, default)
-    except:
+    """שולף נתונים ממסד הנתונים בענן"""
+    with SessionLocal() as db:
+        record = db.query(KVPair).filter(KVPair.key == key).first()
+        if record and record.value:
+            try:
+                return json.loads(record.value)
+            except:
+                return default
         return default
 
 def save(key, value):
-    """Save data to storage"""
-    try:
-        if os.path.exists(STORAGE_FILE):
-            with open(STORAGE_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+    """שומר נתונים באופן מאובטח למסד הנתונים"""
+    with SessionLocal() as db:
+        record = db.query(KVPair).filter(KVPair.key == key).first()
+        val_str = json.dumps(value, ensure_ascii=False)
+        if record:
+            record.value = val_str
         else:
-            data = {}
-        
-        data[key] = value
-        
-        with open(STORAGE_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        
+            new_record = KVPair(key=key, value=val_str)
+            db.add(new_record)
+        db.commit()
         return True
-    except Exception as e:
-        print(f"Storage error: {e}")
-        return False
 
 def delete(key):
-    """Delete data from storage"""
-    try:
-        if os.path.exists(STORAGE_FILE):
-            with open(STORAGE_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            
-            if key in data:
-                del data[key]
-            
-            with open(STORAGE_FILE, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            
+    with SessionLocal() as db:
+        record = db.query(KVPair).filter(KVPair.key == key).first()
+        if record:
+            db.delete(record)
+            db.commit()
             return True
-    except:
         return False
-
-def load_all_to_session(session_state):
-    """Load all data to Streamlit session"""
-    try:
-        if os.path.exists(STORAGE_FILE):
-            with open(STORAGE_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            
-            for key, value in data.items():
-                if key not in session_state:
-                    session_state[key] = value
-    except:
-        pass
-
-# ═══════════════════════════════════════════════════════════════
-# ML FUNCTIONS (REQUIRED BY ml_learning_ai.py)
-# ═══════════════════════════════════════════════════════════════
-
-def save_ml(model_data):
-    """Save ML model and data"""
-    try:
-        if isinstance(model_data, dict):
-            save("ml_model_data", model_data)
-        else:
-            # Serialize model with pickle
-            serialized = base64.b64encode(pickle.dumps(model_data)).decode()
-            save("ml_model_serialized", serialized)
-        return True
-    except:
-        return False
-
-def load_ml(key="ml_model_data"):
-    """Load ML model or data"""
-    return load(key, {})
-
-def save_ml_results(results):
-    """Save ML training results"""
-    save("ml_results", results)
-
-def load_ml_results():
-    """Load ML training results"""
-    return load("ml_results", {})
-
-# ═══════════════════════════════════════════════════════════════
-# SIMULATOR FUNCTIONS (REQUIRED BY simulator.py)
-# ═══════════════════════════════════════════════════════════════
-
-def save_simulator(state):
-    """Save simulator state"""
-    save("simulator_state", state)
-
-def reset_simulator():
-    """Reset simulator"""
-    delete("simulator_state")
-    save("simulator_reset", True)
-
-def load_simulator():
-    """Load simulator state"""
-    return load("simulator_state", {})
-
-# ═══════════════════════════════════════════════════════════════
-# USER MANAGEMENT
-# ═══════════════════════════════════════════════════════════════
-
-class UserManager:
-    """User management with security"""
-    
-    @staticmethod
-    def hash_password(password):
-        """Hash password"""
-        return hashlib.sha256(password.encode()).hexdigest()
-    
-    @staticmethod
-    def register_user(username, password):
-        """Register new user"""
-        users = load("users_data", {})
-        
-        if username in users:
-            return False, "User exists"
-        
-        users[username] = {
-            "password": UserManager.hash_password(password),
-            "created": datetime.now().isoformat(),
-            "subscription": "basic",
-            "portfolio": {},
-            "api_key": hashlib.sha256(f"{username}{time.time()}".encode()).hexdigest()[:32]
-        }
-        
-        save("users_data", users)
-        return True, "Registered"
-    
-    @staticmethod
-    def login(username, password):
-        """Login user"""
-        users = load("users_data", {})
-        
-        if username not in users:
-            return False, "Not found"
-        
-        if users[username]["password"] != UserManager.hash_password(password):
-            return False, "Wrong password"
-        
-        return True, users[username]
-
-# ═══════════════════════════════════════════════════════════════
-# GLOBAL ML SYSTEM
-# ═══════════════════════════════════════════════════════════════
-
-class GlobalMLSystem:
-    """Global machine learning from all users"""
-    
-    @staticmethod
-    def add_trade(username, trade):
-        """Add trade to global learning"""
-        global_trades = load("global_trades_all_users", [])
-        user_trades = load("user_trades_by_user", {})
-        
-        if username not in user_trades:
-            user_trades[username] = []
-        
-        user_trades[username].append(trade)
-        global_trades.append(trade)
-        
-        save("global_trades_all_users", global_trades)
-        save("user_trades_by_user", user_trades)
-    
-    @staticmethod
-    def get_global_insights():
-        """Get global insights"""
-        global_trades = load("global_trades_all_users", [])
-        user_trades = load("user_trades_by_user", {})
-        
-        if not global_trades:
-            return {
-                "total_trades": 0,
-                "total_users": 0,
-                "avg_profit": 0,
-                "win_rate": 0
-            }
-        
-        profits = [t.get("profit", 0) for t in global_trades]
-        wins = sum(1 for p in profits if p > 0)
-        
-        return {
-            "total_trades": len(global_trades),
-            "total_users": len(user_trades),
-            "avg_profit": sum(profits) / len(profits) if profits else 0,
-            "win_rate": wins / len(global_trades) if global_trades else 0
-        }
-
-# ═══════════════════════════════════════════════════════════════
-# PORTFOLIO FUNCTIONS
-# ═══════════════════════════════════════════════════════════════
-
-def load_ai_portfolio(session_state):
-    """Load AI portfolio from storage"""
-    portfolio = load("ai_portfolio", {})
-    if portfolio:
-        session_state["ai_portfolio"] = portfolio
-
-def save_ai_portfolio(portfolio):
-    """Save AI portfolio"""
-    save("ai_portfolio", portfolio)
-
-# ═══════════════════════════════════════════════════════════════
-# EXECUTION FUNCTIONS
-# ═══════════════════════════════════════════════════════════════
-
-def save_execution_log(log_entry):
-    """Save execution log"""
-    logs = load("execution_logs", [])
-    logs.append(log_entry)
-    save("execution_logs", logs)
-
-def load_execution_logs():
-    """Load execution logs"""
-    return load("execution_logs", [])
-
-# ═══════════════════════════════════════════════════════════════
-# FAILSAFE FUNCTIONS
-# ═══════════════════════════════════════════════════════════════
-
-def save_failsafe_settings(settings):
-    """Save failsafe settings"""
-    save("failsafe_settings", settings)
-
-def load_failsafe_settings():
-    """Load failsafe settings"""
-    return load("failsafe_settings", {})
-
-# ═══════════════════════════════════════════════════════════════
-# UTILITY FUNCTIONS
-# ═══════════════════════════════════════════════════════════════
 
 def clear_all():
-    """Clear all data"""
-    try:
-        if os.path.exists(STORAGE_FILE):
-            os.remove(STORAGE_FILE)
+    with SessionLocal() as db:
+        db.query(KVPair).delete()
+        db.commit()
         return True
-    except:
-        return False
 
 def get_all():
-    """Get all data"""
-    try:
-        if not os.path.exists(STORAGE_FILE):
-            return {}
-        
-        with open(STORAGE_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except:
-        return {}
+    result = {}
+    with SessionLocal() as db:
+        records = db.query(KVPair).all()
+        for r in records:
+            try:
+                result[r.key] = json.loads(r.value)
+            except:
+                pass
+    return result
 
 def export_data():
-    """Export all data"""
     return json.dumps(get_all(), ensure_ascii=False, indent=2)
 
 def import_data(json_data):
-    """Import data from JSON"""
     try:
         data = json.loads(json_data)
-        with open(STORAGE_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        for k, v in data.items():
+            save(k, v)
         return True
     except:
         return False
+
+# ─── פונקציות ייעודיות לאפליקציה ולסוכנים ─────────────────────────────────────
+def load_all_to_session(session_state):
+    keys_to_load = ["kill_switch_active", "circuit_breaker_triggered", "daily_loss_pct"]
+    for k in keys_to_load:
+        if k not in session_state:
+            session_state[k] = load(k, False if "active" in k or "triggered" in k else 0.0)
+
+def load_ai_portfolio(session_state):
+    if "aip_enabled" not in session_state:
+        session_state["aip_enabled"] = load("aip_enabled", False)
+    if "aip_cash" not in session_state:
+        session_state["aip_cash"] = load("aip_cash", 100000.0)
+    if "aip_positions" not in session_state:
+        session_state["aip_positions"] = load("aip_positions", [])
+
+def save_simulator(session_state, mode="day"):
+    if mode == "day":
+        save("day_cash_ils", session_state.get("day_cash_ils", 100000.0))
+        save("day_portfolio", session_state.get("day_portfolio", []))
+        save("day_trades_log", session_state.get("day_trades_log", []))
+    else:
+        save("val_cash_ils", session_state.get("val_cash_ils", 100000.0))
+        save("val_portfolio", session_state.get("val_portfolio", []))
+        save("val_trades_log", session_state.get("val_trades_log", []))
+
+def reset_simulator(session_state, mode="day"):
+    if mode == "day":
+        session_state["day_cash_ils"] = 100000.0
+        session_state["day_portfolio"] = []
+        session_state["day_trades_log"] = []
+        save_simulator(session_state, "day")
+    else:
+        session_state["val_cash_ils"] = 100000.0
+        session_state["val_portfolio"] = []
+        session_state["val_trades_log"] = []
+        save_simulator(session_state, "val")
+
+def save_ml(data):
+    save("ml_data", data)
