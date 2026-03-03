@@ -81,7 +81,7 @@ def render_login_page():
         st.subheader("התחבר לחשבון שלך")
         login_user = st.text_input("שם משתמש", key="log_user")
         login_pass = st.text_input("סיסמה", type="password", key="log_pass")
-        if st.button("כניסה", type="primary", use_container_width=True):
+        if st.button("כניסה", type="primary"):
             if authenticate_user(login_user, login_pass):
                 st.success(f"ברוך הבא {login_user}!")
                 st.rerun()
@@ -93,7 +93,7 @@ def render_login_page():
         st.info("💡 כל משתמש חדש מקבל תיק ריק משלו לחלוטין.")
         reg_user = st.text_input("שם משתמש", key="reg_user")
         reg_pass = st.text_input("סיסמה", type="password", key="reg_pass")
-        if st.button("הרשמה", use_container_width=True):
+        if st.button("הרשמה"):
             if reg_user and len(reg_pass) >= 4:
                 success, msg = register_user(reg_user, reg_pass)
                 if success:
@@ -108,7 +108,7 @@ def render_login_page():
         st.info("ניתן לאפס את הסיסמה ישירות על ידי הזנת שם המשתמש שלך והסיסמה החדשה שתרצה.")
         reset_user = st.text_input("שם משתמש לאיפוס", key="res_user")
         reset_pass = st.text_input("סיסמה חדשה", type="password", key="res_pass")
-        if st.button("אפס סיסמה", use_container_width=True):
+        if st.button("אפס סיסמה"):
             if reset_user and len(reset_pass) >= 4:
                 success, msg = reset_password(reset_user, reset_pass)
                 if success:

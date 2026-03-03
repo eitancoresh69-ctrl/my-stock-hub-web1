@@ -119,7 +119,7 @@ def render_value_agent(df_all: pd.DataFrame):
 
     if st.session_state.get(u_port_key):
         st.write("### 📋 פוזיציות פתוחות")
-        st.dataframe(pd.DataFrame(st.session_state.get(u_port_key, [])), use_container_width=True)
+        st.dataframe(pd.DataFrame(st.session_state.get(u_port_key, [])))
         if st.button("💸 מכור הכל ואסוף מזומן", key="v_sell"):
             st.session_state[u_cash_key] = total
             st.session_state[u_port_key] = []
@@ -160,7 +160,7 @@ def render_day_trade_agent(df_all: pd.DataFrame):
             
     if st.session_state.get(u_port_key):
         st.write("### 📋 עסקאות יום פעילות")
-        st.dataframe(pd.DataFrame(st.session_state.get(u_port_key, [])), use_container_width=True)
+        st.dataframe(pd.DataFrame(st.session_state.get(u_port_key, [])))
         if st.button("🔄 סגור יום וממש רווחים", key="d_sell"):
             st.session_state[u_cash_key] = cash + port_val
             st.session_state[u_port_key] = []

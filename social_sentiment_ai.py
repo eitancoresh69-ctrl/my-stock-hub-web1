@@ -105,7 +105,7 @@ def render_social_intelligence():
         {"נושא": "Fed Rate Decision",  "עוצמה": "🔥🔥🔥🔥",  "מניות": "JPM,GS",          "סנטימנט": "🟡 +52%"},
         {"נושא": "EV Price War",       "עוצמה": "🔥🔥🔥",    "מניות": "TSLA,GM",          "סנטימנט": "🔴 -31%"},
         {"נושא": "Crypto Bull Market", "עוצמה": "🔥🔥🔥🔥",  "מניות": "COIN,MSTR",        "סנטימנט": "🟢 +79%"},
-    ]), use_container_width=True, hide_index=True)
+    ]), hide_index=True)
 
     st.subheader("👾 WallStreetBets Top 5")
     st.dataframe(pd.DataFrame([
@@ -114,5 +114,5 @@ def render_social_intelligence():
         {"#": 3, "מניה": "PLTR", "אזכורים": "3,450", "כיוון": "🟢 שורי חזק"},
         {"#": 4, "מניה": "AMD",  "אזכורים": "1,980", "כיוון": "🟢 שורי"},
         {"#": 5, "מניה": "META", "אזכורים": "1,890", "כיוון": "🟢 שורי"},
-    ]), use_container_width=True, hide_index=True)
+    ]), hide_index=True)
     st.caption("⚠️ נתוני רשתות חברתיות הם הדמייה. השתמש תמיד יחד עם ניתוח PDF.")

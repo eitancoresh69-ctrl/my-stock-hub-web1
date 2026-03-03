@@ -60,7 +60,6 @@ def render_crypto_arena():
                 "נפח (B$)": st.column_config.NumberColumn("נפח (B$)", format="$%.2fB"),
                 "גרף 7 ימים": st.column_config.LineChartColumn("מגמה 7 ימים 📈", y_min=0),
             },
-            use_container_width=True,
             hide_index=True,
         )
         st.info("💡 **AI:** BTC מוביל > 60% = שוק שור. ETH/SOL/XRP מובילים = עונת altcoins.")

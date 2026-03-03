@@ -554,7 +554,7 @@ def render_ai_portfolio(df_all: pd.DataFrame):
                     "🤖 סיבות":   " | ".join(result["reasons"][:2]),
                 })
             df_opp = pd.DataFrame(rows).sort_values("🎯 ציון AI", ascending=False)
-            st.dataframe(df_opp, use_container_width=True, hide_index=True)
+            st.dataframe(df_opp, hide_index=True)
 
     # ══ TAB 2: פוזיציות ══
     with t2:
@@ -581,7 +581,7 @@ def render_ai_portfolio(df_all: pd.DataFrame):
                     "ציון AI":      pos.get("ai_score","—"),
                     "סיבה":         pos.get("reason","—")[:40],
                 })
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(rows), hide_index=True)
 
             st.divider()
             col1, col2 = st.columns(2)
@@ -610,7 +610,7 @@ def render_ai_portfolio(df_all: pd.DataFrame):
                 "רווח/הפסד": f"{'🟢 +' if t.get('pnl_ils',0)>=0 else '🔴 '}₪{abs(t.get('pnl_ils',0)):,.0f}" if "pnl_ils" in t else "—",
                 "סוכן":       t.get("agent","—"),
             } for t in trades[:100]])
-            st.dataframe(df_trades, use_container_width=True, hide_index=True)
+            st.dataframe(df_trades, hide_index=True)
 
             # סיכום
             sells = [t for t in trades if t.get("action")=="מכירה" and "pnl_ils" in t]
@@ -660,7 +660,7 @@ def render_ai_portfolio(df_all: pd.DataFrame):
                 "📈 תוצאה":  f"{'🟢' if d['outcome']=='רווח' else '🔴'} {d['outcome']}",
                 "% שינוי":   f"{d.get('outcome_pct',0):+.1f}%",
             } for d in with_outcome[:50]]
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(rows), hide_index=True)
 
     # ══ TAB 5: הגדרות ══
     with t5:
@@ -723,7 +723,7 @@ def render_ai_portfolio(df_all: pd.DataFrame):
                           line_color="gray", annotation_text="הון התחלתי")
             fig.update_layout(title="ביצועי תיק AI", xaxis_title="תאריך",
                               yaxis_title="₪", height=400, template="plotly_white")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig)
 
             # מדדי ביצוע
             first_val = df_perf["total"].iloc[0]
@@ -738,4 +738,4 @@ def render_ai_portfolio(df_all: pd.DataFrame):
             m4.metric("📅 ימי מסחר",       len(df_perf))
 
             with st.expander("📋 טבלת ביצועים יומית"):
-                st.dataframe(df_perf.sort_values("date", ascending=False), use_container_width=True, hide_index=True)
+                st.dataframe(df_perf.sort_values("date", ascending=False), hide_index=True)

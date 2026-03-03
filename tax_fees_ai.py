@@ -93,7 +93,7 @@ def render_tax_optimization():
                 "מינימום שנתי": f"₪{b['mo']*12:,}" if b["mo"] > 0 else "—",
             })
         df = pd.DataFrame(rows).sort_values("עמלה")
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.dataframe(df, hide_index=True)
         st.success(f"💡 הזול ביותר: **{df.iloc[0]['🏦 ברוקר']}**")
 
     with t3:

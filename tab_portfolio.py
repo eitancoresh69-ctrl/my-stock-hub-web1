@@ -76,8 +76,7 @@ def render_portfolio(df_all):
                 "Yield":    st.column_config.NumberColumn("תשואה %", help="רווח/הפסד אחוזי", format="%.1f%%", disabled=True),
                 "Score":    st.column_config.NumberColumn("⭐ ציון",  help="ציון 0-6", disabled=True),
                 "Action":   st.column_config.TextColumn("המלצה AI",  help="המלצת הבינה המלאכותית", disabled=True),
-            },
-            use_container_width=True, hide_index=True,
+            }, hide_index=True,
         )
         st.session_state.portfolio = edited[["Symbol","BuyPrice","Qty"]]
         st.session_state["portfolio_buy_prices"] = dict(zip(edited["Symbol"], edited["BuyPrice"]))

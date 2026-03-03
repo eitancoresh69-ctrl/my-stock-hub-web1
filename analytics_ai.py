@@ -63,12 +63,11 @@ def render_analytics_dashboard():
                 yaxis_title="%", height=350, template="plotly_white",
                 showlegend=False
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig)
 
             # טבלה מפורטת
             st.dataframe(
-                df_sec.sort_values("יומי %", ascending=False),
-                use_container_width=True, hide_index=True,
+                df_sec.sort_values("יומי %", ascending=False), hide_index=True,
                 column_config={
                     "יומי %":   st.column_config.NumberColumn("יומי %",   format="%.2f%%"),
                     "שבועי %":  st.column_config.NumberColumn("שבועי %",  format="%.2f%%"),
@@ -114,7 +113,7 @@ def render_analytics_dashboard():
             template="plotly_white",
             legend=dict(orientation="h", yanchor="bottom", y=1.02)
         )
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2)
         st.caption("כל המדדים מנורמלים ל-0% בתחילת התקופה לצורך השוואה הוגנת.")
 
     # ── יומן פעילות ──────────────────────────────────────────────────────────
@@ -140,6 +139,6 @@ def render_analytics_dashboard():
                 st.rerun()
 
         if log:
-            st.dataframe(pd.DataFrame(log[:50]), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(log[:50]), hide_index=True)
         else:
             st.info("היומן ריק. פעולות הסוכן ייכנסו כאן אוטומטית.")

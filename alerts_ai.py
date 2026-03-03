@@ -106,8 +106,7 @@ def render_smart_alerts(df_all):
         if not high_ins.empty:
             df_ins = high_ins[["Symbol","PriceStr","InsiderHeld","Score","Action"]].copy()
             df_ins["InsiderHeld"] = df_ins["InsiderHeld"].apply(lambda x: f"{x:.1f}%")
-            st.dataframe(df_ins.sort_values("InsiderHeld", ascending=False),
-                         use_container_width=True, hide_index=True)
+            st.dataframe(df_ins.sort_values("InsiderHeld", ascending=False), hide_index=True)
             st.info("💡 אחזקת insider גבוהה = האמונה של ההנהלה במניה. "
                     "מעל 10% = חיובי מאוד.")
         else:

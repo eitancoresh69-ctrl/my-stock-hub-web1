@@ -48,7 +48,6 @@ def render_market_intelligence():
             column_config={
                 "שינוי %": st.column_config.NumberColumn("שינוי %", format="%.2f%%"),
             },
-            use_container_width=True,
             hide_index=True,
         )
 

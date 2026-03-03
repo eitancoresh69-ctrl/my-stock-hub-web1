@@ -107,7 +107,7 @@ def render_commodities():
             "📅 מגמה 30י":  f"{'▲' if info['trend_30d']>=0 else '▼'}{abs(info['trend_30d']):.1f}%",
             "🤖 המלצה AI":  rec,
         })
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(rows), hide_index=True)
 
     # ── קורלציות ─────────────────────────────────────────────────────────────
     st.divider()
@@ -127,5 +127,5 @@ def render_commodities():
             title="קורלציה בין סחורות"
         )
         fig_corr.update_layout(height=380, font=dict(size=11))
-        st.plotly_chart(fig_corr, use_container_width=True)
+        st.plotly_chart(fig_corr)
         st.caption("🔴 +1 = זזים יחד (לא מגן) | 🟢 -1 = זזים הפוך (גידור מושלם!) | 🟡 0 = ללא קשר")

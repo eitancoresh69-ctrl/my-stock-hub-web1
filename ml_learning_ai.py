@@ -273,7 +273,7 @@ def render_machine_learning(df_all=None):
                  "גרף": "█"*max(1,int(v*80))}
                 for k,v in fi_rows
             ])
-            st.dataframe(fi_df, use_container_width=True, hide_index=True)
+            st.dataframe(fi_df, hide_index=True)
 
         if st.session_state.ml_cv_scores:
             st.divider()
@@ -283,7 +283,7 @@ def render_machine_learning(df_all=None):
                 "Fold": [f"Fold {i+1}" for i in range(len(cv))],
                 "דיוק %": [round(v*100,1) for v in cv],
             })
-            st.dataframe(cv_df, use_container_width=True, hide_index=True)
+            st.dataframe(cv_df, hide_index=True)
             std = np.std(cv)*100
             col1,col2 = st.columns(2)
             col1.metric("ממוצע", f"{np.mean(cv)*100:.1f}%")
@@ -339,7 +339,7 @@ def render_machine_learning(df_all=None):
                             except Exception:
                                 pass
                     if rows:
-                        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                        st.dataframe(pd.DataFrame(rows), hide_index=True)
                         buys = [r["📌 מניה"] for r in rows if r["🤖 המלצה"]=="🟢 קנה"]
                         if buys:
                             st.success(f"🟢 ממליץ לקנות: {', '.join(buys)}")
@@ -370,7 +370,7 @@ def render_machine_learning(df_all=None):
                         {"📌 מניה":sym, "💼 הקצאה %":pct, "גרף":"█"*max(1,int(pct/3))}
                         for sym,pct in sorted(res["allocation"].items(),key=lambda x:x[1],reverse=True)
                     ])
-                    st.dataframe(alloc_df, use_container_width=True, hide_index=True)
+                    st.dataframe(alloc_df, hide_index=True)
                     c1,c2,c3 = st.columns(3)
                     c1.metric("📈 תשואה שנתית", f"{res['return']:.1f}%")
                     c2.metric("📊 תנודתיות",    f"{res['volatility']:.1f}%")
@@ -385,7 +385,7 @@ def render_machine_learning(df_all=None):
                             title="קורלציה בין נכסים (1=תנועה זהה, -1=הפוכה, 0=ללא קשר)"
                         )
                         fig_corr.update_layout(height=400, font=dict(size=11))
-                        st.plotly_chart(fig_corr, use_container_width=True)
+                        st.plotly_chart(fig_corr)
                         st.caption("🟢 ירוק = קורלציה חיובית | 🔴 אדום = קורלציה שלילית (גידור) | 🟡 צהוב = אין קשר (פיזור טוב!)")
                 else:
                     st.error(res.get("error","שגיאה"))
@@ -417,7 +417,7 @@ def render_machine_learning(df_all=None):
                     else:
                         st.success(f"נמצאו {len(anom)} מניות חריגות:")
                         cols_show = [c for c in ["Symbol","Price","RSI","Score","Margin","אנומליה","סטטוס"] if c in anom.columns]
-                        st.dataframe(anom[cols_show], use_container_width=True, hide_index=True)
+                        st.dataframe(anom[cols_show], hide_index=True)
                         st.caption("💡 חריגות יכולות להצביע על הזדמנות — בדוק ידנית!")
                 except Exception as e:
                     st.error(f"שגיאה: {e}")

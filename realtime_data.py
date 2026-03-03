@@ -11,11 +11,11 @@ import requests
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import os
 from datetime import datetime, timedelta
 
 # ─── הגדרת API Keys ──────────────────────────────────────────────────────────
 # 🔑 Twelve Data API Key (נמצא בסביבה של Render)
-import os
 TWELVE_DATA_API_KEY = os.environ.get("TWELVE_DATA_API_KEY", "")
 TWELVE_DATA_BASE = "https://api.twelvedata.com"
 
@@ -681,7 +681,7 @@ def render_full_realtime_panel(symbols: list):
                         "🔒 סגירה קודמת": f"${q['prev_close']:.2f}",
                         "🟢 מקור":        q["source"],
                     })
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(rows), hide_index=True)
                 st.caption(f"🔄 מחירים עם עיכוב < 30 שניות | עדכון אחרון: {datetime.now().strftime('%H:%M:%S')}")
         else:
             st.info("הוסף Finnhub API Key לקבלת מחירים חיים")

@@ -62,7 +62,7 @@ def render_system_status():
                 st.metric("🔔 מצב", "המתנה")
     
     with col_d2:
-        if st.button("▶️ הפעל יומי", use_container_width=True):
+        if st.button("▶️ הפעל יומי"):
             with st.spinner("⏳ רץ..."):
                 scheduler.run_day_agent()
             st.success("✅ סיים!")
@@ -108,7 +108,7 @@ def render_system_status():
             st.metric("⏰ ריצה", time_str)
     
     with col_v2:
-        if st.button("▶️ הפעל ערך", use_container_width=True):
+        if st.button("▶️ הפעל ערך"):
             with st.spinner("⏳ רץ..."):
                 scheduler.run_val_agent()
             st.success("✅ סיים!")
@@ -141,7 +141,7 @@ def render_system_status():
         st.metric("🔄 ריצות", f"{ml_runs}")
     
     with col_ml2:
-        if st.button("▶️ הפעל ML", use_container_width=True):
+        if st.button("▶️ הפעל ML"):
             with st.spinner("⏳ אימון (זמן)..."):
                 scheduler.run_ml_training()
             st.success("✅ סיים!")
@@ -167,7 +167,7 @@ def render_system_status():
     st.write("**דיוק ML: 88-92%**")
     st.write("**תשואה צפויה: 80-100% בשנה**")
     
-    if st.button("🔄 רענן עכשיו", use_container_width=True):
+    if st.button("🔄 רענן עכשיו"):
         st.rerun()
     
     st.write(f"⏰ עודכן: {datetime.now().strftime('%H:%M:%S')}")
@@ -198,19 +198,19 @@ def render_system_status():
     col_a, col_b, col_c = st.columns(3)
     
     with col_a:
-        if st.button("▶️ סוכן ערך עכשיו", key="manual_val_agent", use_container_width=True):
+        if st.button("▶️ סוכן ערך עכשיו", key="manual_val_agent"):
             with st.spinner("⏳ סוכן ערך רץ... (טיפול בעמדות וחיסכון)"):
                 scheduler.run_val_agent()
             st.success("✅ סוכן ערך סיים - בדוק את היומן למטה")
     
     with col_b:
-        if st.button("▶️ סוכן יומי עכשיו", key="manual_day_agent", use_container_width=True):
+        if st.button("▶️ סוכן יומי עכשיו", key="manual_day_agent"):
             with st.spinner("⏳ סוכן יומי רץ... (סחר בתוך היום)"):
                 scheduler.run_day_agent()
             st.success("✅ סוכן יומי סיים")
     
     with col_c:
-        if st.button("▶️ ML אימון עכשיו", key="manual_ml", use_container_width=True):
+        if st.button("▶️ ML אימון עכשיו", key="manual_ml"):
             with st.spinner("⏳ ML מתאמן... (זה יכול לקחת דקות)"):
                 scheduler.run_ml_training()
             st.success("✅ ML סיים - בדוק דיוק למטה")

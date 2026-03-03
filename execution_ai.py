@@ -86,8 +86,7 @@ def render_execution_engine():
 
     if st.session_state.exec_orders:
         st.subheader("📜 היסטוריית פקודות")
-        st.dataframe(pd.DataFrame(st.session_state.exec_orders),
-                     use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(st.session_state.exec_orders), hide_index=True)
         try:
             buys  = sum(float(o["💵 שווי"].replace("$","").replace(",",""))
                         for o in st.session_state.exec_orders if "קנייה" in o["↔️"])

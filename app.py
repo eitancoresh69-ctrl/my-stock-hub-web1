@@ -157,7 +157,7 @@ with col_head1:
     """, unsafe_allow_html=True)
 with col_head2:
     st.markdown(f'<div class="user-info-box">👤 {st.session_state["current_user"]}</div>', unsafe_allow_html=True)
-    if st.button("🚪 התנתק", use_container_width=True):
+    if st.button("🚪 התנתק"):
         cookies.pop("active_user")
         cookies.save()
         st.session_state["current_user"] = None
@@ -297,8 +297,7 @@ with tabs[0]:
                 "Yield":    st.column_config.NumberColumn("תשואה %", format="%.1f%%", disabled=True),
                 "Score":    st.column_config.NumberColumn("⭐ ציון", disabled=True),
                 "Action":   st.column_config.TextColumn("המלצה AI", disabled=True),
-            },
-            use_container_width=True, hide_index=True,
+            }, hide_index=True,
         )
         st.session_state.portfolio = edited[["Symbol","BuyPrice","Qty"]]
         st.session_state["portfolio_buy_prices"] = dict(zip(edited["Symbol"], edited["BuyPrice"]))
@@ -336,7 +335,7 @@ with tabs[5]:
             c3.metric("🟢 עולים", len(tase_df[tase_df["Change"]>0]))
             c4.metric("💰 דיבידנד ממוצע", f"{tase_df['DivYield'].mean():.1f}%")
             cols_t = [c for c in ["Symbol","PriceStr","Change","Score","RSI","DivYield","Action","AI_Logic"] if c in tase_df.columns]
-            st.dataframe(tase_df[cols_t].sort_values("Score",ascending=False), use_container_width=True, hide_index=True)
+            st.dataframe(tase_df[cols_t].sort_values("Score",ascending=False), hide_index=True)
         else:
             st.info("הוסף מניות .TA לרשימה ב-config.py")
 
@@ -346,7 +345,7 @@ with tabs[6]:
         scanner = df_all[(df_all["Symbol"].isin(SCAN_LIST+TASE_SCAN)) & (df_all["Score"]>=4)].sort_values("Score",ascending=False)
         if not scanner.empty:
             cols_s = [c for c in ["Symbol","PriceStr","Score","RevGrowth","EarnGrowth","Margin","RSI","Action","AI_Logic"] if c in scanner.columns]
-            st.dataframe(scanner[cols_s], use_container_width=True, hide_index=True)
+            st.dataframe(scanner[cols_s], hide_index=True)
         else:
             st.info("לא נמצאו מניות ציון 4+ כרגע.")
 
@@ -366,7 +365,7 @@ with tabs[11]:
                 return "✅ יציב"
             div_df["Safety"] = div_df.apply(_div_safe, axis=1)
             cols_d = [c for c in ["Symbol","DivYield","DivRate","FiveYrDiv","PayoutRatio","Safety"] if c in div_df.columns]
-            st.dataframe(div_df.sort_values("DivYield",ascending=False)[cols_d], use_container_width=True, hide_index=True)
+            st.dataframe(div_df.sort_values("DivYield",ascending=False)[cols_d], hide_index=True)
 
 with tabs[12]: 
     if df_all is not None and not df_all.empty:
@@ -464,7 +463,7 @@ with tabs[27]:
             elif 15 <= hour < 16: st.metric("🔔 מצב", "מכירה")
             else: st.metric("🔔 מצב", "המתנה")
     with col_d2:
-        if st.button("▶️ הפעל יומי", use_container_width=True):
+        if st.button("▶️ הפעל יומי"):
             with st.spinner("⏳ רץ..."):
                 scheduler.run_day_agent()
             st.success("✅ סיים!")
@@ -494,7 +493,7 @@ with tabs[27]:
             time_str = str(last_val).split("T")[1][:5] if "T" in str(last_val) else "לא"
             st.metric("⏰ ריצה", time_str)
     with col_v2:
-        if st.button("▶️ הפעל ערך", use_container_width=True):
+        if st.button("▶️ הפעל ערך"):
             with st.spinner("⏳ רץ..."):
                 scheduler.run_val_agent()
             st.success("✅ סיים!")
@@ -517,7 +516,7 @@ with tabs[27]:
         st.metric("🤖 Ensemble", f"{ensemble:.1%}", delta="Best!")
         st.metric("🔄 ריצות", f"{ml_runs}")
     with col_ml2:
-        if st.button("▶️ הפעל ML", use_container_width=True):
+        if st.button("▶️ הפעל ML"):
             with st.spinner("⏳ אימון (זמן)..."):
                 scheduler.run_ml_training()
             st.success("✅ סיים!")

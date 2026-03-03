@@ -250,7 +250,7 @@ def render_pattern_analysis(df_all: pd.DataFrame = None):
                     xaxis_rangeslider_visible=False,
                     height=420, template="plotly_white"
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig)
 
                 # ── דפוסים שנמצאו ────────────────────────────────────────────
                 if patterns:
@@ -293,8 +293,7 @@ def render_pattern_analysis(df_all: pd.DataFrame = None):
             bar.empty()
             if all_patterns:
                 df_p = pd.DataFrame(all_patterns)
-                st.dataframe(df_p.sort_values("📊 עוצמה", ascending=False),
-                             use_container_width=True, hide_index=True)
+                st.dataframe(df_p.sort_values("📊 עוצמה", ascending=False), hide_index=True)
             else:
                 st.info("לא נמצאו דפוסים חזקים כרגע.")
 

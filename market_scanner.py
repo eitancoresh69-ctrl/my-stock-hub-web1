@@ -393,8 +393,7 @@ def render_market_scanner():
         if long_df is not None and not long_df.empty:
             st.success(f"**💼 סוכן ערך + פרימיום:** {len(long_df)} מניות")
             st.dataframe(
-                long_df[["Symbol","LongScore","Score","RevGrowth","TargetUpside","Action"]].head(10),
-                use_container_width=True, hide_index=True,
+                long_df[["Symbol","LongScore","Score","RevGrowth","TargetUpside","Action"]].head(10), hide_index=True,
             )
         else:
             st.warning("סוכן ערך: עובד עם Watchlist")
@@ -403,8 +402,7 @@ def render_market_scanner():
         if short_df is not None and not short_df.empty:
             st.success(f"**⚡ סוכן יומי:** {len(short_df)} מניות")
             st.dataframe(
-                short_df[["Symbol","ShortScore","RSI","Chg1M","TargetUpside"]].head(10),
-                use_container_width=True, hide_index=True,
+                short_df[["Symbol","ShortScore","RSI","Chg1M","TargetUpside"]].head(10), hide_index=True,
             )
         else:
             st.warning("סוכן יומי: עובד עם Watchlist")
@@ -436,6 +434,5 @@ def _show_scan_table(df: pd.DataFrame):
             "רווחים %":   st.column_config.NumberColumn(format="%.1f%%"),
             "דיב %":      st.column_config.NumberColumn(format="%.2f%%"),
             "אפסייד %":   st.column_config.NumberColumn(format="%.1f%%"),
-        },
-        use_container_width=True, hide_index=True,
+        }, hide_index=True,
     )

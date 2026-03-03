@@ -211,7 +211,7 @@ def render_telegram_integration():
     if log:
         st.markdown("### 📋 הודעות אחרונות שנשלחו")
         log_df = pd.DataFrame(log[:10])
-        st.dataframe(log_df, use_container_width=True, hide_index=True)
+        st.dataframe(log_df, hide_index=True)
 
     # ── תצוגה מקדימה ─────────────────────────────────────────────────────────
     st.markdown("### 👁️ תצוגה מקדימה להודעות")

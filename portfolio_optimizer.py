@@ -162,7 +162,7 @@ def render_portfolio_optimizer(portfolio_df: pd.DataFrame = None):
                         yaxis_title="תשואה שנתית צפויה %",
                         height=450, template="plotly_white"
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig)
 
                     # ── השוואת תיקים ────────────────────────────────────────
                     c1, c2 = st.columns(2)
@@ -175,7 +175,7 @@ def render_portfolio_optimizer(portfolio_df: pd.DataFrame = None):
                             for sym, w in sorted(zip(prices.columns, best_w),
                                                   key=lambda x: x[1], reverse=True)
                         ])
-                        st.dataframe(alloc_df, hide_index=True, use_container_width=True)
+                        st.dataframe(alloc_df, hide_index=True)
                         m1,m2,m3 = st.columns(3)
                         m1.metric("📈 תשואה", f"{best_met['ann_return']:.1f}%")
                         m2.metric("📊 תנודתיות", f"{best_met['ann_vol']:.1f}%")
@@ -191,7 +191,7 @@ def render_portfolio_optimizer(portfolio_df: pd.DataFrame = None):
                             for sym, w in sorted(zip(prices.columns, min_w),
                                                   key=lambda x: x[1], reverse=True)
                         ])
-                        st.dataframe(alloc_df2, hide_index=True, use_container_width=True)
+                        st.dataframe(alloc_df2, hide_index=True)
                         m1,m2,m3 = st.columns(3)
                         m1.metric("📈 תשואה", f"{min_met['ann_return']:.1f}%")
                         m2.metric("📊 תנודתיות", f"{min_met['ann_vol']:.1f}%")
@@ -229,7 +229,7 @@ def render_portfolio_optimizer(portfolio_df: pd.DataFrame = None):
                 fig2.update_layout(title="ביצועים vs S&P 500",
                                     yaxis_title="תשואה מצטברת %",
                                     height=380, template="plotly_white")
-                st.plotly_chart(fig2, use_container_width=True)
+                st.plotly_chart(fig2)
 
                 met = _calc_metrics(prices, w, bench_r)
                 cols = st.columns(5)
@@ -252,7 +252,7 @@ def render_portfolio_optimizer(portfolio_df: pd.DataFrame = None):
                                annotation_text="Sharpe=1 (מצוין)")
                 fig3.update_layout(title="Sharpe Ratio רולינג",
                                     height=280, template="plotly_white")
-                st.plotly_chart(fig3, use_container_width=True)
+                st.plotly_chart(fig3)
 
     # ══ TAB 3: קורלציות ══════════════════════════════════════════════════════
     with t3:
@@ -265,7 +265,7 @@ def render_portfolio_optimizer(portfolio_df: pd.DataFrame = None):
                 fig_c = px.imshow(corr, text_auto=True, color_continuous_scale="RdYlGn",
                                    zmin=-1, zmax=1, title="מטריצת קורלציה (6 חודשים)")
                 fig_c.update_layout(height=420)
-                st.plotly_chart(fig_c, use_container_width=True)
+                st.plotly_chart(fig_c)
                 st.caption("""
                 🟢 +1 = תנועה זהה (לא מפזר) | 🔴 -1 = תנועה הפוכה (גידור מושלם)
                 💡 פיזור אידיאלי: קורלציות בין 0.2 ל-0.5
@@ -290,5 +290,5 @@ def render_portfolio_optimizer(portfolio_df: pd.DataFrame = None):
                     "💰 יעד ₪":   f"₪{target_ils:,.0f}",
                     "📋 פעולה":   f"קנה ₪{target_ils:,.0f} מ-{sym}",
                 })
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(rows), hide_index=True)
             st.success("💡 בצע את הפעולות האלה כדי להגיע להרכב האופטימלי!")

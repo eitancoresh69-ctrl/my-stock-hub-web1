@@ -110,7 +110,7 @@ def _show_pnl_premium(prefix: str):
     col4.metric("❌ מפסידות",  str(len(closed) - wins))
 
     with st.expander(f"📋 פירוט עסקאות ({len(closed)})", expanded=False):
-        st.dataframe(pd.DataFrame(closed), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(closed), hide_index=True)
 
 
 def _agent_block(prefix, label, title, desc, run_key, sell_key, reset_key,
@@ -205,7 +205,7 @@ def _agent_block(prefix, label, title, desc, run_key, sell_key, reset_key,
             except Exception:
                 rows.append({"סימול": p.get("Symbol","?"), "שגיאה": "לא ניתן לטעון"})
         if rows:
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(rows), hide_index=True)
 
     _show_pnl_premium(prefix)
 

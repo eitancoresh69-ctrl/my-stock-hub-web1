@@ -51,7 +51,7 @@ def render_financial_reports(df_all):
                         
                         fig.update_layout(barmode="group", title=f"הכנסות ורווח נקי שנתי - {sel} ($B)",
                                           template="plotly_white", height=400)
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig)
                         st.info("💡 **טיפ AI:** חפש צמיחה עקבית בהכנסות של מעל 10% בכל שנה.")
                     else:
                         st.error(f"לא נמצאו נתוני רווח והפסד מפורטים עבור {sel}.")

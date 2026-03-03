@@ -75,6 +75,6 @@ def render_bull_bear(df_all):
         ))
         fig.update_layout(title=f"מחיר — {sel}", height=320, template="plotly_white",
                           margin=dict(l=0, r=0, t=30, b=0))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig)
     except Exception:
         st.warning("הגרף לא זמין.")

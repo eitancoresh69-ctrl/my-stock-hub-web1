@@ -33,8 +33,7 @@ def render_growth_and_risk(df_all):
                             "RevGrowth":   st.column_config.NumberColumn("צמיחה 🚀", format="%.1f%%"),
                             "RSI":         st.column_config.NumberColumn("RSI", format="%.1f"),
                             "TargetUpside": st.column_config.NumberColumn("פוטנציאל", format="+%.1f%%"),
-                        },
-                        use_container_width=True, hide_index=True,
+                        }, hide_index=True,
                     )
                     st.info("💡 חובה Stop-Loss של 7%-10% מהכניסה!")
                 else:

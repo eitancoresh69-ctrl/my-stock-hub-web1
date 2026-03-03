@@ -40,8 +40,7 @@ def render_pro_tools(df_all, portfolio_df):
                     "TargetUpside": st.column_config.NumberColumn("אנליסטים %", format="+%.1f%%"),
                     "InsiderHeld":  st.column_config.NumberColumn("הנהלה %", format="%.2f%%"),
                     "AI":           st.column_config.TextColumn("ניתוח AI", width="large"),
-                },
-                use_container_width=True, hide_index=True,
+                }, hide_index=True,
             )
 
     with t2:
@@ -59,7 +58,7 @@ def render_pro_tools(df_all, portfolio_df):
                 with cc:
                     fig = px.pie(dist, values="TotalValue", names="Sector",
                                  title="פיזור לפי סקטורים", hole=0.4)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig)
                 with ca:
                     st.markdown("#### 🧠 ניהול סיכונים")
                     mx = dist.loc[dist["Percent"].idxmax()]

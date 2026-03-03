@@ -44,7 +44,7 @@ def render_backtester(df_all):
                                         fill="tozeroy", fillcolor="rgba(26,115,232,0.1)"))
             fig.update_layout(title=f"{sel} — 2 שנים", height=300, template="plotly_white",
                               margin=dict(l=0, r=0, t=30, b=0))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig)
             st.info("💡 Buy & Hold בחברות PDF > מסחר יומי בטווח ארוך.")
         else:
             st.error("לא ניתן להריץ — חסרים נתוני עבר.")
