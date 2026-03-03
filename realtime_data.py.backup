@@ -1,10 +1,8 @@
-# realtime_data.py — נתונים בזמן אמת: Twelve Data (ראשי) + Finnhub (backup) + Fear & Greed
-# ═══════════════════════════════════════════════════════════════════════════════════════════════════
-# 🔑 הגדרה - Twelve Data API:
-#    1. Render → Settings → Environment Variables
-#    2. הוסף: TWELVE_DATA_API_KEY = [הקוד שלך מ-Twelve Data]
-#    3. Deploy מחדש ואפליקציה תשתמש בנתונים החיים אוטומטית!
-# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# realtime_data.py — נתונים בזמן אמת: Finnhub + Fear & Greed + מדדי מאקרו
+# ═══════════════════════════════════════════════════════════════════════════════
+# הרשמה חינמית ל-API Key: https://finnhub.io  (0 דולר, 60 קריאות/דקה)
+# הכנס את ה-KEY שלך בשורה: FINNHUB_API_KEY = "YOUR_KEY_HERE"
+# ═══════════════════════════════════════════════════════════════════════════════
 
 import streamlit as st
 import requests
@@ -131,15 +129,10 @@ def get_live_price_finnhub(symbol: str) -> dict | None:
 @st.cache_data(ttl=30)
 def get_live_price_smart(symbol: str) -> float | None:
     """
-    מחזיר מחיר חי — מנסה Twelve Data קודם, אחר כך Finnhub, נפילה ל-yfinance.
+    מחזיר מחיר חי — מנסה Finnhub קודם, נפילה ל-yfinance.
     זה מחליף את _get_live_price() ב-simulator.py
     """
-    # ניסיון Twelve Data קודם (הטוב ביותר!)
-    td = get_live_price_twelve_data(symbol)
-    if td:
-        return td["price"]
-    
-    # ניסיון Finnhub (חלופה)
+    # ניסיון Finnhub (מהיר, חי)
     fh = get_live_price_finnhub(symbol)
     if fh:
         return fh["price"]
@@ -163,11 +156,7 @@ def get_multi_quotes_finnhub(symbols: list) -> dict:
     results = {}
     for sym in symbols:
         if not sym.endswith(".TA"):
-            # נסה Twelve Data קודם
-            data = get_live_price_twelve_data(sym)
-            if not data:
-                # fallback ל-Finnhub
-                data = get_live_price_finnhub(sym)
+            data = get_live_price_finnhub(sym)
             if data:
                 results[sym] = data
     return results

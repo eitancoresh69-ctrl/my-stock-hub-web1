@@ -1,4 +1,11 @@
-# app.py — Investment Hub Elite 2026 — Cloud Ready + Cookies + קובץ מלא ומאוחד
+# app.py — Investment Hub Elite 2026 — Cloud Ready + Cookies + Twelve Data + קובץ מלא ומאוחד
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# 🔑 הגדרה קריטית עבור Twelve Data API:
+#    1. הכנס את ה-API Key שלך בـ Render תחת Environment Variables
+#    2. שם המשתנה חייב להיות: TWELVE_DATA_API_KEY
+#    3. הערך: [הקוד שקיבלת מ-Twelve Data]
+#    4. לא צריך לשנות פה כלום — הקוד יקרא את המשתנה באוטומטית!
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
 import streamlit as st
 import pandas as pd
 import yfinance as yf
