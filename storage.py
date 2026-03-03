@@ -1,14 +1,26 @@
-# storage.py — Cloud Edition (PostgreSQL / SQLite) עם סנכרון נתונים מלא
-import os
+# storage.py — Cloud Edition (Render / PostgreSQL) + תיקון שגיאות סוכנים
 import json
+import os
+import numpy as np
 from sqlalchemy import create_engine, Column, String, Text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# ─── חיבור למסד הנתונים בענן (או מקומי) ─────────────────────────────────────────
-# אם המערכת רצה ב-Render, היא תקרא את ה-URL אוטומטית. אחרת, תיצור קובץ DB מקומי.
+# ─── פתרון לקריסת הסוכנים (Numpy JSON Serialization) ─────────────────────────
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
+
+# ─── התחברות חכמה לענן (Render) או למחשב מקומי ──────────────────────────────
+# אם המערכת ב-Render, היא תשתמש בכתובת של הענן. אחרת, תיצור קובץ מסד נתונים מקומי.
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///local_hub_data.db")
 
-# תיקון קטן שדרוש ל-Render ול-SQLAlchemy:
+# תיקון קטן שנדרש ל-Render:
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -16,39 +28,40 @@ engine = create_engine(DATABASE_URL, echo=False)
 Base = declarative_base()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# ─── סכמת טבלת הנתונים ───────────────────────────────────────────────────────
 class KVPair(Base):
     __tablename__ = "storage_kv"
     key = Column(String, primary_key=True, index=True)
-    value = Column(Text)  # שומרים את ה-JSON כטקסט
+    value = Column(Text)
 
-# יצירת הטבלה אם אינה קיימת
 Base.metadata.create_all(bind=engine)
 
-# ─── פונקציות ליבה (שמירה וקריאה מול הענן) ────────────────────────────────────
+# ─── פונקציות ליבה ───────────────────────────────────────────────────────────
 def load(key, default=None):
-    """שולף נתונים ממסד הנתונים בענן"""
-    with SessionLocal() as db:
-        record = db.query(KVPair).filter(KVPair.key == key).first()
-        if record and record.value:
-            try:
+    try:
+        with SessionLocal() as db:
+            record = db.query(KVPair).filter(KVPair.key == key).first()
+            if record and record.value:
                 return json.loads(record.value)
-            except:
-                return default
-        return default
+    except Exception:
+        pass
+    return default
 
 def save(key, value):
-    """שומר נתונים באופן מאובטח למסד הנתונים"""
-    with SessionLocal() as db:
-        record = db.query(KVPair).filter(KVPair.key == key).first()
-        val_str = json.dumps(value, ensure_ascii=False)
-        if record:
-            record.value = val_str
-        else:
-            new_record = KVPair(key=key, value=val_str)
-            db.add(new_record)
-        db.commit()
+    try:
+        with SessionLocal() as db:
+            record = db.query(KVPair).filter(KVPair.key == key).first()
+            # שימוש ב-NpEncoder מונע מהסוכנים לקרוס בזמן שמירת עסקאות!
+            val_str = json.dumps(value, ensure_ascii=False, cls=NpEncoder)
+            if record:
+                record.value = val_str
+            else:
+                new_record = KVPair(key=key, value=val_str)
+                db.add(new_record)
+            db.commit()
         return True
+    except Exception as e:
+        print(f"Error saving {key}: {e}")
+        return False
 
 def delete(key):
     with SessionLocal() as db:
@@ -57,36 +70,13 @@ def delete(key):
             db.delete(record)
             db.commit()
             return True
-        return False
+    return False
 
 def clear_all():
     with SessionLocal() as db:
         db.query(KVPair).delete()
         db.commit()
-        return True
-
-def get_all():
-    result = {}
-    with SessionLocal() as db:
-        records = db.query(KVPair).all()
-        for r in records:
-            try:
-                result[r.key] = json.loads(r.value)
-            except:
-                pass
-    return result
-
-def export_data():
-    return json.dumps(get_all(), ensure_ascii=False, indent=2)
-
-def import_data(json_data):
-    try:
-        data = json.loads(json_data)
-        for k, v in data.items():
-            save(k, v)
-        return True
-    except:
-        return False
+    return True
 
 # ─── פונקציות ייעודיות לאפליקציה ולסוכנים ─────────────────────────────────────
 def load_all_to_session(session_state):
