@@ -29,9 +29,9 @@ def get_asset_type(symbol: str) -> str:
     return "stock"
 
 def get_asset_currency(symbol: str) -> str:
-    if symbol.endswith(".TA"):  return "אג'"
+    if symbol.endswith(".TA"):   return "אג'"
     if symbol in CRYPTO_SYMBOLS: return "$"
-    if symbol in COMMODITIES:   return "$"
+    if symbol in COMMODITIES:    return "$"
     return "$"
 
 def get_asset_emoji(symbol: str) -> str:
@@ -59,7 +59,7 @@ def calc_rsi(series: pd.Series, period: int = 14) -> float:
 # ─── שאיבת נתונים מקיפה לנכס בודד ──────────────────────────────────────────
 def _fetch_single_symbol(symbol: str) -> dict:
     try:
-        # שימוש בסשן המוסווה
+        # שימוש בסשן המוסווה כדי למנוע חסימה
         ticker = yf.Ticker(symbol, session=session)
         hist = ticker.history(period="1y")
         
@@ -127,7 +127,7 @@ def _fetch_single_symbol(symbol: str) -> dict:
             "TargetUpside": target_upside,
             "InsiderHeld":  insider_pct,
             "Sector":       inf.get("sector", "כללי"),
-            # לוגיקה בסיסית לסוכנים אם חסר ML
+            # לוגיקה בסיסית לסוכנים
             "Action":       "קנייה 🟢" if (score >= 4 and rsi < 50) else "מכירה 🔴" if rsi > 70 else "החזק ⚪",
             "AI_Logic":     f"ציון {score}/6, סביבת RSI {rsi:.0f}"
         }
@@ -135,7 +135,7 @@ def _fetch_single_symbol(symbol: str) -> dict:
         return None
 
 # ─── פונקציית המאסטר (סריקה מקבילית) ───────────────────────────────────────
-@st.cache_data(ttl=600) # שומר נתונים ל-10 דקות כדי לא להעמיס
+@st.cache_data(ttl=600) # שומר נתונים ל-10 דקות
 def fetch_master_data(tickers: list) -> pd.DataFrame:
     rows = []
     with ThreadPoolExecutor(max_workers=5) as executor:
