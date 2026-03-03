@@ -23,9 +23,9 @@ def _fetch_sector_perf():
         try:
             h = yf.Ticker(ticker).history(period="1mo")
             if h.empty or len(h) < 2: continue
-            d1  = (h["Close"].iloc[-1]/h["Close"].iloc[-2]-1)*100
-            w1  = (h["Close"].iloc[-1]/h["Close"].iloc[max(-5,0)-1]-1)*100 if len(h)>=5 else 0
-            mo1 = (h["Close"].iloc[-1]/h["Close"].iloc[0]-1)*100
+            d1  = (h["Close"].iloc[-1]/h["Close"].iloc[-2]-1)*100 if len(h) >= 2 else 0
+            w1  = (h["Close"].iloc[-1]/h["Close"].iloc[max(-5,-len(h))-1]-1)*100 if len(h)>=5 else 0
+            mo1 = (h["Close"].iloc[-1]/h["Close"].iloc[0]-1)*100 if len(h) >= 1 else 0
             rows.append({"סקטור":name,"יומי %":round(d1,2),
                          "שבועי %":round(w1,2),"חודשי %":round(mo1,2),
                          "מגמה":"🟢" if d1>0 else "🔴"})

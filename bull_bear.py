@@ -11,8 +11,29 @@ def render_bull_bear(df_all):
         unsafe_allow_html=True,
     )
 
-    sel = st.selectbox("בחר מניה:", df_all["Symbol"].unique(), key="bullbear_sym")
-    row = df_all[df_all["Symbol"] == sel].iloc[0]
+    # בדיקה אם יש נתונים
+    if df_all is None or df_all.empty or "Symbol" not in df_all.columns:
+        st.warning("⚠️ אין מידע על מניות זמין. אנא בדוק את הסוכנים.")
+        return
+
+    try:
+        sel = st.selectbox("בחר מניה:", df_all["Symbol"].unique(), key="bullbear_sym")
+    except:
+        st.warning("⚠️ לא יכול לטעון רשימת מניות.")
+        return
+    
+    filtered = df_all[df_all["Symbol"] == sel]
+    
+    # בדיקה אם המניה נמצאה וש-filtered לא ריק
+    if filtered.empty or len(filtered) == 0:
+        st.error(f"❌ לא נמצאה מניה בשם {sel}")
+        return
+    
+    try:
+        row = filtered.iloc[0]
+    except IndexError:
+        st.error(f"❌ שגיאה בגישה לנתוני המניה {sel}")
+        return
     st.markdown(f"### 🏢 {sel}")
 
     bull_args = f"1. **ציון PDF:** {row['Score']}/6\n"

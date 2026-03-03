@@ -119,6 +119,10 @@ try:
         if df_all is None or df_all.empty:
             df_all = fetch_master_data(["AAPL", "MSFT", "NVDA", "TSLA"])
         
+        # ודא שה-df_all לא None
+        if df_all is None:
+            df_all = pd.DataFrame()
+        
         st.session_state["df_all"] = df_all
         st.session_state["agent_universe_df"] = df_all
         st.session_state["agent_universe_short_df"] = df_all

@@ -81,7 +81,7 @@ def _scan_single(ticker: str) -> dict | None:
 
         chg1d = float(((px / h["Close"].iloc[-2]) - 1) * 100) if len(h) >= 2  else 0
         chg1m = float(((px / h["Close"].iloc[-22])- 1) * 100) if len(h) >= 22 else 0
-        chg3m = float(((px / h["Close"].iloc[0])  - 1) * 100)
+        chg3m = float(((px / h["Close"].iloc[0])  - 1) * 100) if len(h) >= 1 else 0
 
         rev_growth  = (inf.get("revenueGrowth")        or 0) * 100
         earn_growth = (inf.get("earningsGrowth")       or 0) * 100
