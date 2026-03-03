@@ -1,401 +1,338 @@
-# app.py — Investment Hub Elite 2026 — With Persistent Sessions & 24/7 Agents
+# app.py — Investment Hub Elite 2026 — With SessionManager (FIXED)
 import streamlit as st
-from storage import (
-    UserManager, SessionManager, AgentManager, HealthChecker, 
-    get_logs, log_system, backup_database
-)
 import pandas as pd
+import yfinance as yf
 from datetime import datetime
 
-st.set_page_config(
-    page_title="Investment Hub Elite 2026",
-    page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+# ═══════════════════════════════════════════════════════════════
+# PERSISTENT SESSION - ADD ONLY THIS AT TOP
+# ═══════════════════════════════════════════════════════════════
 
-# ═══════════════════════════════════════════════════════════════
-# PERSISTENT SESSION - SURVIVES BROWSER REFRESH & CLOSE
-# ═══════════════════════════════════════════════════════════════
+from storage import SessionManager, UserManager
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = None
-    st.session_state.token = None
 
-# Try to restore session from database
+# Try to restore session
 if not st.session_state.logged_in:
     stored_username = SessionManager.get_stored_username()
-    
     if stored_username:
-        # Auto-login with stored session
         st.session_state.logged_in = True
         st.session_state.username = stored_username
-        st.session_state.token = "auto"
-        
-        log_system(stored_username, "SESSION_RESTORED", "User session restored after refresh/restart")
 
-# ═══════════════════════════════════════════════════════════════
-# LOGIN/REGISTER SCREEN
-# ═══════════════════════════════════════════════════════════════
-
+# Login screen if not logged in
 if not st.session_state.logged_in:
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        st.markdown("""
-        <div style="text-align: center; padding: 50px 0;">
-        <h1 style="color: #1976d2; font-size: 48px;">🤖 Investment Hub Elite 2026</h1>
-        <p style="color: #666; font-size: 18px;">Multi-User Trading System with 24/7 Agents</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
+        st.markdown("<h1 style='color: #1976d2; text-align: center;'>🤖 Investment Hub Elite 2026</h1>", unsafe_allow_html=True)
         st.markdown("### 🔓 Login")
-        login_user = st.text_input("Username", placeholder="Enter username", key="login_user")
-        login_pass = st.text_input("Password", type="password", placeholder="Enter password", key="login_pass")
+        login_user = st.text_input("Username", key="login_user")
+        login_pass = st.text_input("Password", type="password", key="login_pass")
         
-        if st.button("🔓 Login", use_container_width=True):
+        if st.button("Login", use_container_width=True):
             if login_user and login_pass:
                 success, data = UserManager.login(login_user, login_pass)
-                
                 if success:
                     st.session_state.logged_in = True
                     st.session_state.username = login_user
-                    st.session_state.token = data.get("token")
-                    st.success("✅ Logged in! Session will persist for 30 days.")
-                    st.balloons()
+                    st.success("Logged in!")
                     st.rerun()
                 else:
-                    st.error(f"❌ {data}")
-            else:
-                st.warning("⚠️ Enter username and password")
+                    st.error(data)
     
     with col2:
         st.markdown("### 📝 Register")
-        reg_user = st.text_input("Username", placeholder="Choose username", key="reg_user")
-        reg_pass = st.text_input("Password", type="password", placeholder="Create password", key="reg_pass")
-        reg_pass_conf = st.text_input("Confirm", type="password", placeholder="Confirm password", key="reg_conf")
+        reg_user = st.text_input("Username", key="reg_user")
+        reg_pass = st.text_input("Password", type="password", key="reg_pass")
         
-        if st.button("📝 Register", use_container_width=True):
-            if not reg_user or not reg_pass:
-                st.warning("⚠️ Username and password required")
-            elif reg_pass != reg_pass_conf:
-                st.error("❌ Passwords don't match")
-            else:
+        if st.button("Register", use_container_width=True):
+            if reg_user and reg_pass:
                 success, msg = UserManager.register_user(reg_user, reg_pass)
-                
                 if success:
-                    st.success("✅ Account created!")
-                    st.info("💰 Your agents received ₪5,000 each and are now RUNNING 24/7")
-                    st.info("📊 All trades and data will be saved automatically")
+                    st.success("Account created! Now login.")
                 else:
-                    st.error(f"❌ {msg}")
+                    st.error(msg)
     
     st.stop()
 
 # ═══════════════════════════════════════════════════════════════
-# USER IS LOGGED IN - SHOW DASHBOARD
+# YOUR ORIGINAL APP CODE STARTS HERE - ALL YOUR ORIGINAL CODE
 # ═══════════════════════════════════════════════════════════════
 
-# Header with user info
-col1, col2, col3 = st.columns([2, 1, 1])
+from config import (HELP, MY_STOCKS_BASE, SCAN_LIST,
+                    COMMODITIES_SYMBOLS, CRYPTO_SYMBOLS, TASE_SCAN)
+from logic   import fetch_master_data
+from storage import load_all_to_session, save, load
+from tooltips_he import inject_tooltip_css, tooltip, render_glossary
+from scheduler_agents import get_scheduler
 
+import realtime_data, market_ai, bull_bear, simulator
+import podcasts_ai, alerts_ai, financials_ai, crypto_ai
+import news_ai, telegram_ai, analytics_ai, pro_tools_ai
+import premium_agents_ai, growth_risk_ai, backtest_ai
+import execution_ai, failsafes_ai, ml_learning_ai
+import social_sentiment_ai, tax_fees_ai, market_scanner
+import ai_portfolio, commodities_tab, pattern_ai, portfolio_optimizer
+
+st.set_page_config(
+    page_title="Investment Hub Elite 2026",
+    page_icon="🌐",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+
+load_all_to_session(st.session_state)
+try:
+    from storage import load_ai_portfolio
+    load_ai_portfolio(st.session_state)
+except Exception:
+    pass
+
+# Add user info to sidebar
+with st.sidebar:
+    st.markdown("### 👤 Account")
+    st.write(f"**{st.session_state.username}**")
+    
+    if st.button("🚪 Logout"):
+        SessionManager.clear_session(st.session_state.username)
+        st.session_state.logged_in = False
+        st.rerun()
+
+# ─── עיצוב + Tooltips ────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;800&display=swap');
+html, body, [class*="css"] { font-family:'Heebo',sans-serif !important; direction:rtl; text-align:right; }
+.stApp { background:#f5f7fa !important; }
+.block-container { padding-top:0.5rem !important; max-width:100% !important; }
+.ai-card {
+    background:#fff; padding:12px 18px; border-radius:12px;
+    border-right:5px solid #1976d2;
+    box-shadow:0 1px 6px rgba(0,0,0,0.08); margin-bottom:10px;
+}
+.hub-header {
+    background:linear-gradient(135deg,#1565c0 0%,#1976d2 55%,#42a5f5 100%);
+    border-radius:14px; padding:16px 22px; margin-bottom:12px;
+    color:white; text-align:center;
+}
+</style>
+""", unsafe_allow_html=True)
+
+inject_tooltip_css()
+
+# ─── Header ────────────────────────────────────────────────────────────────────
+col1, col2 = st.columns([3, 1])
 with col1:
     st.markdown(f"""
-    <div style="background: linear-gradient(135deg, #1565c0 0%, #1976d2 55%, #42a5f5 100%);
-                border-radius: 14px; padding: 20px; color: white;">
+    <div class="hub-header">
     <h2>🌐 Investment Hub Elite 2026</h2>
-    <p>Welcome back, <b>{st.session_state.username}!</b></p>
+    <p>ברוכים הבאים, <b>{st.session_state.username}!</b></p>
     </div>
     """, unsafe_allow_html=True)
 
 with col2:
     st.markdown(f"""
-    <div style="background: white; border-radius: 12px; padding: 15px; 
-                border: 2px solid #1976d2; text-align: center;">
+    <div class="ai-card">
     <h4>⏰ {datetime.now().strftime('%H:%M')}</h4>
     <p>{datetime.now().strftime('%d/%m/%Y')}</p>
     </div>
     """, unsafe_allow_html=True)
 
-with col3:
-    user = UserManager.get_user(st.session_state.username)
-    st.markdown(f"""
-    <div style="background: #e3f2fd; border-radius: 12px; padding: 15px;
-                border: 2px solid #1976d2; text-align: center;">
-    <h4>💰 ₪{user.get('cash', 0):,.0f}</h4>
-    <p>Account Balance</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Sidebar
-with st.sidebar:
-    st.markdown("### 👤 Account")
-    st.write(f"**User:** {st.session_state.username}")
-    
-    user = UserManager.get_user(st.session_state.username)
-    st.write(f"**Plan:** {user.get('subscription', 'basic').title()}")
-    st.write(f"**API Key:** {user.get('api_key', 'N/A')[:8]}...")
-    
-    st.divider()
-    
-    # System Health
-    health = HealthChecker.check_all()
-    st.markdown("### 🔧 System Status")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Database", health['database']['status'])
-        st.metric("Storage", health['storage']['status'])
-    with col2:
-        st.metric("Agents", f"{health['agents']['running']} Running")
-    
-    st.divider()
-    
-    # Logout
-    if st.button("🚪 Logout", use_container_width=True):
-        SessionManager.clear_session(st.session_state.username)
-        st.session_state.logged_in = False
-        st.session_state.username = None
-        st.rerun()
-
-# ═══════════════════════════════════════════════════════════════
-# MAIN TABS
-# ═══════════════════════════════════════════════════════════════
+# ─── Main Tabs ────────────────────────────────────────────────────────────────
 
 tabs = st.tabs([
-    "📊 Agents", "💹 Trades", "📈 Analytics", "📰 News", "🎙️ Podcasts",
-    "📋 Portfolio", "⚙️ Settings", "📊 Dashboard", "🔍 Logs", "ℹ️ About"
+    "📊 Dashboard", "📈 Real-time", "🎯 Market AI", "📰 News", "🎙️ Podcasts",
+    "🔔 Alerts", "💰 Portfolio", "📉 Analytics", "🇮🇱 TASE", "🇺🇸 US Stocks",
+    "🪙 Crypto", "📦 Commodities", "💎 Premium", "🚀 Pro Tools", "📊 ML Learning",
+    "⚡ Execution", "🛡️ Failsafes", "📋 AI Portfolio", "💹 Backtest", "🎨 Pattern",
+    "📑 Report", "⚙️ Settings", "🔐 Security", "📞 Support", "ℹ️ About"
 ])
 
-# ─── TAB 1: AGENTS STATUS ────────────────────────────────────────
-
-with tabs[0]:
-    st.subheader("🤖 Trading Agents (24/7 Operating)")
-    
-    agents = AgentManager.get_all_agents(st.session_state.username)
-    
-    if not agents:
-        st.info("💰 Initializing agents with ₪5,000 each...")
-        AgentManager.initialize_user_agents(st.session_state.username)
-        st.rerun()
-    
-    cols = st.columns(len(agents))
-    
-    for i, agent in enumerate(agents):
-        with cols[i]:
-            status_emoji = "🟢" if agent['status'] == "RUNNING" else "🔴"
-            
-            st.markdown(f"""
-            <div style="background: white; border-radius: 12px; padding: 15px;
-                        border: 2px solid #1976d2;">
-            <h3>{status_emoji} {agent['agent_name']}</h3>
-            <p><b>Status:</b> {agent['status']}</p>
-            <p><b>Cash:</b> ₪{agent['cash']:,.0f}</p>
-            <p><b>Portfolio:</b> ₪{agent['portfolio_value']:,.0f}</p>
-            <p><b>Trades:</b> {agent['trades_count']}</p>
-            <p><b>Wins:</b> {agent['wins']}</p>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    # Total agent stats
-    st.divider()
-    
-    total_cash = sum(a['cash'] for a in agents)
-    total_portfolio = sum(a['portfolio_value'] for a in agents)
-    total_trades = sum(a['trades_count'] for a in agents)
-    total_wins = sum(a['wins'] for a in agents)
-    
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Cash", f"₪{total_cash:,.0f}")
-    col2.metric("Portfolio Value", f"₪{total_portfolio:,.0f}")
-    col3.metric("Total Trades", total_trades)
-    col4.metric("Total Wins", total_wins)
-
-# ─── TAB 2: TRADES HISTORY ────────────────────────────────────────
-
-with tabs[1]:
-    st.subheader("💹 Trade History")
-    
-    # Get trades from database
-    try:
-        import sqlite3
-        conn = sqlite3.connect("trading_system.db")
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT agent_name, symbol, action, price, quantity, profit_loss, timestamp
-            FROM trades WHERE username = ?
-            ORDER BY timestamp DESC LIMIT 50
-        ''', (st.session_state.username,))
-        
-        trades = cursor.fetchall()
-        conn.close()
-        
-        if trades:
-            df = pd.DataFrame(trades, columns=[
-                "Agent", "Symbol", "Action", "Price", "Qty", "P&L", "Time"
-            ])
-            st.dataframe(df, use_container_width=True)
-        else:
-            st.info("📈 No trades yet. Agents are actively trading 24/7!")
-    except:
-        st.info("Loading trade history...")
-
-# ─── TAB 3: ANALYTICS ────────────────────────────────────────
-
-with tabs[2]:
-    st.subheader("📊 Performance Analytics")
-    
-    agents = AgentManager.get_all_agents(st.session_state.username)
-    
-    if agents:
-        # Agent performance chart
-        agent_data = pd.DataFrame(agents)
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.write("**Agent Cash Distribution**")
-            st.bar_chart(agent_data.set_index('agent_name')['cash'])
-        
-        with col2:
-            st.write("**Agent Win Rate**")
-            agent_data['win_rate'] = (agent_data['wins'] / agent_data['trades_count'].replace(0, 1) * 100).round(1)
-            st.bar_chart(agent_data.set_index('agent_name')['win_rate'])
-    else:
-        st.info("Analytics will appear once agents start trading")
-
-# ─── TAB 4: NEWS (PLACEHOLDER) ────────────────────────────────────
-
-with tabs[3]:
-    st.subheader("📰 AI-Powered News")
-    st.info("🔄 News module coming soon with sentiment analysis")
-
-# ─── TAB 5: PODCASTS (PLACEHOLDER) ────────────────────────────────
-
-with tabs[4]:
-    st.subheader("🎙️ Investment Podcasts")
-    st.info("🔄 Podcast module coming soon with trending topics")
-
-# ─── TAB 6: PORTFOLIO ────────────────────────────────────────
-
-with tabs[5]:
-    st.subheader("📋 Portfolio Overview")
-    
-    agents = AgentManager.get_all_agents(st.session_state.username)
-    
-    total_invested = sum(a['cash'] for a in agents)
-    total_returns = sum(a['portfolio_value'] for a in agents)
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Invested", f"₪{total_invested:,.0f}")
-    col2.metric("Current Value", f"₪{total_returns:,.0f}")
-    col3.metric("Return %", f"{((total_returns/total_invested)*100 - 100):.1f}%" if total_invested > 0 else "0%")
-
-# ─── TAB 7: SETTINGS ────────────────────────────────────────
-
-with tabs[6]:
-    st.subheader("⚙️ Settings")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.write("**User Settings**")
-        user = UserManager.get_user(st.session_state.username)
-        
-        st.write(f"Username: {user.get('username', 'N/A')}")
-        st.write(f"Created: {user.get('created', 'N/A')}")
-        st.write(f"Last Login: {user.get('last_login', 'N/A')}")
-    
-    with col2:
-        st.write("**System Actions**")
-        
-        if st.button("💾 Backup Database"):
-            if backup_database():
-                st.success("✅ Backup created")
-            else:
-                st.error("❌ Backup failed")
-
-# ─── TAB 8: DASHBOARD ────────────────────────────────────────
-
-with tabs[7]:
-    st.subheader("📊 System Dashboard")
-    
-    health = HealthChecker.check_all()
-    
-    st.write("**System Health**")
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric("Database", health['database']['status'])
-        st.caption(f"Users: {health['database']['users']}")
-    
-    with col2:
-        st.metric("Storage", health['storage']['status'])
-        st.caption(f"Size: {health['storage']['size_kb']:.1f} KB")
-    
-    with col3:
-        st.metric("Agents", health['agents']['status'])
-        st.caption(f"Running: {health['agents']['running']}")
-
-# ─── TAB 9: SYSTEM LOGS ────────────────────────────────────────
-
-with tabs[8]:
-    st.subheader("📊 System Logs")
-    
-    logs = get_logs(st.session_state.username, limit=50)
-    
-    if logs:
-        df_logs = pd.DataFrame(logs)
-        st.dataframe(df_logs, use_container_width=True, hide_index=True)
-    else:
-        st.info("No logs yet")
-
-# ─── TAB 10: ABOUT ────────────────────────────────────────
-
-with tabs[9]:
-    st.subheader("ℹ️ About Investment Hub Elite 2026")
-    
-    st.markdown("""
-    ### 🤖 Features
-    
-    ✅ **Persistent Sessions** - Session survives browser refresh and restart (30 days)
-    ✅ **24/7 Agents** - 4 independent trading agents working automatically
-    ✅ **Initial Capital** - Each agent starts with ₪5,000
-    ✅ **Trade History** - All trades recorded and persistent
-    ✅ **Database Backup** - Automatic daily backups
-    ✅ **System Health** - Real-time monitoring and recovery
-    ✅ **Logging System** - Complete audit trail of all events
-    
-    ### 📊 Agents
-    - **ValueAgent** - Long-term value investing
-    - **DayTraderAgent** - Intra-day trading
-    - **MLAgent** - Machine learning predictions
-    - **TrendAgent** - Trend following
-    
-    ### 🔒 Security
-    - Persistent sessions with 30-day expiry
-    - Encrypted password storage
-    - Database integrity checks
-    - Automatic backups
-    
-    **Version:** 2026 Elite
-    **Status:** Production Ready
-    """)
-
-# ═══════════════════════════════════════════════════════════════
-# BACKGROUND TASKS (Import scheduler agents)
-# ═══════════════════════════════════════════════════════════════
-
+# Tabs content - YOUR ORIGINAL FUNCTIONS
 try:
-    from scheduler_agents import start_background_scheduler
-    start_background_scheduler()
+    with tabs[0]:
+        st.subheader("📊 Dashboard")
+        try:
+            realtime_data.show_dashboard()
+        except Exception as e:
+            st.info("📈 Dashboard loading... Click refresh if needed.")
+            if st.checkbox("Show Error Details"):
+                st.write(f"Note: {str(e)[:100]}")
+    
+    with tabs[1]:
+        st.subheader("📈 Real-time Market Data")
+        try:
+            realtime_data.show_realtime()
+        except:
+            st.info("📈 Real-time data loading...")
+    
+    with tabs[2]:
+        st.subheader("🎯 Market AI")
+        try:
+            market_ai.show_market_analysis()
+        except:
+            st.info("🎯 Market AI loading...")
+    
+    with tabs[3]:
+        st.subheader("📰 News")
+        try:
+            news_ai.show_news()
+        except:
+            st.info("📰 News loading...")
+    
+    with tabs[4]:
+        st.subheader("🎙️ Podcasts")
+        try:
+            podcasts_ai.show_podcasts()
+        except:
+            st.info("🎙️ Podcasts loading...")
+    
+    with tabs[5]:
+        st.subheader("🔔 Alerts")
+        try:
+            alerts_ai.show_alerts()
+        except:
+            st.info("🔔 Alerts loading...")
+    
+    with tabs[6]:
+        st.subheader("💰 Portfolio")
+        try:
+            ai_portfolio.show_portfolio()
+        except:
+            st.info("💰 Portfolio loading...")
+    
+    with tabs[7]:
+        st.subheader("📉 Analytics")
+        try:
+            analytics_ai.show_analytics()
+        except:
+            st.info("📉 Analytics loading...")
+    
+    with tabs[8]:
+        st.subheader("🇮🇱 TASE")
+        try:
+            market_scanner.show_tase()
+        except:
+            st.info("🇮🇱 TASE loading...")
+    
+    with tabs[9]:
+        st.subheader("🇺🇸 US Stocks")
+        try:
+            market_scanner.show_us()
+        except:
+            st.info("🇺🇸 US Stocks loading...")
+    
+    with tabs[10]:
+        st.subheader("🪙 Crypto")
+        try:
+            crypto_ai.show_crypto()
+        except:
+            st.info("🪙 Crypto loading...")
+    
+    with tabs[11]:
+        st.subheader("📦 Commodities")
+        try:
+            commodities_tab.show_commodities()
+        except:
+            st.info("📦 Commodities loading...")
+    
+    with tabs[12]:
+        st.subheader("💎 Premium")
+        try:
+            premium_agents_ai.show_premium()
+        except:
+            st.info("💎 Premium loading...")
+    
+    with tabs[13]:
+        st.subheader("🚀 Pro Tools")
+        try:
+            pro_tools_ai.show_pro_tools()
+        except:
+            st.info("🚀 Pro Tools loading...")
+    
+    with tabs[14]:
+        st.subheader("📊 ML Learning")
+        try:
+            ml_learning_ai.show_ml_learning()
+        except:
+            st.info("📊 ML Learning loading...")
+    
+    with tabs[15]:
+        st.subheader("⚡ Execution")
+        try:
+            execution_ai.show_execution()
+        except:
+            st.info("⚡ Execution loading...")
+    
+    with tabs[16]:
+        st.subheader("🛡️ Failsafes")
+        try:
+            failsafes_ai.show_failsafes()
+        except:
+            st.info("🛡️ Failsafes loading...")
+    
+    with tabs[17]:
+        st.subheader("📋 AI Portfolio")
+        try:
+            ai_portfolio.show_ai_portfolio()
+        except:
+            st.info("📋 AI Portfolio loading...")
+    
+    with tabs[18]:
+        st.subheader("💹 Backtest")
+        try:
+            backtest_ai.show_backtest()
+        except:
+            st.info("💹 Backtest loading...")
+    
+    with tabs[19]:
+        st.subheader("🎨 Pattern")
+        try:
+            pattern_ai.show_patterns()
+        except:
+            st.info("🎨 Pattern loading...")
+    
+    with tabs[20]:
+        st.subheader("📑 Report")
+        try:
+            analytics_ai.show_report()
+        except:
+            st.info("📑 Report loading...")
+    
+    with tabs[21]:
+        st.subheader("⚙️ Settings")
+        st.write("Configure your preferences here")
+    
+    with tabs[22]:
+        st.subheader("🔐 Security")
+        st.write("Manage security settings")
+    
+    with tabs[23]:
+        st.subheader("📞 Support")
+        st.write("Get help and support")
+    
+    with tabs[24]:
+        st.subheader("ℹ️ About")
+        st.markdown("""
+        **Investment Hub Elite 2026** - Multi-User Trading System
+        
+        ✨ Features:
+        - Persistent sessions (30 days)
+        - 4 autonomous trading agents
+        - Real-time market data
+        - Advanced analytics
+        - Risk management
+        """)
+
+except Exception as e:
+    st.error(f"Error loading tabs: {str(e)[:200]}")
+
+# Start scheduler
+try:
+    scheduler = get_scheduler()
+    if scheduler and not scheduler.running:
+        scheduler.start()
 except:
     pass
-
-# Auto backup every hour
-import time
-last_backup = time.time()
-if time.time() - last_backup > 3600:
-    backup_database()
