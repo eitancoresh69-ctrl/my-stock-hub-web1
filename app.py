@@ -361,19 +361,56 @@ with tabs[11]:
             cols_d = [c for c in ["Symbol","DivYield","DivRate","FiveYrDiv","PayoutRatio","Safety"] if c in div_df.columns]
             st.dataframe(div_df.sort_values("DivYield",ascending=False)[cols_d], use_container_width=True, hide_index=True)
 
-with tabs[12]: alerts_ai.render_smart_alerts(df_all)
-with tabs[13]: simulator.render_value_agent(df_all)
-with tabs[14]: simulator.render_day_trade_agent(df_all)
-with tabs[15]: premium_agents_ai.render_premium_agents(df_all)
+with tabs[12]: 
+    if df_all is not None and not df_all.empty:
+        alerts_ai.render_smart_alerts(df_all)
+    else:
+        st.warning("⏳ מחכה לנתוני מניות... בדוק את חיבור האינטרנט.")
+
+with tabs[13]: 
+    if df_all is not None and not df_all.empty:
+        simulator.render_value_agent(df_all)
+    else:
+        st.warning("⏳ מחכה לנתוני מניות... בדוק את חיבור האינטרנט.")
+
+with tabs[14]: 
+    if df_all is not None and not df_all.empty:
+        simulator.render_day_trade_agent(df_all)
+    else:
+        st.warning("⏳ מחכה לנתוני מניות... בדוק את חיבור האינטרנט.")
+
+with tabs[15]: 
+    if df_all is not None and not df_all.empty:
+        premium_agents_ai.render_premium_agents(df_all)
+    else:
+        st.warning("⏳ מחכה לנתוני מניות... בדוק את חיבור האינטרנט.")
+
 with tabs[16]: market_scanner.render_market_scanner()
-with tabs[17]: backtest_ai.render_backtester(df_all)
+with tabs[17]: 
+    if df_all is not None and not df_all.empty:
+        backtest_ai.render_backtester(df_all)
+    else:
+        st.warning("⏳ מחכה לנתוני מניות... בדוק את חיבור האינטרנט.")
+
 with tabs[18]: market_ai.render_market_intelligence()
-with tabs[19]: bull_bear.render_bull_bear(df_all)
+
+with tabs[19]: 
+    if df_all is not None and not df_all.empty:
+        bull_bear.render_bull_bear(df_all)
+    else:
+        st.warning("⏳ מחכה לנתוני מניות... בדוק את חיבור האינטרנט.")
+
 with tabs[20]: news_ai.render_live_news(MY_STOCKS_BASE)
 with tabs[21]: analytics_ai.render_analytics_dashboard()
 with tabs[22]: telegram_ai.render_telegram_integration()
 with tabs[23]: failsafes_ai.render_failsafes()
-with tabs[24]: ml_learning_ai.render_machine_learning(df_all)
+
+with tabs[24]: 
+    if df_all is not None and not df_all.empty:
+        ml_learning_ai.render_machine_learning(df_all)
+    else:
+        st.warning("⏳ מחכה לנתוני מניות... בדוק את חיבור האינטרנט.")
+
 with tabs[25]: realtime_data.render_full_realtime_panel(list(set(MY_STOCKS_BASE+SCAN_LIST)))
 with tabs[26]: tax_fees_ai.render_tax_optimization()
 

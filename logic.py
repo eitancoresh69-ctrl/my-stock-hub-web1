@@ -30,31 +30,61 @@ def _fetch_single_symbol(symbol: str) -> dict:
     try:
         ticker = yf.Ticker(symbol, session=session)
         hist = ticker.history(period="1y")
-        if hist.empty: return None
+        
+        # אם אין נתונים, נסה שוב עם פרק זמן קצר יותר
+        if hist.empty:
+            hist = ticker.history(period="1mo")
+        if hist.empty:
+            hist = ticker.history(period="1d")
+        
+        if hist.empty: 
+            return None
         
         px = float(hist["Close"].iloc[-1])
         inf = ticker.info if ticker.info else {}
         
-        # חישוב ציון מהיר
-        rev_g = (inf.get("revenueGrowth", 0) or 0) * 100
-        margin = (inf.get("profitMargins", 0) or 0) * 100
+        # חישוב ציון מהיר - יותר חזק
+        rev_g = 0
+        if inf.get("revenueGrowth"):
+            try:
+                rev_g = (float(inf.get("revenueGrowth", 0)) or 0) * 100
+            except:
+                rev_g = 0
+        
+        margin = 0
+        if inf.get("profitMargins"):
+            try:
+                margin = (float(inf.get("profitMargins", 0)) or 0) * 100
+            except:
+                margin = 0
+        
         score = 0
         if rev_g > 10: score += 1
         if margin > 10: score += 1
+        
+        # חישוב שינוי
+        change = 0
+        if len(hist) > 1:
+            try:
+                change = ((px / float(hist["Close"].iloc[-2])) - 1) * 100
+            except:
+                change = 0
 
         return {
             "Symbol": symbol,
             "Price": px,
             "PriceStr": f"${px:.2f}",
-            "Change": ((px / hist["Close"].iloc[-2]) - 1) * 100 if len(hist) > 1 else 0,
-            "RSI": 50.0, # ערך ברירת מחדל
+            "Change": change,
+            "RSI": 50.0,  # ערך ברירת מחדל
             "Score": score,
             "RevGrowth": rev_g,
             "Margin": margin,
             "Action": "החזק ⚪",
             "AI_Logic": "נתוני ענן חלקיים"
         }
-    except: return None
+    except Exception as e:
+        # חזור None אבל לא נזרוק שגיאה
+        return None
 
 @st.cache_data(ttl=600)
 def fetch_master_data(tickers: list) -> pd.DataFrame:

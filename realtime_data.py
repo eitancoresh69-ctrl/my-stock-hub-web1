@@ -27,7 +27,8 @@ def get_live_price_finnhub(symbol: str) -> dict | None:
     שולף מחיר חי מ-Finnhub. מהיר ומדויק יותר מ-yfinance.
     מחזיר: {"price": 213.5, "change": 1.2, "change_pct": 0.57, "high": 215.0, "low": 212.1}
     """
-    if FINNHUB_API_KEY == "YOUR_FINNHUB_KEY_HERE":
+    # אם אין Key תקין, פשוט חזור None
+    if not FINNHUB_API_KEY or FINNHUB_API_KEY == "YOUR_FINNHUB_KEY_HERE":
         return None  # אין Key — חזור ל-yfinance
 
     # המרת סימולים ישראליים: AAPL.TA → לא נתמך ב-Finnhub, ממשיך ב-yfinance
@@ -40,19 +41,28 @@ def get_live_price_finnhub(symbol: str) -> dict | None:
             params={"symbol": symbol, "token": FINNHUB_API_KEY},
             timeout=5
         )
+        if r.status_code != 200:
+            return None  # בעיה עם ה-API
+            
         data = r.json()
-        if data.get("c", 0) > 0:
+        
+        # בדיקה שהנתונים קיימים ותקינים
+        if isinstance(data, dict) and data.get("c", 0) > 0:
             return {
-                "price":      data["c"],   # current price
-                "change":     data["d"],   # change in $
-                "change_pct": data["dp"],  # change in %
-                "high":       data["h"],   # high of day
-                "low":        data["l"],   # low of day
-                "open":       data["o"],   # open price
-                "prev_close": data["pc"],  # previous close
+                "price":      data.get("c", 0),   # current price
+                "change":     data.get("d", 0),   # change in $
+                "change_pct": data.get("dp", 0),  # change in %
+                "high":       data.get("h", 0),   # high of day
+                "low":        data.get("l", 0),   # low of day
+                "open":       data.get("o", 0),   # open price
+                "prev_close": data.get("pc", 0),  # previous close
                 "source":     "finnhub 🟢 חי"
             }
+    except requests.exceptions.RequestException:
+        # בעיה ברשת - חזור None כדי שנשתמש ב-yfinance
+        pass
     except Exception:
+        # כל שגיאה אחרת - חזור None
         pass
     return None
 
