@@ -46,8 +46,7 @@ def get_live_price_twelve_data(symbol: str) -> dict | None:
             f"{TWELVE_DATA_BASE}/quote",
             params={
                 "symbol": api_symbol,
-                "apikey": TWELVE_DATA_API_KEY,
-                "interval": "1min"
+                "apikey": TWELVE_DATA_API_KEY
             },
             timeout=5
         )

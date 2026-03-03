@@ -28,8 +28,23 @@ EMPTY_COLUMNS = [
 
 def _fetch_single_symbol(symbol: str) -> dict:
     try:
-        ticker = yf.Ticker(symbol, session=session)
-        hist = ticker.history(period="1y")
+        # אם זה סימול ישראלי, נסה קודם עם .TA ואחר כך בלי
+        if symbol.endswith(".TA"):
+            try:
+                ticker = yf.Ticker(symbol, session=session)
+                hist = ticker.history(period="1y")
+                if hist.empty:
+                    # נסה בלי .TA
+                    symbol_clean = symbol.replace(".TA", "")
+                    ticker = yf.Ticker(symbol_clean, session=session)
+                    hist = ticker.history(period="1y")
+            except:
+                symbol_clean = symbol.replace(".TA", "")
+                ticker = yf.Ticker(symbol_clean, session=session)
+                hist = ticker.history(period="1y")
+        else:
+            ticker = yf.Ticker(symbol, session=session)
+            hist = ticker.history(period="1y")
         
         # אם אין נתונים, נסה שוב עם פרק זמן קצר יותר
         if hist.empty:
