@@ -1,11 +1,11 @@
-# app.py — Investment Hub Elite 2026 — With SessionManager (FIXED)
+# app.py — Investment Hub Elite 2026 — עם SessionManager (מתוקן)
 import streamlit as st
 import pandas as pd
 import yfinance as yf
 from datetime import datetime
 
 # ═══════════════════════════════════════════════════════════════
-# PERSISTENT SESSION - ADD ONLY THIS AT TOP
+# PERSISTENT SESSION - מערכת התחברות קבועה
 # ═══════════════════════════════════════════════════════════════
 
 from storage import SessionManager, UserManager
@@ -14,51 +14,51 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = None
 
-# Try to restore session
+# בדוק אם יש session שמור
 if not st.session_state.logged_in:
     stored_username = SessionManager.get_stored_username()
     if stored_username:
         st.session_state.logged_in = True
         st.session_state.username = stored_username
 
-# Login screen if not logged in
+# מסך Login אם לא מחובר
 if not st.session_state.logged_in:
     col1, col2 = st.columns([1, 1])
     
     with col1:
         st.markdown("<h1 style='color: #1976d2; text-align: center;'>🤖 Investment Hub Elite 2026</h1>", unsafe_allow_html=True)
-        st.markdown("### 🔓 Login")
-        login_user = st.text_input("Username", key="login_user")
-        login_pass = st.text_input("Password", type="password", key="login_pass")
+        st.markdown("### התחברות")
+        login_user = st.text_input("שם משתמש", key="login_user")
+        login_pass = st.text_input("סיסמא", type="password", key="login_pass")
         
-        if st.button("Login", use_container_width=True):
+        if st.button("התחבר", use_container_width=True):
             if login_user and login_pass:
                 success, data = UserManager.login(login_user, login_pass)
                 if success:
                     st.session_state.logged_in = True
                     st.session_state.username = login_user
-                    st.success("Logged in!")
+                    st.success("✅ התחברת בהצלחה!")
                     st.rerun()
                 else:
-                    st.error(data)
+                    st.error(f"❌ {data}")
     
     with col2:
-        st.markdown("### 📝 Register")
-        reg_user = st.text_input("Username", key="reg_user")
-        reg_pass = st.text_input("Password", type="password", key="reg_pass")
+        st.markdown("### רישום")
+        reg_user = st.text_input("שם משתמש", key="reg_user")
+        reg_pass = st.text_input("סיסמא", type="password", key="reg_pass")
         
-        if st.button("Register", use_container_width=True):
+        if st.button("הרשם", use_container_width=True):
             if reg_user and reg_pass:
                 success, msg = UserManager.register_user(reg_user, reg_pass)
                 if success:
-                    st.success("Account created! Now login.")
+                    st.success("✅ חשבון נוצר בהצלחה! עכשיו התחבר.")
                 else:
-                    st.error(msg)
+                    st.error(f"❌ {msg}")
     
     st.stop()
 
 # ═══════════════════════════════════════════════════════════════
-# YOUR ORIGINAL APP CODE STARTS HERE - ALL YOUR ORIGINAL CODE
+# הקוד המקורי שלך - כל הפונקציות
 # ═══════════════════════════════════════════════════════════════
 
 from config import (HELP, MY_STOCKS_BASE, SCAN_LIST,
@@ -90,12 +90,12 @@ try:
 except Exception:
     pass
 
-# Add user info to sidebar
+# הוסף מידע משתמש לsidebar
 with st.sidebar:
-    st.markdown("### 👤 Account")
+    st.markdown("### 👤 חשבון")
     st.write(f"**{st.session_state.username}**")
     
-    if st.button("🚪 Logout"):
+    if st.button("🚪 התנתק"):
         SessionManager.clear_session(st.session_state.username)
         st.session_state.logged_in = False
         st.rerun()
@@ -142,194 +142,200 @@ with col2:
 
 # ─── Main Tabs ────────────────────────────────────────────────────────────────
 
-tabs = st.tabs([
-    "📊 Dashboard", "📈 Real-time", "🎯 Market AI", "📰 News", "🎙️ Podcasts",
-    "🔔 Alerts", "💰 Portfolio", "📉 Analytics", "🇮🇱 TASE", "🇺🇸 US Stocks",
-    "🪙 Crypto", "📦 Commodities", "💎 Premium", "🚀 Pro Tools", "📊 ML Learning",
-    "⚡ Execution", "🛡️ Failsafes", "📋 AI Portfolio", "💹 Backtest", "🎨 Pattern",
-    "📑 Report", "⚙️ Settings", "🔐 Security", "📞 Support", "ℹ️ About"
-])
+tab_names = [
+    "📊 לוח בקרה", "📈 בזמן אמת", "🎯 AI שוק", "📰 חדשות", "🎙️ פודקאסטים",
+    "🔔 התראות", "💰 תיק", "📉 ניתוח", "🇮🇱 בורסה", "🇺🇸 מניות US",
+    "🪙 קריפטו", "📦 סחורות", "💎 פרימיום", "🚀 כלים", "📊 ML",
+    "⚡ ביצוע", "🛡️ הגנה", "📋 תיק AI", "💹 בדיקה", "🎨 דפוסים",
+    "📑 דוח", "⚙️ הגדרות", "🔐 אבטחה", "📞 תמיכה", "ℹ️ אודות"
+]
 
-# Tabs content - YOUR ORIGINAL FUNCTIONS
+tabs = st.tabs(tab_names)
+
+# תוכן הטאבים - הפונקציות המקוריות שלך
 try:
-    with tabs[0]:
-        st.subheader("📊 Dashboard")
+    with tabs[0]:  # לוח בקרה
+        st.subheader("📊 לוח בקרה")
         try:
             realtime_data.show_dashboard()
         except Exception as e:
-            st.info("📈 Dashboard loading... Click refresh if needed.")
-            if st.checkbox("Show Error Details"):
-                st.write(f"Note: {str(e)[:100]}")
+            st.info("📈 טוען נתונים...")
     
-    with tabs[1]:
-        st.subheader("📈 Real-time Market Data")
+    with tabs[1]:  # בזמן אמת
+        st.subheader("📈 נתונים בזמן אמת")
         try:
             realtime_data.show_realtime()
         except:
-            st.info("📈 Real-time data loading...")
+            st.info("📈 טוען...")
     
-    with tabs[2]:
+    with tabs[2]:  # Market AI
         st.subheader("🎯 Market AI")
         try:
             market_ai.show_market_analysis()
         except:
-            st.info("🎯 Market AI loading...")
+            st.info("🎯 טוען...")
     
-    with tabs[3]:
-        st.subheader("📰 News")
+    with tabs[3]:  # חדשות
+        st.subheader("📰 חדשות")
         try:
             news_ai.show_news()
         except:
-            st.info("📰 News loading...")
+            st.info("📰 טוען...")
     
-    with tabs[4]:
-        st.subheader("🎙️ Podcasts")
+    with tabs[4]:  # פודקאסטים
+        st.subheader("🎙️ פודקאסטים")
         try:
             podcasts_ai.show_podcasts()
         except:
-            st.info("🎙️ Podcasts loading...")
+            st.info("🎙️ טוען...")
     
-    with tabs[5]:
-        st.subheader("🔔 Alerts")
+    with tabs[5]:  # התראות
+        st.subheader("🔔 התראות")
         try:
             alerts_ai.show_alerts()
         except:
-            st.info("🔔 Alerts loading...")
+            st.info("🔔 טוען...")
     
-    with tabs[6]:
-        st.subheader("💰 Portfolio")
+    with tabs[6]:  # תיק
+        st.subheader("💰 תיק השקעות")
         try:
             ai_portfolio.show_portfolio()
         except:
-            st.info("💰 Portfolio loading...")
+            st.info("💰 טוען...")
     
-    with tabs[7]:
-        st.subheader("📉 Analytics")
+    with tabs[7]:  # ניתוח
+        st.subheader("📉 ניתוח")
         try:
             analytics_ai.show_analytics()
         except:
-            st.info("📉 Analytics loading...")
+            st.info("📉 טוען...")
     
-    with tabs[8]:
-        st.subheader("🇮🇱 TASE")
+    with tabs[8]:  # בורסה ישראלית
+        st.subheader("🇮🇱 בורסה ישראלית")
         try:
             market_scanner.show_tase()
         except:
-            st.info("🇮🇱 TASE loading...")
+            st.info("🇮🇱 טוען...")
     
-    with tabs[9]:
-        st.subheader("🇺🇸 US Stocks")
+    with tabs[9]:  # מניות US
+        st.subheader("🇺🇸 מניות US")
         try:
             market_scanner.show_us()
         except:
-            st.info("🇺🇸 US Stocks loading...")
+            st.info("🇺🇸 טוען...")
     
-    with tabs[10]:
-        st.subheader("🪙 Crypto")
+    with tabs[10]:  # קריפטו
+        st.subheader("🪙 קריפטו")
         try:
             crypto_ai.show_crypto()
         except:
-            st.info("🪙 Crypto loading...")
+            st.info("🪙 טוען...")
     
-    with tabs[11]:
-        st.subheader("📦 Commodities")
+    with tabs[11]:  # סחורות
+        st.subheader("📦 סחורות")
         try:
             commodities_tab.show_commodities()
         except:
-            st.info("📦 Commodities loading...")
+            st.info("📦 טוען...")
     
-    with tabs[12]:
-        st.subheader("💎 Premium")
+    with tabs[12]:  # פרימיום
+        st.subheader("💎 תכניות פרימיום")
         try:
             premium_agents_ai.show_premium()
         except:
-            st.info("💎 Premium loading...")
+            st.info("💎 טוען...")
     
-    with tabs[13]:
-        st.subheader("🚀 Pro Tools")
+    with tabs[13]:  # כלים
+        st.subheader("🚀 כלים מתקדמים")
         try:
             pro_tools_ai.show_pro_tools()
         except:
-            st.info("🚀 Pro Tools loading...")
+            st.info("🚀 טוען...")
     
-    with tabs[14]:
-        st.subheader("📊 ML Learning")
+    with tabs[14]:  # ML
+        st.subheader("📊 Machine Learning")
         try:
             ml_learning_ai.show_ml_learning()
         except:
-            st.info("📊 ML Learning loading...")
+            st.info("📊 טוען...")
     
-    with tabs[15]:
-        st.subheader("⚡ Execution")
+    with tabs[15]:  # ביצוע
+        st.subheader("⚡ ביצוע עסקאות")
         try:
             execution_ai.show_execution()
         except:
-            st.info("⚡ Execution loading...")
+            st.info("⚡ טוען...")
     
-    with tabs[16]:
-        st.subheader("🛡️ Failsafes")
+    with tabs[16]:  # הגנה
+        st.subheader("🛡️ מנגנוני הגנה")
         try:
             failsafes_ai.show_failsafes()
         except:
-            st.info("🛡️ Failsafes loading...")
+            st.info("🛡️ טוען...")
     
-    with tabs[17]:
-        st.subheader("📋 AI Portfolio")
+    with tabs[17]:  # תיק AI
+        st.subheader("📋 תיק ניהול AI")
         try:
             ai_portfolio.show_ai_portfolio()
         except:
-            st.info("📋 AI Portfolio loading...")
+            st.info("📋 טוען...")
     
-    with tabs[18]:
-        st.subheader("💹 Backtest")
+    with tabs[18]:  # בדיקה
+        st.subheader("💹 בדיקת עבר")
         try:
             backtest_ai.show_backtest()
         except:
-            st.info("💹 Backtest loading...")
+            st.info("💹 טוען...")
     
-    with tabs[19]:
-        st.subheader("🎨 Pattern")
+    with tabs[19]:  # דפוסים
+        st.subheader("🎨 דפוסי גרף")
         try:
             pattern_ai.show_patterns()
         except:
-            st.info("🎨 Pattern loading...")
+            st.info("🎨 טוען...")
     
-    with tabs[20]:
-        st.subheader("📑 Report")
+    with tabs[20]:  # דוח
+        st.subheader("📑 דוח ביצוע")
         try:
             analytics_ai.show_report()
         except:
-            st.info("📑 Report loading...")
+            st.info("📑 טוען...")
     
-    with tabs[21]:
-        st.subheader("⚙️ Settings")
-        st.write("Configure your preferences here")
+    with tabs[21]:  # הגדרות
+        st.subheader("⚙️ הגדרות")
+        st.write("הגדר את ההעדפות שלך כאן")
     
-    with tabs[22]:
-        st.subheader("🔐 Security")
-        st.write("Manage security settings")
+    with tabs[22]:  # אבטחה
+        st.subheader("🔐 אבטחה")
+        st.write("נהל הגדרות אבטחה")
     
-    with tabs[23]:
-        st.subheader("📞 Support")
-        st.write("Get help and support")
+    with tabs[23]:  # תמיכה
+        st.subheader("📞 תמיכה")
+        st.write("קבל עזרה ותמיכה")
     
-    with tabs[24]:
-        st.subheader("ℹ️ About")
+    with tabs[24]:  # אודות
+        st.subheader("ℹ️ אודות")
         st.markdown("""
-        **Investment Hub Elite 2026** - Multi-User Trading System
+        **Investment Hub Elite 2026** - מערכת מולטי-משתמש לסחר בהשקעות
         
-        ✨ Features:
-        - Persistent sessions (30 days)
-        - 4 autonomous trading agents
-        - Real-time market data
-        - Advanced analytics
-        - Risk management
+        ✨ תכונות:
+        - התחברויות קבועות (30 ימים)
+        - 4 סוכנים סוחרים אוטונומיים
+        - נתונים בזמן אמת
+        - ניתוח מתקדם
+        - ניהול סיכונים
+        
+        🤖 סוכנים:
+        - ValueAgent - השקעות ערך
+        - DayTraderAgent - סחר יומי
+        - MLAgent - בעזרת Machine Learning
+        - TrendAgent - עקיבה אחר מגמות
         """)
 
 except Exception as e:
-    st.error(f"Error loading tabs: {str(e)[:200]}")
+    st.error(f"שגיאה בטעינת טאבים")
 
-# Start scheduler
+# התחל scheduler
 try:
     scheduler = get_scheduler()
     if scheduler and not scheduler.running:
