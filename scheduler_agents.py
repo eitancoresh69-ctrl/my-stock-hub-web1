@@ -1,28 +1,31 @@
-# scheduler_agents.py - גרסה מתוקנת (כולל start_background_scheduler)
+# scheduler_agents.py - FIXED - משתמש ב-realtime_data + logic
 import threading
 import time
-import yfinance as yf
 import pandas as pd
 import numpy as np
 from datetime import datetime
 from storage import load, save
 
-# --- תיקון שגיאות ניתוח שפה (NLTK/TextBlob) בענן ---
+# ✅ Import מ-realtime_data כדי לקבל מחירים!
+try:
+    from realtime_data import get_live_price_smart
+except:
+    get_live_price_smart = None
+
+# תיקון שגיאות ניתוח שפה
 try:
     import nltk
-    # הורדה שקטה של קבצי שפה נדרשים למניעת קריסת סוכנים ב-Render
     nltk.download('punkt', quiet=True)
     nltk.download('averaged_perceptron_tagger', quiet=True)
     from textblob import TextBlob
 except Exception:
     TextBlob = None
 
-# --- ייבווא מודולי למידה מתקדמים ---
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 
 class UltraAdvancedScheduler:
-    """סוכנים אוטונומיים - מותאם לעבודה מול מסד נתונים בענן"""
+    """סוכנים אוטונומיים - משתמש ב-realtime_data"""
     
     def __init__(self):
         self.running = False
@@ -35,7 +38,7 @@ class UltraAdvancedScheduler:
         self.israel = ["TEVA.TA", "ICL.TA", "BEZQ.TA", "LUMI.TA", "POLI.TA", "DSCT.TA", "NICE.TA", "ENLT.TA"]
 
     def _safe_val(self, val):
-        """המרת נתוני numpy למספרי פייתון רגילים למניעת שגיאות JSON בענן"""
+        """המרת נתונים לפורמט JSON"""
         if isinstance(val, (np.integer, np.floating)):
             return val.item()
         if isinstance(val, np.ndarray):
@@ -53,12 +56,25 @@ class UltraAdvancedScheduler:
             new_portfolio = []
             for item in portfolio:
                 try:
-                    ticker = yf.Ticker(item['📌'])
-                    hist = ticker.history(period="1d")
-                    if hist.empty:
+                    symbol = item['📌']
+                    
+                    # ✅ קבל מחיר מ-realtime_data!
+                    if get_live_price_smart:
+                        current_price = get_live_price_smart(symbol)
+                    else:
+                        # Fallback
+                        import yfinance as yf
+                        ticker = yf.Ticker(symbol)
+                        hist = ticker.history(period="1d")
+                        if hist.empty:
+                            new_portfolio.append(item)
+                            continue
+                        current_price = float(hist['Close'].iloc[-1])
+                    
+                    if not current_price or current_price <= 0:
                         new_portfolio.append(item)
                         continue
-                    current_price = self._safe_val(hist['Close'].iloc[-1])
+                    
                     buy_price = item['💰']
                     qty = item['🔢']
                     profit_pct = ((current_price / buy_price) - 1) * 100
@@ -66,20 +82,23 @@ class UltraAdvancedScheduler:
                     if profit_pct >= 20 or profit_pct <= -8:
                         is_win = profit_pct >= 20
                         cash += (current_price * qty)
-                        history.insert(0, {"זמן": datetime.now().strftime("%Y-%m-%d %H:%M"), "📌": item['📌'], "💹": f"{profit_pct:+.2f}%", "✅": is_win})
+                        history.insert(0, {"זמן": datetime.now().strftime("%Y-%m-%d %H:%M"), "📌": symbol, "💹": f"{profit_pct:+.2f}%", "✅": is_win})
                         trades_log = load("val_trades_log", [])
-                        trades_log.insert(0, {"⏰": datetime.now().isoformat(), "📌": item['📌'], "↔️": "מכירה 🔴", "💰": f"${current_price:.2f}", "📊": f"{profit_pct:+.2f}%"})
+                        trades_log.insert(0, {"⏰": datetime.now().isoformat(), "📌": symbol, "↔️": "מכירה 🔴", "💰": f"${current_price:.2f}", "📊": f"{profit_pct:+.2f}%"})
                         save("val_trades_log", trades_log[:50])
                     else:
                         new_portfolio.append(item)
-                except: new_portfolio.append(item)
+                except Exception as e:
+                    new_portfolio.append(item)
             
             save("val_portfolio", new_portfolio)
             save("val_cash_ils", self._safe_val(cash))
             save("trade_history_complete", history[:100])
             self.last_runs["val_agent"] = datetime.now().isoformat()
-        except Exception as e: print(f"❌ שגיאה בסוכן ערך: {e}")
-        finally: self.is_processing = False
+        except Exception as e:
+            print(f"❌ שגיאה בסוכן ערך: {e}")
+        finally:
+            self.is_processing = False
 
     def run_day_agent(self):
         try:
@@ -88,7 +107,8 @@ class UltraAdvancedScheduler:
             log.insert(0, {"⏰": datetime.now().isoformat(), "📌": sym, "↔️": "סקירה", "📚": "סריקה תקופתית בוצעה בהצלחה."})
             save("day_trades_log", log[:50])
             self.last_runs["day_agent"] = datetime.now().isoformat()
-        except Exception as e: print(f"❌ שגיאה בסוכן יומי: {e}")
+        except Exception as e:
+            print(f"❌ שגיאה בסוכן יומי: {e}")
 
     def run_ml_agent(self):
         try:
@@ -97,7 +117,8 @@ class UltraAdvancedScheduler:
             save("ml_accuracy", 0.92)
             save("ml_runs", load("ml_runs", 0) + 1)
             self.last_runs["ml_agent"] = datetime.now().isoformat()
-        except Exception as e: print(f"❌ שגיאה ב-ML: {e}")
+        except Exception as e:
+            print(f"❌ שגיאה ב-ML: {e}")
 
     def run_scheduler(self):
         last_val = 0
@@ -116,10 +137,12 @@ class UltraAdvancedScheduler:
                     self.run_ml_agent()
                     last_ml = now
                 time.sleep(60)
-            except: time.sleep(60)
+            except:
+                time.sleep(60)
 
     def start(self):
-        if self.running: return
+        if self.running:
+            return
         self.running = True
         self.thread = threading.Thread(target=self.run_scheduler, daemon=True)
         self.thread.start()
@@ -131,7 +154,7 @@ class UltraAdvancedScheduler:
             "thread_alive": self.thread.is_alive() if self.thread else False
         }
 
-# --- פונקציות ממשק ל-app.py ---
+# --- ממשק ל-app.py ---
 _global_scheduler = None
 
 def get_scheduler():
@@ -142,5 +165,5 @@ def get_scheduler():
     return _global_scheduler
 
 def start_background_scheduler():
-    """פונקציה הנדרשת על ידי app.py כדי למנוע ImportError"""
+    """הפעל את ה-scheduler בשביל app.py"""
     return get_scheduler()
