@@ -1,4 +1,6 @@
-# logic.py — לוגיקה מרכזית עם Fallback מרובות ותקני Streamlit 1.30
+# logic.py — לוגיקה מרכזית + Integration עם realtime_data + Traders Support
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -14,18 +16,24 @@ except ImportError:
     COMMODITIES = {}
     CRYPTO_SYMBOLS = {}
 
-# מנגנון הסוואה מול Yahoo עם headers טובים
+# Import ה-Smart price function מ-realtime_data
+try:
+    from realtime_data import get_live_price_smart, get_full_quote_smart
+    HAS_REALTIME = True
+except ImportError:
+    HAS_REALTIME = False
+
+# Session עם headers טובים
 session = requests.Session()
 session.headers.update({
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
     "Accept-Language": "en-US,en;q=0.9",
     "Accept-Encoding": "gzip, deflate, br",
-    "Connection": "keep-alive",
-    "Upgrade-Insecure-Requests": "1"
+    "Connection": "keep-alive"
 })
 
 # ╔═══════════════════════════════════════════════════════════════════════════════╗
-# ║                         MAIN DATA FETCHING FUNCTION                          ║
+# ║                         EMPTY COLUMNS DEFINITION                             ║
 # ╚═══════════════════════════════════════════════════════════════════════════════╝
 
 EMPTY_COLUMNS = [
@@ -34,19 +42,37 @@ EMPTY_COLUMNS = [
     "Margin", "ROE", "CashVsDebt", "ZeroDebt", "DivYield", "Action", "AI_Logic"
 ]
 
-def _fetch_single_symbol(symbol: str, retries: int = 3) -> dict | None:
+# ╔═══════════════════════════════════════════════════════════════════════════════╗
+# ║                    SINGLE SYMBOL FETCH WITH OPTIMIZATION                     ║
+# ╚═══════════════════════════════════════════════════════════════════════════════╝
+
+def _fetch_single_symbol(symbol: str, retries: int = 2) -> dict | None:
     """
-    שולף נתונים עבור סימול בודד עם retries וfallback.
+    שולף נתונים עבור סימול בודד עם:
+    - קריאה ל-realtime_data כדי להביא מחיר חי
+    - Retry logic
+    - Timeout protection
     """
     for attempt in range(retries):
         try:
-            # אם זה סימול ישראלי, נסה קודם עם .TA
+            # ─── שלב 1: קבל מחיר חי מ-realtime_data (אם זמין) ──────────────────
+            
+            live_price = None
+            if HAS_REALTIME:
+                try:
+                    quote = get_full_quote_smart(symbol)
+                    if quote:
+                        live_price = quote.get("price", 0)
+                except:
+                    pass
+            
+            # ─── שלב 2: קבל נתונים מ-yfinance (אם צריך היסטוריה) ──────────────
+            
             if symbol.endswith(".TA"):
                 try:
                     ticker = yf.Ticker(symbol, session=session)
                     hist = ticker.history(period="1y", timeout=10)
                     if hist.empty:
-                        # נסה בלי .TA
                         symbol_clean = symbol.replace(".TA", "")
                         ticker = yf.Ticker(symbol_clean, session=session)
                         hist = ticker.history(period="1y", timeout=10)
@@ -58,7 +84,7 @@ def _fetch_single_symbol(symbol: str, retries: int = 3) -> dict | None:
                 ticker = yf.Ticker(symbol, session=session)
                 hist = ticker.history(period="1y", timeout=10)
             
-            # אם אין נתונים, נסה שוב עם פרק זמן קצר יותר
+            # אם אין נתונים, נסה תקופה קצרה יותר
             if hist.empty:
                 hist = ticker.history(period="3mo", timeout=10)
             if hist.empty:
@@ -66,14 +92,20 @@ def _fetch_single_symbol(symbol: str, retries: int = 3) -> dict | None:
             if hist.empty:
                 hist = ticker.history(period="1d", timeout=10)
             
-            if hist.empty: 
+            if hist.empty:
                 if attempt < retries - 1:
-                    time.sleep(0.5)  # חכה לפני retry
+                    time.sleep(0.5)
                     continue
                 return None
             
-            # חילוץ נתונים בסיסיים
-            px = float(hist["Close"].iloc[-1])
+            # ─── שלב 3: חילוץ נתונים בסיסיים ──────────────────────────────────
+            
+            # משתמש ב-live_price אם יש, אחרת מה-yfinance
+            if live_price and live_price > 0:
+                px = live_price
+            else:
+                px = float(hist["Close"].iloc[-1])
+            
             if px <= 0:
                 if attempt < retries - 1:
                     time.sleep(0.5)
@@ -108,7 +140,7 @@ def _fetch_single_symbol(symbol: str, retries: int = 3) -> dict | None:
             except:
                 margin = 0
             
-            # 3. ROE (Return on Equity)
+            # 3. ROE
             roe = 0
             try:
                 if info.get("returnOnEquity"):
@@ -128,14 +160,14 @@ def _fetch_single_symbol(symbol: str, retries: int = 3) -> dict | None:
             except:
                 div_yield = 0
             
-            # 5. חישוב Score
+            # 5. Score
             score = 0
             if rev_g > 10: score += 1
             if margin > 10: score += 1
             if roe > 15: score += 1
             if div_yield > 2: score += 1
             
-            # 6. חישוב שינוי יומי
+            # 6. Change
             change = 0
             change_pct = 0
             if len(hist) > 1:
@@ -158,7 +190,7 @@ def _fetch_single_symbol(symbol: str, retries: int = 3) -> dict | None:
             except:
                 pass
             
-            # 8. RSI (Simple)
+            # 8. RSI
             rsi = 50.0
             try:
                 if len(hist) >= 14:
@@ -174,7 +206,7 @@ def _fetch_single_symbol(symbol: str, retries: int = 3) -> dict | None:
             except:
                 rsi = 50.0
             
-            # 9. Action Recommendation
+            # 9. Action
             if score >= 5:
                 action = "קנה 🟢"
             elif score >= 3:
@@ -182,7 +214,6 @@ def _fetch_single_symbol(symbol: str, retries: int = 3) -> dict | None:
             else:
                 action = "מכור 🔴"
             
-            # בדוק אם יש עיד ארוך מ-MA50/200
             if px > ma50 > ma200:
                 action = "קנה 🟢"
             elif px < ma50 < ma200:
@@ -211,46 +242,47 @@ def _fetch_single_symbol(symbol: str, retries: int = 3) -> dict | None:
                 "ZeroDebt": "כן" if info.get("totalDebt", 0) == 0 else "לא",
                 "DivYield": round(div_yield, 2),
                 "Action": action,
-                "AI_Logic": f"Score:{score} | RSI:{rsi:.0f} | RevGr:{rev_g:.0f}%"
+                "AI_Logic": f"Score:{score} | RSI:{rsi:.0f} | Price:${px:.2f}"
             }
         
         except Exception as e:
             if attempt < retries - 1:
-                time.sleep(0.5)  # חכה לפני retry
+                time.sleep(0.5)
                 continue
-            # Return None בכישלון סופי
             return None
     
     return None
 
 
+# ╔═══════════════════════════════════════════════════════════════════════════════╗
+# ║                         MASTER DATA FETCHING                                 ║
+# ╚═══════════════════════════════════════════════════════════════════════════════╝
+
 @st.cache_data(ttl=600)  # 10 דקות cache
 def fetch_master_data(tickers: list, max_workers: int = 5) -> pd.DataFrame:
     """
-    שולף נתונים עבור רשימת mTickets בעיוות מקבילה.
-    עם retry logic וfallback הגדרה.
+    שולף נתונים לרשימת mTickets בעיוות מקבילה.
+    משלב realtime_data + yfinance.
+    מחזיר DataFrame שהtraders יכולים להשתמש בו.
     """
     if not tickers:
         return pd.DataFrame(columns=EMPTY_COLUMNS)
     
     rows = []
     
-    # השתמש בThreadPoolExecutor עם max_workers מעט יותר גדול
+    # ThreadPool עם תיאום בין משימות
     with ThreadPoolExecutor(max_workers=min(max_workers, len(tickers))) as executor:
-        # הגש את כל הsymbols בו-זמנית
         futures = {executor.submit(_fetch_single_symbol, t): t for t in set(tickers)}
         
-        # אסוף תוצאות כשהן מוכנות
         for future in as_completed(futures):
             try:
-                res = future.result(timeout=15)  # 15 שניות per symbol
+                res = future.result(timeout=15)
                 if res:
                     rows.append(res)
             except Exception:
-                # Skip symbols that fail
                 pass
     
-    # אם יש נתונים, בנה DataFrame
+    # בנה DataFrame אם יש נתונים
     if rows:
         try:
             df = pd.DataFrame(rows)
@@ -258,12 +290,12 @@ def fetch_master_data(tickers: list, max_workers: int = 5) -> pd.DataFrame:
         except Exception:
             return pd.DataFrame(columns=EMPTY_COLUMNS)
     
-    # אם אין נתונים, בחזור ל-DataFrame ריקה אבל עם כותרות
+    # Return empty with columns
     return pd.DataFrame(columns=EMPTY_COLUMNS)
 
 
 # ╔═══════════════════════════════════════════════════════════════════════════════╗
-# ║                          ASSET TYPE HELPERS                                  ║
+# ║                         HELPER FUNCTIONS                                     ║
 # ╚═══════════════════════════════════════════════════════════════════════════════╝
 
 def get_asset_type(s):
@@ -295,3 +327,35 @@ def get_asset_emoji(s):
     elif "=" in s:
         return "⛽"
     return "📈"
+
+# ╔═══════════════════════════════════════════════════════════════════════════════╗
+# ║                    TRADER COMPATIBILITY FUNCTIONS                            ║
+# ╚═══════════════════════════════════════════════════════════════════════════════╝
+
+def get_price(symbol: str) -> float | None:
+    """קבל מחיר בודד לטריידר"""
+    if HAS_REALTIME:
+        try:
+            return get_live_price_smart(symbol)
+        except:
+            pass
+    
+    # Fallback ל-yfinance
+    try:
+        ticker = yf.Ticker(symbol, session=session)
+        hist = ticker.history(period="1d", timeout=5)
+        if not hist.empty:
+            return float(hist["Close"].iloc[-1])
+    except:
+        pass
+    
+    return None
+
+def get_multiple_prices(symbols: list) -> dict:
+    """קבל מחירים מרובים לטריידרים"""
+    results = {}
+    for sym in symbols:
+        price = get_price(sym)
+        if price:
+            results[sym] = price
+    return results
