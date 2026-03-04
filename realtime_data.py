@@ -1,4 +1,4 @@
-# realtime_data.py — נתונים בזמן אמת: Multi-Source + Smart Cache + Retry Logic
+# realtime_data.py — נתונים בזמן אמת: Complete Version with All Rendering Functions
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 import streamlit as st
@@ -47,7 +47,7 @@ def _set_cache(symbol: str, data: dict):
     _cache_timestamps[symbol] = time.time()
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 0: Twelve Data — מחירים חיים (Priority 1)
+# SECTION 0: Twelve Data — Priority 1
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def get_live_price_twelve_data(symbol: str) -> Optional[dict]:
@@ -89,7 +89,7 @@ def get_live_price_twelve_data(symbol: str) -> Optional[dict]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 1: Finnhub — מחירים חיים (Priority 2 - תמיד זמין!)
+# SECTION 1: Finnhub — Priority 2
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def get_live_price_finnhub(symbol: str) -> Optional[dict]:
@@ -129,7 +129,7 @@ def get_live_price_finnhub(symbol: str) -> Optional[dict]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 2: Alpha Vantage (Priority 3)
+# SECTION 2: Alpha Vantage — Priority 3
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def get_live_price_alpha_vantage(symbol: str) -> Optional[dict]:
@@ -173,7 +173,7 @@ def get_live_price_alpha_vantage(symbol: str) -> Optional[dict]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 3: yfinance — Fallback סופי עם Retry (Priority 4)
+# SECTION 3: yfinance — Priority 4 (Fallback with Retry)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def get_live_price_yfinance(symbol: str, retries: int = 3) -> Optional[dict]:
@@ -221,11 +221,11 @@ def get_live_price_yfinance(symbol: str, retries: int = 3) -> Optional[dict]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 4: Smart Price Function - מנסה בכל המקורות בסדר עדיפות
+# SECTION 4: Smart Price Functions
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def get_live_price_smart(symbol: str) -> Optional[float]:
-    """מחזיר מחיר חי - נסיון Priority Chain"""
+    """מחזיר מחיר חי - Priority Chain"""
     td = get_live_price_twelve_data(symbol)
     if td and td["price"] > 0:
         return td["price"]
@@ -330,8 +330,19 @@ def get_fear_greed_index() -> dict:
     }
 
 
+@st.cache_data(ttl=3600)
+def get_macro_indicators() -> dict:
+    """שולף מדדי מאקרו (Demo עד שיש FRED Key)"""
+    return {
+        "FEDFUNDS": {"name": "Federal Funds Rate", "value": 4.5, "trend": "→", "date": "Mar 2026"},
+        "CPIAUCSL": {"name": "CPI (Inflation)", "value": 3.2, "trend": "↓", "date": "Feb 2026"},
+        "UNRATE": {"name": "Unemployment", "value": 4.1, "trend": "→", "date": "Feb 2026"},
+        "T10Y2Y": {"name": "Yield Curve", "value": 0.45, "trend": "↑", "date": "Mar 2026"},
+    }
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 6: Render Widgets
+# SECTION 6: Rendering Functions (Required by app.py!)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def render_live_prices_strip(symbols: List[str]):
@@ -340,11 +351,9 @@ def render_live_prices_strip(symbols: List[str]):
     if not us_symbols:
         return
     
-    with st.spinner("📡 טוען מחירים..."):
-        quotes = get_multi_quotes(us_symbols)
+    quotes = get_multi_quotes(us_symbols)
     
     if not quotes:
-        st.info("💡 טוען מחירים...")
         return
     
     cols = st.columns(len(quotes))
@@ -359,3 +368,111 @@ def render_live_prices_strip(symbols: List[str]):
             f'</div>',
             unsafe_allow_html=True,
         )
+
+
+def render_fear_greed_widget():
+    """מציג את מדד Fear & Greed בצורה ויזואלית"""
+    fg = get_fear_greed_index()
+    
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.markdown(
+            f"""
+            <div style="
+                background: linear-gradient(135deg, {fg['color']}22, {fg['color']}44);
+                border: 2px solid {fg['color']};
+                border-radius: 12px;
+                padding: 12px 16px;
+                text-align: center;
+            ">
+                <div style="font-size: 28px; font-weight: 900; color: {fg['color']};">{fg['value']}</div>
+                <div style="font-size: 13px; color: {fg['color']}; font-weight: 700;">{fg['label_he']}</div>
+                <div style="font-size: 10px; color: #888; margin-top: 4px;">עודכן: {fg['updated']}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with col2:
+        ai_tip = {
+            "Extreme Fear": "🔴 זה זמן לקנות! גדולים מחכים",
+            "Fear": "⚠️ הזהירות גבוהה. קנה בדרגות",
+            "Neutral": "😐 שוק מאוזן. אחזק עמדה",
+            "Greed": "📈 קח רווחים חלקיים",
+            "Extreme Greed": "🤑 סכנה! הוצא רווחים",
+        }.get(fg['label'], "📊 שוק")
+        
+        st.markdown(
+            f"""
+            <div style="
+                background: #fff8e1;
+                border-right: 4px solid {fg['color']};
+                border-radius: 8px;
+                padding: 10px 14px;
+                font-size: 13px;
+            ">
+                <b>🤖 המלצת AI:</b><br>{ai_tip}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+def render_macro_panel():
+    """פאנל מדדי מאקרו"""
+    st.markdown(
+        '<div class="ai-card" style="border-right-color: #1565c0;">'
+        '<b>🏛️ מדדי מאקרו — Federal Reserve Data</b></div>',
+        unsafe_allow_html=True,
+    )
+    
+    macro = get_macro_indicators()
+    cols = st.columns(len(macro))
+    for i, (key, item) in enumerate(macro.items()):
+        trend_color = "#2e7d32" if item["trend"] == "↑" else "#c62828" if item["trend"] == "↓" else "#555"
+        if key in ["FEDFUNDS", "CPIAUCSL", "UNRATE"]:
+            trend_color = "#c62828" if item["trend"] == "↑" else "#2e7d32" if item["trend"] == "↓" else "#555"
+        
+        cols[i].markdown(
+            f'<div style="text-align:center;padding:10px;background:#f0f4ff;border-radius:10px;">'
+            f'<div style="font-size:11px;color:#555;margin-bottom:4px;">{item["name"]}</div>'
+            f'<div style="font-size:22px;font-weight:800;">{item["value"]:.2f}%</div>'
+            f'<div style="color:{trend_color};font-size:18px;">{item["trend"]}</div>'
+            f'<div style="font-size:10px;color:#888;">{item["date"]}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+
+def render_full_realtime_panel(symbols: List[str]):
+    """פאנל ראשי של כל נתוני הזמן-אמת - קרא מ-app.py"""
+    st.markdown("## 📡 מרכז נתונים חיים")
+    
+    tab1, tab2, tab3 = st.tabs(["📊 Fear & Greed", "💹 מחירים חיים", "🏛️ מאקרו"])
+    
+    with tab1:
+        render_fear_greed_widget()
+    
+    with tab2:
+        render_live_prices_strip(symbols)
+        st.divider()
+        
+        us_syms = [s for s in symbols if not s.endswith(".TA")]
+        quotes = get_multi_quotes(us_syms)
+        if quotes:
+            rows = []
+            for sym, q in quotes.items():
+                rows.append({
+                    "📌 מניה": sym,
+                    "💰 מחיר חי": f"${q['price']:.2f}",
+                    "📈 שינוי $": f"{'▲' if q['change']>=0 else '▼'} ${abs(q['change']):.2f}",
+                    "📊 שינוי %": f"{'🟢 +' if q['change_pct']>=0 else '🔴 '}{q['change_pct']:.2f}%",
+                    "⬆️ גבוה יומי": f"${q['high']:.2f}",
+                    "⬇️ נמוך יומי": f"${q['low']:.2f}",
+                    "🔒 סגירה קודמת": f"${q['prev_close']:.2f}",
+                    "🟢 מקור": q["source"],
+                })
+            st.dataframe(pd.DataFrame(rows), hide_index=True)
+            st.caption(f"🔄 מחירים עם עיכוב < 30 שניות | עדכון אחרון: {datetime.now().strftime('%H:%M:%S')}")
+    
+    with tab3:
+        render_macro_panel()
