@@ -1,9 +1,4 @@
-# realtime_data.py — נתונים בזמן אמת: Twelve Data (ראשי) + Finnhub (backup) + Fear & Greed
-# ═══════════════════════════════════════════════════════════════════════════════════════════════════
-# 🔑 הגדרה - Twelve Data API:
-#    1. Render → Settings → Environment Variables
-#    2. הוסף: TWELVE_DATA_API_KEY = [הקוד שלך מ-Twelve Data]
-#    3. Deploy מחדש ואפליקציה תשתמש בנתונים החיים אוטומטית!
+# realtime_data.py — נתונים בזמן אמת: Multi-Source (Twelve Data + Finnhub + Alpha Vantage + yfinance)
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 import streamlit as st
@@ -12,33 +7,63 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import os
+import time
 from datetime import datetime, timedelta
+from typing import Dict, Optional, List
 
-# ─── הגדרת API Keys ──────────────────────────────────────────────────────────
-# 🔑 Twelve Data API Key (נמצא בסביבה של Render)
-TWELVE_DATA_API_KEY = os.environ.get("TWELVE_DATA_API_KEY", "")
+# ─── הגדרת API Keys מסביבת Render ──────────────────────────────────────────────
+TWELVE_DATA_API_KEY = os.environ.get("TWELVE_DATA_API_KEY", "").strip()
 TWELVE_DATA_BASE = "https://api.twelvedata.com"
 
-# 🔑 Finnhub API Key (backup אם Twelve Data לא זמין)
-FINNHUB_API_KEY = "d6ia9mpr01ql9cifitbgd6ia9mpr01ql9cifitc0"
-FINNHUB_BASE    = "https://finnhub.io/api/v1"
+FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY", "d6ia9mpr01ql9cifitbgd6ia9mpr01ql9cifitc0").strip()
+FINNHUB_BASE = "https://finnhub.io/api/v1"
 
+ALPHA_VANTAGE_KEY = os.environ.get("ALPHA_VANTAGE_KEY", "").strip()
+ALPHA_VANTAGE_BASE = "https://www.alphavantage.co"
+
+FRED_API_KEY = os.environ.get("FRED_API_KEY", "").strip()
+
+# Session לyfinance עם User-Agent proper
+yf_session = requests.Session()
+yf_session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+})
+
+# ─── Local Cache Dictionary (In-Memory, כל session) ──────────────────────────
+_price_cache = {}
+_cache_timestamps = {}
+CACHE_TTL = 30  # 30 שניות
+
+def _get_from_cache(symbol: str) -> Optional[dict]:
+    """קבל מחיר מהcache אם הוא עדיין תקף"""
+    if symbol in _price_cache:
+        if time.time() - _cache_timestamps.get(symbol, 0) < CACHE_TTL:
+            return _price_cache[symbol]
+    return None
+
+def _set_cache(symbol: str, data: dict):
+    """שמור מחיר בcache"""
+    _price_cache[symbol] = data
+    _cache_timestamps[symbol] = time.time()
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 0: Twelve Data — מחירים חיים (בעדיפות גבוהה!)
+# SECTION 0: Twelve Data — מחירים חיים (אם יש API Key!)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@st.cache_data(ttl=30)  # רענון כל 30 שניות!
-def get_live_price_twelve_data(symbol: str) -> dict | None:
+def get_live_price_twelve_data(symbol: str) -> Optional[dict]:
     """
-    שולף מחיר חי מ-Twelve Data. מדויק וموثوק!
+    שולף מחיר חי מ-Twelve Data. הטוב ביותר אם יש API Key.
     מחזיר: {"price": 213.5, "change": 1.2, "change_pct": 0.57, "high": 215.0, "low": 212.1}
     """
-    # אם אין Key, לא משתמשים
-    if not TWELVE_DATA_API_KEY or TWELVE_DATA_API_KEY == "":
+    # בדוק cache קודם
+    cached = _get_from_cache(f"td_{symbol}")
+    if cached:
+        return cached
+
+    if not TWELVE_DATA_API_KEY:
         return None
 
-    # סימולים ישראליים דורשים סיומת מיוחדת ב-Twelve Data
+    # סימולים ישראליים: AAPL.TA → AAPL:IL
     api_symbol = symbol.replace(".TA", ":IL") if symbol.endswith(".TA") else symbol
 
     try:
@@ -51,47 +76,46 @@ def get_live_price_twelve_data(symbol: str) -> dict | None:
             timeout=5
         )
         
-        if r.status_code != 200:
-            return None  # בעיה עם ה-API
-            
-        data = r.json()
-        
-        # בדיקה שהנתונים קיימים ותקינים
-        if isinstance(data, dict) and "price" in data:
-            price = float(data.get("price", 0))
-            if price > 0:
-                return {
-                    "price":      price,
+        if r.status_code == 200:
+            data = r.json()
+            if isinstance(data, dict) and data.get("status") == "ok" and "price" in data:
+                result = {
+                    "price":      float(data.get("price", 0)),
                     "change":     float(data.get("change", 0)) if data.get("change") else 0,
                     "change_pct": float(data.get("percent_change", 0)) if data.get("percent_change") else 0,
-                    "high":       float(data.get("high", 0)) if data.get("high") else price,
-                    "low":        float(data.get("low", 0)) if data.get("low") else price,
-                    "open":       float(data.get("open", 0)) if data.get("open") else price,
-                    "prev_close": float(data.get("previous_close", 0)) if data.get("previous_close") else price,
-                    "source":     "Twelve Data 🟢 חי"
+                    "high":       float(data.get("high", 0)) if data.get("high") else float(data.get("price", 0)),
+                    "low":        float(data.get("low", 0)) if data.get("low") else float(data.get("price", 0)),
+                    "open":       float(data.get("open", 0)) if data.get("open") else float(data.get("price", 0)),
+                    "prev_close": float(data.get("previous_close", 0)) if data.get("previous_close") else float(data.get("price", 0)),
+                    "source":     "Twelve Data 🟢"
                 }
-    except requests.exceptions.RequestException:
+                _set_cache(f"td_{symbol}", result)
+                return result
+    except (requests.exceptions.RequestException, requests.exceptions.Timeout):
         pass
     except Exception:
         pass
+    
     return None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 1: Finnhub — מחירים חיים (backup אם Twelve Data לא זמין)
+# SECTION 1: Finnhub — מחירים חיים (backup)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@st.cache_data(ttl=30)  # רענון כל 30 שניות!
-def get_live_price_finnhub(symbol: str) -> dict | None:
+def get_live_price_finnhub(symbol: str) -> Optional[dict]:
     """
-    שולף מחיר חי מ-Finnhub. מהיר ומדויק יותר מ-yfinance.
-    מחזיר: {"price": 213.5, "change": 1.2, "change_pct": 0.57, "high": 215.0, "low": 212.1}
+    שולף מחיר חי מ-Finnhub. תמיד זמין (יש API Key default).
     """
-    # אם אין Key תקין, פשוט חזור None
-    if not FINNHUB_API_KEY or FINNHUB_API_KEY == "YOUR_FINNHUB_KEY_HERE":
-        return None  # אין Key — חזור ל-yfinance
+    # בדוק cache קודם
+    cached = _get_from_cache(f"fh_{symbol}")
+    if cached:
+        return cached
 
-    # המרת סימולים ישראליים: AAPL.TA → לא נתמך ב-Finnhub, ממשיך ב-yfinance
+    if not FINNHUB_API_KEY:
+        return None
+
+    # אם זה סימול ישראלי, Finnhub לא תומך
     if symbol.endswith(".TA"):
         return None
 
@@ -101,415 +125,327 @@ def get_live_price_finnhub(symbol: str) -> dict | None:
             params={"symbol": symbol, "token": FINNHUB_API_KEY},
             timeout=5
         )
-        if r.status_code != 200:
-            return None  # בעיה עם ה-API
-            
-        data = r.json()
         
-        # בדיקה שהנתונים קיימים ותקינים
-        if isinstance(data, dict) and data.get("c", 0) > 0:
-            return {
-                "price":      data.get("c", 0),   # current price
-                "change":     data.get("d", 0),   # change in $
-                "change_pct": data.get("dp", 0),  # change in %
-                "high":       data.get("h", 0),   # high of day
-                "low":        data.get("l", 0),   # low of day
-                "open":       data.get("o", 0),   # open price
-                "prev_close": data.get("pc", 0),  # previous close
-                "source":     "finnhub 🟢 חי"
-            }
-    except requests.exceptions.RequestException:
-        # בעיה ברשת - חזור None כדי שנשתמש ב-yfinance
+        if r.status_code == 200:
+            data = r.json()
+            if isinstance(data, dict) and data.get("c", 0) > 0:
+                result = {
+                    "price":      data.get("c", 0),
+                    "change":     data.get("d", 0),
+                    "change_pct": data.get("dp", 0),
+                    "high":       data.get("h", 0),
+                    "low":        data.get("l", 0),
+                    "open":       data.get("o", 0),
+                    "prev_close": data.get("pc", 0),
+                    "source":     "Finnhub 🟡"
+                }
+                _set_cache(f"fh_{symbol}", result)
+                return result
+    except (requests.exceptions.RequestException, requests.exceptions.Timeout):
         pass
     except Exception:
-        # כל שגיאה אחרת - חזור None
         pass
+    
     return None
 
 
-@st.cache_data(ttl=30)
-def get_live_price_smart(symbol: str) -> float | None:
+# ═══════════════════════════════════════════════════════════════════════════════
+# SECTION 2: Alpha Vantage — כמחלופה (אם יש API Key)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_live_price_alpha_vantage(symbol: str) -> Optional[dict]:
+    """שולף מחיר מ-Alpha Vantage"""
+    cached = _get_from_cache(f"av_{symbol}")
+    if cached:
+        return cached
+
+    if not ALPHA_VANTAGE_KEY or symbol.endswith(".TA"):
+        return None
+
+    try:
+        r = requests.get(
+            f"{ALPHA_VANTAGE_BASE}/query",
+            params={
+                "function": "GLOBAL_QUOTE",
+                "symbol": symbol,
+                "apikey": ALPHA_VANTAGE_KEY
+            },
+            timeout=5
+        )
+        
+        if r.status_code == 200:
+            data = r.json().get("Global Quote", {})
+            if data.get("05. price"):
+                result = {
+                    "price":      float(data.get("05. price", 0)),
+                    "change":     float(data.get("09. change", 0)) if data.get("09. change") else 0,
+                    "change_pct": float(data.get("10. change percent", "0").rstrip("%")) if data.get("10. change percent") else 0,
+                    "high":       float(data.get("03. high", 0)) if data.get("03. high") else float(data.get("05. price", 0)),
+                    "low":        float(data.get("04. low", 0)) if data.get("04. low") else float(data.get("05. price", 0)),
+                    "open":       float(data.get("02. open", 0)) if data.get("02. open") else float(data.get("05. price", 0)),
+                    "prev_close": float(data.get("08. previous close", 0)) if data.get("08. previous close") else float(data.get("05. price", 0)),
+                    "source":     "Alpha Vantage 🔵"
+                }
+                _set_cache(f"av_{symbol}", result)
+                return result
+    except Exception:
+        pass
+    
+    return None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SECTION 3: yfinance — Fallback סופי (עם retry ותקן)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_live_price_yfinance(symbol: str, retries: int = 3) -> Optional[dict]:
     """
-    מחזיר מחיר חי — מנסה Twelve Data קודם, אחר כך Finnhub, נפילה ל-yfinance.
-    זה מחליף את _get_live_price() ב-simulator.py
+    שולף מחיר מ-yfinance עם retry logic וheaders proper.
+    זה הfallback הסופי כשהכל אחר נכשל.
     """
-    # ניסיון Twelve Data קודם (הטוב ביותר!)
+    cached = _get_from_cache(f"yf_{symbol}")
+    if cached:
+        return cached
+
+    for attempt in range(retries):
+        try:
+            # בנה ticker עם session מחודשת
+            ticker = yf.Ticker(symbol, session=yf_session)
+            
+            # נסה אחרון 1d עם intraday (אם זמין)
+            hist = ticker.history(period="1d", interval="1m")
+            if hist.empty:
+                # fallback ל-daily
+                hist = ticker.history(period="1d")
+            
+            if hist.empty:
+                continue  # retry
+            
+            px = float(hist["Close"].iloc[-1])
+            if px <= 0:
+                continue
+            
+            # חישוב שינוי
+            prev_close = float(hist["Close"].iloc[-2]) if len(hist) > 1 else px
+            change = px - prev_close
+            change_pct = (change / prev_close * 100) if prev_close > 0 else 0
+            
+            result = {
+                "price":      px,
+                "change":     change,
+                "change_pct": change_pct,
+                "high":       float(hist["High"].max()),
+                "low":        float(hist["Low"].min()),
+                "open":       float(hist["Open"].iloc[0]),
+                "prev_close": prev_close,
+                "source":     "yfinance 🔴"
+            }
+            _set_cache(f"yf_{symbol}", result)
+            return result
+            
+        except Exception as e:
+            if attempt < retries - 1:
+                time.sleep(0.5)  # קצת עיכוב לפני retry
+            continue
+    
+    return None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SECTION 4: Smart Price Function — מנסה בכל המקורות
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_live_price_smart(symbol: str) -> Optional[float]:
+    """
+    מחזיר מחיר חי — נסיון רשת מקורות בסדר עדיפות:
+    1. Twelve Data (הטוב ביותר אם יש Key)
+    2. Finnhub (תמיד זמין, מהיר)
+    3. Alpha Vantage (אם יש Key)
+    4. yfinance (fallback סופי, אבל עם retry)
+    """
+    # 1. Twelve Data
     td = get_live_price_twelve_data(symbol)
-    if td:
+    if td and td["price"] > 0:
         return td["price"]
     
-    # ניסיון Finnhub (חלופה)
+    # 2. Finnhub
     fh = get_live_price_finnhub(symbol)
-    if fh:
+    if fh and fh["price"] > 0:
         return fh["price"]
-
-    # נפילה ל-yfinance (15 דקות עיכוב)
-    try:
-        h = yf.Ticker(symbol).history(period="1d", interval="1m")
-        if not h.empty:
-            return float(h["Close"].iloc[-1])
-    except Exception:
-        pass
+    
+    # 3. Alpha Vantage
+    av = get_live_price_alpha_vantage(symbol)
+    if av and av["price"] > 0:
+        return av["price"]
+    
+    # 4. yfinance (fallback סופי)
+    yf_data = get_live_price_yfinance(symbol)
+    if yf_data and yf_data["price"] > 0:
+        return yf_data["price"]
+    
     return None
 
 
-@st.cache_data(ttl=300)
-def get_multi_quotes_finnhub(symbols: list) -> dict:
-    """
-    שולף מחירים לרשימת מניות בבת-אחת.
-    מחזיר: {"AAPL": {"price": 213.5, ...}, "NVDA": {...}, ...}
-    """
+def get_full_quote_smart(symbol: str) -> Optional[dict]:
+    """מחזיר quote מלא עם כל הנתונים"""
+    # 1. Twelve Data
+    td = get_live_price_twelve_data(symbol)
+    if td:
+        return td
+    
+    # 2. Finnhub
+    fh = get_live_price_finnhub(symbol)
+    if fh:
+        return fh
+    
+    # 3. Alpha Vantage
+    av = get_live_price_alpha_vantage(symbol)
+    if av:
+        return av
+    
+    # 4. yfinance
+    yf_data = get_live_price_yfinance(symbol)
+    if yf_data:
+        return yf_data
+    
+    return None
+
+
+def get_multi_quotes(symbols: List[str]) -> dict:
+    """שולף מחירים לרשימת מניות בעיוות מקבילה"""
     results = {}
     for sym in symbols:
-        if not sym.endswith(".TA"):
-            # נסה Twelve Data קודם
-            data = get_live_price_twelve_data(sym)
-            if not data:
-                # fallback ל-Finnhub
-                data = get_live_price_finnhub(sym)
-            if data:
-                results[sym] = data
+        q = get_full_quote_smart(sym)
+        if q:
+            results[sym] = q
     return results
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 2: Fear & Greed Index — מדד הפחד/חמדנות של CNN
+# SECTION 5: Fear & Greed Index ו-Macro Indicators
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@st.cache_data(ttl=3600)  # רענון כל שעה
+@st.cache_data(ttl=3600)
 def get_fear_greed_index() -> dict:
-    """
-    שולף את מדד Fear & Greed של CNN Markets.
-    0-25 = פחד קיצוני 😱 | 26-45 = פחד 😨 | 46-55 = ניטרלי 😐
-    56-75 = חמדנות 😏 | 76-100 = חמדנות קיצונית 🤑
-    """
+    """שולף את מדד Fear & Greed של CNN Markets"""
     try:
         r = requests.get(
             "https://api.alternative.me/fng/?limit=7",
             timeout=8
         )
-        data = r.json()
-        current = data["data"][0]
-        history = data["data"][:7]
+        if r.status_code == 200:
+            data = r.json()
+            current = data["data"][0]
+            history = data["data"][:7]
 
-        value = int(current["value"])
-        label = current["value_classification"]
+            value = int(current["value"])
+            label = current["value_classification"]
 
-        # תרגום לעברית
-        label_he = {
-            "Extreme Fear":    "😱 פחד קיצוני",
-            "Fear":            "😨 פחד",
-            "Neutral":         "😐 ניטרלי",
-            "Greed":           "😏 חמדנות",
-            "Extreme Greed":   "🤑 חמדנות קיצונית",
-        }.get(label, label)
+            label_he = {
+                "Extreme Fear":    "😱 פחד קיצוני",
+                "Fear":            "😨 פחד",
+                "Neutral":         "😐 ניטרלי",
+                "Greed":           "😏 חמדנות",
+                "Extreme Greed":   "🤑 חמדנות קיצונית",
+            }.get(label, label)
 
-        # צבע לפי ערך
-        if value <= 25:
-            color = "#d32f2f"   # אדום כהה
-        elif value <= 45:
-            color = "#f44336"   # אדום
-        elif value <= 55:
-            color = "#ff9800"   # כתום
-        elif value <= 75:
-            color = "#4caf50"   # ירוק
-        else:
-            color = "#1b5e20"   # ירוק כהה
-
-        # היסטוריה של 7 ימים
-        hist_values = [
-            {
-                "date":  datetime.fromtimestamp(int(h["timestamp"])).strftime("%d/%m"),
-                "value": int(h["value"]),
-                "label": h["value_classification"],
-            }
-            for h in reversed(history)
-        ]
-
-        # המלצת AI לפי מדד
-        if value <= 25:
-            ai_tip = "💎 פחד קיצוני = הזדמנות קנייה היסטורית. Buffett קונה בפחד."
-        elif value <= 45:
-            ai_tip = "🛒 שוק בפחד. חפש מניות זהב (ציון 5+) בהנחה."
-        elif value <= 55:
-            ai_tip = "⚖️ שוק מאוזן. עקוב אחר אסטרטגיית ה-PDF."
-        elif value <= 75:
-            ai_tip = "⚠️ חמדנות בשוק. הקטן פוזיציות בסיכון גבוה."
-        else:
-            ai_tip = "🔴 חמדנות קיצונית! זמן לממש רווחים ולהגדיל מזומן."
-
-        return {
-            "value":      value,
-            "label":      label,
-            "label_he":   label_he,
-            "color":      color,
-            "ai_tip":     ai_tip,
-            "history":    hist_values,
-            "updated":    datetime.now().strftime("%H:%M"),
-            "ok":         True,
-        }
-
-    except Exception as e:
-        return {
-            "value":    50,
-            "label":    "Neutral",
-            "label_he": "😐 לא זמין",
-            "color":    "#9e9e9e",
-            "ai_tip":   "לא ניתן לטעון את מדד הפחד/חמדנות.",
-            "history":  [],
-            "updated":  "—",
-            "ok":       False,
-        }
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 3: מדדי מאקרו — FRED API (הפדרל ריזרב, חינם)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-FRED_API_KEY = "YOUR_FRED_KEY_HERE"
-# 🔑 הרשמה חינמית: https://fred.stlouisfed.org/docs/api/api_key.html
-
-@st.cache_data(ttl=86400)  # רענון פעם ביום
-def get_macro_indicators() -> dict:
-    """
-    שולף מדדי מאקרו מ-FRED (Federal Reserve Economic Data).
-    ריבית, אינפלציה, אבטלה, GDP.
-    """
-    indicators = {
-        "FEDFUNDS":  "ריבית הפד %",
-        "CPIAUCSL":  "אינפלציה (CPI)",
-        "UNRATE":    "אבטלה %",
-        "T10Y2Y":    "עקום תשואות (10Y-2Y)",
-        "BAMLH0A0HYM2": "מרווח אג\"ח זבל",
-    }
-
-    results = {}
-
-    if FRED_API_KEY == "YOUR_FRED_KEY_HERE":
-        # ערכים לדוגמה אם אין Key
-        return {
-            "FEDFUNDS":  {"name": "ריבית הפד %",       "value": 5.33, "date": "2025-01", "trend": "→"},
-            "CPIAUCSL":  {"name": "אינפלציה (CPI)",    "value": 3.1,  "date": "2025-01", "trend": "↓"},
-            "UNRATE":    {"name": "אבטלה %",            "value": 3.7,  "date": "2025-01", "trend": "→"},
-            "T10Y2Y":    {"name": "עקום תשואות",        "value": 0.2,  "date": "2025-01", "trend": "↑"},
-            "BAMLH0A0HYM2": {"name": "מרווח אג\"ח זבל", "value": 3.1, "date": "2025-01", "trend": "→"},
-            "_demo": True,
-        }
-
-    for series_id, name in indicators.items():
-        try:
-            r = requests.get(
-                "https://api.stlouisfed.org/fred/series/observations",
-                params={
-                    "series_id":     series_id,
-                    "api_key":       FRED_API_KEY,
-                    "file_type":     "json",
-                    "sort_order":    "desc",
-                    "limit":         2,
-                    "observation_start": "2024-01-01",
-                },
-                timeout=8
-            )
-            obs = r.json().get("observations", [])
-            if obs:
-                curr = float(obs[0]["value"])
-                prev = float(obs[1]["value"]) if len(obs) > 1 else curr
-                trend = "↑" if curr > prev else ("↓" if curr < prev else "→")
-                results[series_id] = {
-                    "name":  name,
-                    "value": curr,
-                    "date":  obs[0]["date"][:7],
-                    "trend": trend,
-                }
-        except Exception:
-            pass
-
-    return results
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 4: Finnhub — חדשות חיות + סנטימנט לפי מניה
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@st.cache_data(ttl=600)  # רענון כל 10 דקות
-def get_finnhub_news(symbol: str, days_back: int = 3) -> list:
-    """
-    חדשות אחרונות עם ניתוח סנטימנט אמיתי מ-Finnhub.
-    """
-    if FINNHUB_API_KEY == "YOUR_FINNHUB_KEY_HERE" or symbol.endswith(".TA"):
-        return []
-    try:
-        from_date = (datetime.now() - timedelta(days=days_back)).strftime("%Y-%m-%d")
-        to_date   = datetime.now().strftime("%Y-%m-%d")
-        r = requests.get(
-            f"{FINNHUB_BASE}/company-news",
-            params={
-                "symbol": symbol,
-                "from":   from_date,
-                "to":     to_date,
-                "token":  FINNHUB_API_KEY,
-            },
-            timeout=8
-        )
-        news = r.json()
-        if isinstance(news, list):
-            return news[:5]
-    except Exception:
-        pass
-    return []
-
-
-@st.cache_data(ttl=3600)
-def get_news_sentiment_finnhub(symbol: str) -> dict | None:
-    """
-    ניתוח סנטימנט חדשות מ-Finnhub (buzz + sentiment score אמיתי).
-    """
-    if FINNHUB_API_KEY == "YOUR_FINNHUB_KEY_HERE" or symbol.endswith(".TA"):
-        return None
-    try:
-        r = requests.get(
-            f"{FINNHUB_BASE}/news-sentiment",
-            params={"symbol": symbol, "token": FINNHUB_API_KEY},
-            timeout=8
-        )
-        data = r.json()
-        if "buzz" in data:
-            score       = data.get("companyNewsScore", 0)
-            buzz_weekly = data.get("buzz", {}).get("weeklyAverage", 0)
-            buzz_change = data.get("buzz", {}).get("buzz", 0)
-            bullish     = data.get("sentiment", {}).get("bullishPercent", 0.5)
-            bearish     = data.get("sentiment", {}).get("bearishPercent", 0.5)
-
-            if score > 0.6:
-                label = "🟢 חיובי מאוד"
-            elif score > 0.4:
-                label = "🟡 חיובי מעט"
-            elif score > 0.2:
-                label = "⚪ ניטרלי"
+            if value <= 25:
+                color = "#d32f2f"
+            elif value <= 45:
+                color = "#f44336"
+            elif value <= 55:
+                color = "#ff9800"
+            elif value <= 75:
+                color = "#4caf50"
             else:
-                label = "🔴 שלילי"
+                color = "#1b5e20"
+
+            ai_tip = {
+                "Extreme Fear": "🔴 זה זמן לקנות! גדול מון מחכים לצד. (מניות Value + Dividends)",
+                "Fear": "⚠️ הזהירות גבוהה. קנה בדרגות. (Defensive stocks: Utilities, Consumer Staples)",
+                "Neutral": "😐 שוק מאוזן. אחזק עמדה עקבית. (Buy & Hold, DCA)",
+                "Greed": "📈 רגישות לתיקון. קח רווחים חלקיים. (Take Profits, אזור נמוך 20%)",
+                "Extreme Greed": "🤑 סכנה! היוצא מה-Normal. קח רווחים גדולים! (Reduce Risk, טאקה בריא, מזומן 30%)",
+            }.get(label, "📊 מקדמי את מיקומך בהתאם ללימוד שלך")
 
             return {
-                "score":       round(score, 2),
-                "label":       label,
-                "bullish_pct": round(bullish * 100, 1),
-                "bearish_pct": round(bearish * 100, 1),
-                "buzz_weekly": round(buzz_weekly, 1),
-                "buzz_change": round(buzz_change, 2),
+                "value": value,
+                "label": label,
+                "label_he": label_he,
+                "color": color,
+                "ai_tip": ai_tip,
+                "history": [{"value": int(d["value"]), "date": d["timestamp"][:10]} for d in history],
+                "updated": datetime.now().strftime("%H:%M:%S")
             }
     except Exception:
         pass
-    return None
+    
+    # Demo mode אם יש בעיה
+    return {
+        "value": 50,
+        "label": "Neutral",
+        "label_he": "😐 ניטרלי",
+        "color": "#ff9800",
+        "ai_tip": "📊 חזור מאוחר יותר עבור נתונים עדכניים",
+        "history": [],
+        "updated": "N/A",
+        "_demo": True
+    }
 
 
 @st.cache_data(ttl=3600)
-def get_insider_transactions(symbol: str) -> list:
-    """
-    עסקאות insiders אמיתיות מ-Finnhub (מי קנה/מכר מניות ומתי).
-    """
-    if FINNHUB_API_KEY == "YOUR_FINNHUB_KEY_HERE" or symbol.endswith(".TA"):
-        return []
+def get_macro_indicators() -> dict:
+    """שולף מדדי מאקרו מ-FRED (אם יש Key)"""
     try:
-        r = requests.get(
-            f"{FINNHUB_BASE}/stock/insider-transactions",
-            params={"symbol": symbol, "token": FINNHUB_API_KEY},
-            timeout=8
-        )
-        data = r.json()
-        transactions = data.get("data", [])
-        result = []
-        for t in transactions[:8]:
-            result.append({
-                "name":     t.get("name", ""),
-                "shares":   t.get("share", 0),
-                "value":    t.get("transactionPrice", 0),
-                "type":     "🟢 קנייה" if t.get("transactionCode") in ["P", "A"] else "🔴 מכירה",
-                "date":     t.get("transactionDate", ""),
-                "title":    t.get("reportedTitle", ""),
-            })
-        return result
+        if not FRED_API_KEY:
+            # Demo data
+            return {
+                "FEDFUNDS": {"name": "Federal Funds Rate", "value": 4.5, "trend": "→", "date": "Feb 2026"},
+                "CPIAUCSL": {"name": "CPI (Inflation)", "value": 3.2, "trend": "↓", "date": "Jan 2026"},
+                "UNRATE": {"name": "Unemployment", "value": 4.1, "trend": "→", "date": "Jan 2026"},
+                "T10Y2Y": {"name": "Yield Curve", "value": 0.45, "trend": "↑", "date": "Mar 2026"},
+                "_demo": True
+            }
+        
+        # אם יש Key, תן לזה חשמל
+        indicators = {}
+        for series_id in ["FEDFUNDS", "CPIAUCSL", "UNRATE", "T10Y2Y"]:
+            r = requests.get(
+                f"https://api.stlouisfed.org/fred/series/data",
+                params={
+                    "series_id": series_id,
+                    "api_key": FRED_API_KEY,
+                    "file_type": "json"
+                },
+                timeout=5
+            )
+            if r.status_code == 200:
+                obs = r.json().get("observations", [])
+                if obs:
+                    latest = obs[-1]
+                    indicators[series_id] = {
+                        "value": float(latest.get("value", 0)),
+                        "trend": "→",
+                        "date": latest.get("date", "N/A"),
+                        "name": {"FEDFUNDS": "Federal Funds Rate",
+                                "CPIAUCSL": "CPI (Inflation)",
+                                "UNRATE": "Unemployment",
+                                "T10Y2Y": "Yield Curve"}.get(series_id, series_id)
+                    }
+        
+        return indicators if indicators else get_macro_indicators()
     except Exception:
-        pass
-    return []
+        return get_macro_indicators()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 5: SEC EDGAR — הגשות רשמיות (חינם לחלוטין, ללא Key)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# מיפוי סימולים ל-CIK (מספר זיהוי SEC)
-TICKER_TO_CIK = {
-    "AAPL":  "0000320193",
-    "MSFT":  "0000789019",
-    "NVDA":  "0001045810",
-    "TSLA":  "0001318605",
-    "META":  "0001326801",
-    "AMZN":  "0001018724",
-    "GOOGL": "0001652044",
-    "PLTR":  "0001321655",
-    "AMD":   "0000002488",
-    "NFLX":  "0001065280",
-}
-
-@st.cache_data(ttl=86400)
-def get_sec_filings(symbol: str) -> list:
-    """
-    הגשות SEC אחרונות (10-Q, 10-K, 8-K) ישירות ממאגר הממשלה.
-    ללא API Key — ציבורי לחלוטין.
-    """
-    cik = TICKER_TO_CIK.get(symbol.upper())
-    if not cik:
-        return []
-    try:
-        r = requests.get(
-            f"https://data.sec.gov/submissions/CIK{cik}.json",
-            headers={"User-Agent": "StockHub contact@stockhub.com"},
-            timeout=10
-        )
-        data = r.json()
-        filings      = data.get("filings", {}).get("recent", {})
-        forms        = filings.get("form", [])
-        dates        = filings.get("filingDate", [])
-        descriptions = filings.get("primaryDocument", [])
-        accessions   = filings.get("accessionNumber", [])
-
-        result = []
-        relevant_forms = {"10-K", "10-Q", "8-K", "4"}
-        for i, form in enumerate(forms[:30]):
-            if form in relevant_forms:
-                acc = accessions[i].replace("-", "")
-                url = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{acc}/{descriptions[i]}"
-                result.append({
-                    "form":  form,
-                    "date":  dates[i],
-                    "desc":  descriptions[i],
-                    "url":   url,
-                    "label": {
-                        "10-K": "📋 דוח שנתי",
-                        "10-Q": "📊 דוח רבעוני",
-                        "8-K":  "⚡ אירוע מהותי",
-                        "4":    "👤 עסקת Insider",
-                    }.get(form, form),
-                })
-                if len(result) >= 6:
-                    break
-        return result
-    except Exception:
-        return []
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 6: ווידג'ט Fear & Greed + Live Prices לתצוגה ב-app.py
+# SECTION 6: Widget Rendering Functions
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def render_fear_greed_widget():
-    """
-    מציג את מדד Fear & Greed בצורה ויזואלית בראש האפליקציה.
-    קרא לזה ב-app.py ליד המדדים העליונים.
-    """
+    """מציג את מדד Fear & Greed בצורה ויזואלית"""
     fg = get_fear_greed_index()
 
-    # מד גרפי
     col1, col2 = st.columns([1, 2])
     with col1:
         st.markdown(
@@ -545,9 +481,9 @@ def render_fear_greed_widget():
         )
 
     # גרף היסטוריה
-    if fg["history"]:
-        hist_df = pd.DataFrame(fg["history"])
+    if fg.get("history"):
         st.caption("📅 Fear & Greed — 7 ימים אחרונים:")
+        hist_df = pd.DataFrame(fg["history"])
         cols = st.columns(len(hist_df))
         for i, (_, row) in enumerate(hist_df.iterrows()):
             v = row["value"]
@@ -560,41 +496,39 @@ def render_fear_greed_widget():
             )
 
 
-def render_live_prices_strip(symbols: list):
-    """
-    פס מחירים חיים בראש הדף — כמו Ticker Tape בטלוויזיה פיננסית.
-    """
-    if FINNHUB_API_KEY == "YOUR_FINNHUB_KEY_HERE":
-        st.info("💡 הוסף Finnhub API Key ב-realtime_data.py לקבלת מחירים חיים (חינם בfinnhub.io)")
-        return
-
+def render_live_prices_strip(symbols: List[str]):
+    """פס מחירים חיים בראש הדף"""
     us_symbols = [s for s in symbols if not s.endswith(".TA")][:8]
-    quotes     = get_multi_quotes_finnhub(us_symbols)
+    if not us_symbols:
+        return
+    
+    with st.spinner("📡 טוען מחירים חיים..."):
+        quotes = get_multi_quotes(us_symbols)
 
     if not quotes:
+        st.info("💡 לא היה אפשר להוביל מחירים כרגע. אנחנו עובדים על זה!")
         return
 
     cols = st.columns(len(quotes))
     for i, (sym, q) in enumerate(quotes.items()):
         chg_color = "#2e7d32" if q["change_pct"] >= 0 else "#c62828"
-        arrow     = "▲" if q["change_pct"] >= 0 else "▼"
+        arrow = "▲" if q["change_pct"] >= 0 else "▼"
         cols[i].markdown(
             f'<div style="text-align:center;padding:6px;background:{"#e8f5e9" if q["change_pct"]>=0 else "#ffebee"};border-radius:8px;">'
             f'<b style="font-size:13px;">{sym}</b><br>'
             f'<span style="font-size:15px;font-weight:700;">${q["price"]:.2f}</span><br>'
             f'<span style="color:{chg_color};font-size:12px;">{arrow} {abs(q["change_pct"]):.2f}%</span>'
+            f'<span style="font-size:9px;color:#888;">({q["source"]})</span>'
             f'</div>',
             unsafe_allow_html=True,
         )
 
 
 def render_macro_panel():
-    """
-    פאנל מדדי מאקרו — ריבית, אינפלציה, אבטלה.
-    """
+    """פאנל מדדי מאקרו"""
     st.markdown(
         '<div class="ai-card" style="border-right-color: #1565c0;">'
-        '<b>🏛️ מדדי מאקרו — Federal Reserve Data (FRED)</b></div>',
+        '<b>🏛️ מדדי מאקרו — Federal Reserve Data</b></div>',
         unsafe_allow_html=True,
     )
 
@@ -602,12 +536,11 @@ def render_macro_panel():
     is_demo = macro.pop("_demo", False)
 
     if is_demo:
-        st.info("💡 הוסף FRED API Key ב-realtime_data.py לנתונים מעודכנים (חינם ב-fred.stlouisfed.org)")
+        st.info("💡 הוסף FRED API Key למשתנים סביבה לנתונים מעודכנים")
 
     cols = st.columns(len(macro))
     for i, (key, item) in enumerate(macro.items()):
         trend_color = "#2e7d32" if item["trend"] == "↑" else "#c62828" if item["trend"] == "↓" else "#555"
-        # ריבית ואינפלציה — "↑" זה רע! הפוך את הצבעים
         if key in ["FEDFUNDS", "CPIAUCSL", "UNRATE", "BAMLH0A0HYM2"]:
             trend_color = "#c62828" if item["trend"] == "↑" else "#2e7d32" if item["trend"] == "↓" else "#555"
 
@@ -621,37 +554,9 @@ def render_macro_panel():
             unsafe_allow_html=True,
         )
 
-    # ניתוח AI מהיר
-    st.divider()
-    macro_vals = list(macro.values())
-    if macro_vals:
-        fedfunds = next((v["value"] for k,v in macro.items() if k == "FEDFUNDS"), 5.0)
-        cpi      = next((v["value"] for k,v in macro.items() if k == "CPIAUCSL"), 3.0)
-        t10y2y   = next((v["value"] for k,v in macro.items() if k == "T10Y2Y"),  0.0)
 
-        if fedfunds > 5.0:
-            rate_msg = "⚠️ ריבית גבוהה — לחץ על מניות צמיחה. מועדף: דיבידנד + ערך."
-        elif fedfunds < 3.0:
-            rate_msg = "🚀 ריבית נמוכה — סביבה טובה לצמיחה. Tech ו-Growth מועדפים."
-        else:
-            rate_msg = "⚖️ ריבית מתונה — שוק מאוזן. ניתן לאזן Growth + Value."
-
-        if t10y2y < 0:
-            curve_msg = "🔴 עקום הפוך — סיגנל מיתון היסטורי! הגדל מזומן."
-        elif t10y2y < 0.5:
-            curve_msg = "⚠️ עקום שטוח — אזהרה כלכלית. זהירות מוגברת."
-        else:
-            curve_msg = "🟢 עקום תקין — כלכלה צומחת. Risk-On מוצדק."
-
-        col1, col2 = st.columns(2)
-        col1.markdown(f'<div class="ai-card">{rate_msg}</div>', unsafe_allow_html=True)
-        col2.markdown(f'<div class="ai-card">{curve_msg}</div>', unsafe_allow_html=True)
-
-
-def render_full_realtime_panel(symbols: list):
-    """
-    פאנל ראשי של כל נתוני הזמן-אמת — קרא לזה מ-app.py
-    """
+def render_full_realtime_panel(symbols: List[str]):
+    """פאנל ראשי של כל נתוני הזמן-אמת"""
     st.markdown("## 📡 מרכז נתונים חיים")
 
     tab1, tab2, tab3 = st.tabs(["📊 Fear & Greed", "💹 מחירים חיים", "🏛️ מאקרו"])
@@ -663,27 +568,25 @@ def render_full_realtime_panel(symbols: list):
         render_live_prices_strip(symbols)
         st.divider()
 
-        # מחירים מפורטים עם Finnhub
-        if FINNHUB_API_KEY != "YOUR_FINNHUB_KEY_HERE":
-            us_syms = [s for s in symbols if not s.endswith(".TA")]
-            quotes  = get_multi_quotes_finnhub(us_syms)
-            if quotes:
-                rows = []
-                for sym, q in quotes.items():
-                    rows.append({
-                        "📌 מניה":        sym,
-                        "💰 מחיר חי":     f"${q['price']:.2f}",
-                        "📈 שינוי $":     f"{'▲' if q['change']>=0 else '▼'} ${abs(q['change']):.2f}",
-                        "📊 שינוי %":     f"{'🟢 +' if q['change_pct']>=0 else '🔴 '}{q['change_pct']:.2f}%",
-                        "⬆️ גבוה יומי":   f"${q['high']:.2f}",
-                        "⬇️ נמוך יומי":   f"${q['low']:.2f}",
-                        "🔒 סגירה קודמת": f"${q['prev_close']:.2f}",
-                        "🟢 מקור":        q["source"],
-                    })
-                st.dataframe(pd.DataFrame(rows), hide_index=True)
-                st.caption(f"🔄 מחירים עם עיכוב < 30 שניות | עדכון אחרון: {datetime.now().strftime('%H:%M:%S')}")
+        us_syms = [s for s in symbols if not s.endswith(".TA")]
+        quotes = get_multi_quotes(us_syms)
+        if quotes:
+            rows = []
+            for sym, q in quotes.items():
+                rows.append({
+                    "📌 מניה": sym,
+                    "💰 מחיר חי": f"${q['price']:.2f}",
+                    "📈 שינוי $": f"{'▲' if q['change']>=0 else '▼'} ${abs(q['change']):.2f}",
+                    "📊 שינוי %": f"{'🟢 +' if q['change_pct']>=0 else '🔴 '}{q['change_pct']:.2f}%",
+                    "⬆️ גבוה יומי": f"${q['high']:.2f}",
+                    "⬇️ נמוך יומי": f"${q['low']:.2f}",
+                    "🔒 סגירה קודמת": f"${q['prev_close']:.2f}",
+                    "🟢 מקור": q["source"],
+                })
+            st.dataframe(pd.DataFrame(rows), hide_index=True)
+            st.caption(f"🔄 מחירים עם עיכוב < 30 שניות | עדכון אחרון: {datetime.now().strftime('%H:%M:%S')}")
         else:
-            st.info("הוסף Finnhub API Key לקבלת מחירים חיים")
+            st.warning("⚠️ לא יכול לטעון מחירים כרגע. נסה שוב בעוד דקה.")
 
     with tab3:
         render_macro_panel()
