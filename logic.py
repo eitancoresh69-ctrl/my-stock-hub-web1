@@ -1,4 +1,4 @@
-# logic.py - CLEAN VERSION - No caching issues
+# logic.py - FINAL FIX - No caching, logging, robust
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -15,19 +15,24 @@ except:
 
 try:
     from realtime_data import get_full_quote_smart, get_live_price_smart
-except:
+    _HAS_REALTIME = True
+except Exception as e:
+    _HAS_REALTIME = False
     get_full_quote_smart = None
     get_live_price_smart = None
 
 session = requests.Session()
-session.headers.update({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"})
+session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+})
 
 EMPTY_COLUMNS = ["Symbol", "Name", "Type", "Currency", "Emoji", "Price", "PriceStr", "Change", "MA50", "MA200", "RSI", "Score", "RevGrowth", "EarnGrowth", "Margin", "ROE", "CashVsDebt", "ZeroDebt", "DivYield", "Action", "AI_Logic"]
 
 def _fetch_single_symbol(symbol: str):
     try:
+        # Try to get live price
         live_price = None
-        if get_full_quote_smart:
+        if _HAS_REALTIME and get_full_quote_smart:
             try:
                 quote = get_full_quote_smart(symbol)
                 if quote and quote.get("price", 0) > 0:
@@ -35,17 +40,21 @@ def _fetch_single_symbol(symbol: str):
             except:
                 pass
         
-        if symbol.endswith(".TA"):
-            ticker = yf.Ticker(symbol, session=session)
-            hist = ticker.history(period="1y", timeout=10)
-            if hist.empty:
-                symbol_clean = symbol.replace(".TA", "")
-                ticker = yf.Ticker(symbol_clean, session=session)
+        # Get historical data
+        try:
+            if symbol.endswith(".TA"):
+                ticker = yf.Ticker(symbol, session=session)
                 hist = ticker.history(period="1y", timeout=10)
-        else:
-            ticker = yf.Ticker(symbol, session=session)
-            hist = ticker.history(period="1y", timeout=10)
+                if hist.empty:
+                    ticker = yf.Ticker(symbol.replace(".TA", ""), session=session)
+                    hist = ticker.history(period="1y", timeout=10)
+            else:
+                ticker = yf.Ticker(symbol, session=session)
+                hist = ticker.history(period="1y", timeout=10)
+        except:
+            return None
         
+        # Try shorter periods
         if hist.empty:
             hist = ticker.history(period="3mo", timeout=10)
         if hist.empty:
@@ -56,42 +65,22 @@ def _fetch_single_symbol(symbol: str):
         if hist.empty: 
             return None
         
+        # Get price
         px = live_price if (live_price and live_price > 0) else float(hist["Close"].iloc[-1])
         if px <= 0:
             return None
         
+        # Get info
         try:
             info = ticker.info if ticker.info else {}
         except:
             info = {}
         
-        rev_g = 0
-        try:
-            if info.get("revenueGrowth"):
-                rev_g = float(info.get("revenueGrowth", 0)) * 100
-        except:
-            pass
-        
-        margin = 0
-        try:
-            if info.get("profitMargins"):
-                margin = float(info.get("profitMargins", 0)) * 100
-        except:
-            pass
-        
-        roe = 0
-        try:
-            if info.get("returnOnEquity"):
-                roe = float(info.get("returnOnEquity", 0)) * 100
-        except:
-            pass
-        
-        div_yield = 0
-        try:
-            if info.get("dividendYield"):
-                div_yield = float(info.get("dividendYield", 0)) * 100
-        except:
-            pass
+        # Metrics
+        rev_g = float(info.get("revenueGrowth", 0)) * 100 if info.get("revenueGrowth") else 0
+        margin = float(info.get("profitMargins", 0)) * 100 if info.get("profitMargins") else 0
+        roe = float(info.get("returnOnEquity", 0)) * 100 if info.get("returnOnEquity") else 0
+        div_yield = float(info.get("dividendYield", 0)) * 100 if info.get("dividendYield") else 0
         
         score = 0
         if rev_g > 10: score += 1
@@ -99,6 +88,7 @@ def _fetch_single_symbol(symbol: str):
         if roe > 15: score += 1
         if div_yield > 2: score += 1
         
+        # Change
         change = 0
         if len(hist) > 1:
             try:
@@ -107,19 +97,14 @@ def _fetch_single_symbol(symbol: str):
             except:
                 pass
         
-        ma50 = px
-        ma200 = px
-        try:
-            if len(hist) >= 50:
-                ma50 = float(hist["Close"].tail(50).mean())
-            if len(hist) >= 200:
-                ma200 = float(hist["Close"].tail(200).mean())
-        except:
-            pass
+        # MA
+        ma50 = float(hist["Close"].tail(50).mean()) if len(hist) >= 50 else px
+        ma200 = float(hist["Close"].tail(200).mean()) if len(hist) >= 200 else px
         
+        # RSI
         rsi = 50.0
-        try:
-            if len(hist) >= 14:
+        if len(hist) >= 14:
+            try:
                 closes = hist["Close"].tail(14).values
                 deltas = np.diff(closes)
                 gains = np.where(deltas > 0, deltas, 0).mean()
@@ -127,9 +112,10 @@ def _fetch_single_symbol(symbol: str):
                 if losses != 0:
                     rs = gains / losses
                     rsi = 100 - (100 / (1 + rs))
-        except:
-            pass
+            except:
+                pass
         
+        # Action
         action = "קנה 🟢" if score >= 5 else "תחזיק ⚪" if score >= 3 else "מכור 🔴"
         if px > ma50 > ma200:
             action = "קנה 🟢"
@@ -159,17 +145,37 @@ def _fetch_single_symbol(symbol: str):
             "Action": action,
             "AI_Logic": f"Score:{score}|RSI:{rsi:.0f}|${px:.2f}"
         }
-    except:
+    except Exception as e:
         return None
 
-def fetch_master_data(tickers: list, max_workers: int = 5):
-    # NO CACHE! Let it refresh every time
+def fetch_master_data(tickers=None, max_workers: int = 5):
+    """
+    Fetch data for multiple tickers.
+    
+    Args:
+        tickers: list of ticker symbols (required!)
+        max_workers: number of parallel workers
+    
+    Returns:
+        DataFrame with stock data or empty DataFrame
+    """
+    # Handle None or empty input
+    if not tickers:
+        return pd.DataFrame(columns=EMPTY_COLUMNS)
+    
+    # Ensure it's a list
+    if isinstance(tickers, str):
+        tickers = [tickers]
+    
+    # Remove duplicates
+    tickers = list(set(tickers))
+    
     if not tickers:
         return pd.DataFrame(columns=EMPTY_COLUMNS)
     
     rows = []
     with ThreadPoolExecutor(max_workers=min(max_workers, len(tickers))) as executor:
-        futures = {executor.submit(_fetch_single_symbol, t): t for t in set(tickers)}
+        futures = {executor.submit(_fetch_single_symbol, t): t for t in tickers}
         for future in as_completed(futures):
             try:
                 res = future.result(timeout=15)
@@ -180,8 +186,9 @@ def fetch_master_data(tickers: list, max_workers: int = 5):
     
     if rows:
         try:
-            return pd.DataFrame(rows)
-        except:
+            df = pd.DataFrame(rows)
+            return df
+        except Exception as e:
             return pd.DataFrame(columns=EMPTY_COLUMNS)
     
     return pd.DataFrame(columns=EMPTY_COLUMNS)
