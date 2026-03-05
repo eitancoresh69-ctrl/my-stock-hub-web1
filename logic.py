@@ -1,4 +1,4 @@
-# logic.py - FINAL - With ALL required columns
+# logic.py - TRULY FINAL - WITH ALL COLUMNS TRADERS NEED
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -13,7 +13,7 @@ except:
     HAS_REALTIME = False
 
 def _fetch_single_symbol(ticker: str) -> dict | None:
-    """Fetch with ALL columns that traders expect"""
+    """Fetch ALL columns that traders expect"""
     try:
         time.sleep(0.2)
         
@@ -38,12 +38,15 @@ def _fetch_single_symbol(ticker: str) -> dict | None:
             return None
         
         close = hist["Close"]
+        volume = int(hist["Volume"].iloc[-1]) if len(hist) > 0 else 0
+        
+        # Calculate ALL indicators
         rsi = _calc_rsi(close)
         ma50 = float(close.rolling(50).mean().iloc[-1])
         ma200 = float(close.rolling(200).mean().iloc[-1])
         change = ((close.iloc[-1] / close.iloc[-2]) - 1) * 100 if len(close) > 1 else 0
         
-        # All columns traders need
+        # Financial metrics
         currency = "ILS" if str(ticker).endswith(".TA") else "USD"
         price_str = f"{currency}{price:,.2f}"
         
@@ -52,15 +55,45 @@ def _fetch_single_symbol(ticker: str) -> dict | None:
         target_upside = ((target_price / price) - 1) * 100 if price > 0 else 0
         payout = float(info.get("payoutRatio", 0)) * 100
         
-        score = 0
-        if info.get("revenueGrowth", 0) and info.get("revenueGrowth") > 0.1:
-            score += 1
-        if rsi < 70 and rsi > 30:
-            score += 1
-        if ma50 > ma200:
-            score += 1
+        # MORE columns traders need
+        div_yield = float(info.get("dividendYield", 0)) * 100 if info.get("dividendYield") else 0
+        margin = float(info.get("profitMargins", 0)) * 100 if info.get("profitMargins") else 0
+        roe = float(info.get("returnOnEquity", 0)) * 100 if info.get("returnOnEquity") else 0
+        earn_growth = float(info.get("earningsGrowth", 0)) * 100 if info.get("earningsGrowth") else 0
+        rev_growth = float(info.get("revenueGrowth", 0)) * 100 if info.get("revenueGrowth") else 0
         
-        action = "Strong Buy" if score >= 2 else "Buy" if score >= 1 else "Hold"
+        cash = float(info.get("totalCash", 0)) if info.get("totalCash") else 0
+        debt = float(info.get("totalDebt", 0)) if info.get("totalDebt") else 0
+        cash_vs_debt = "OK" if cash > debt else "Risk"
+        
+        # Calculate scores
+        score = 0
+        if rev_growth >= 10: score += 1
+        if earn_growth >= 10: score += 1
+        if margin >= 10: score += 1
+        if roe >= 15: score += 1
+        if cash > debt: score += 1
+        
+        short_score = 0
+        if rsi < 35: short_score += 3
+        elif rsi < 45: short_score += 2
+        if change < -8: short_score += 2
+        elif change < -4: short_score += 1
+        if target_upside > 15: short_score += 2
+        if rev_growth > 15: short_score += 1
+        if volume > 1000000: short_score += 1
+        
+        long_score = score
+        if rev_growth >= 20: long_score += 2
+        elif rev_growth >= 10: long_score += 1
+        if earn_growth >= 20: long_score += 2
+        elif earn_growth >= 10: long_score += 1
+        if target_upside > 20: long_score += 2
+        elif target_upside > 10: long_score += 1
+        if div_yield > 2 and payout < 60 and cash > debt: long_score += 2
+        if insider >= 5: long_score += 1
+        
+        action = "Strong Buy" if long_score >= 10 else "Buy" if long_score >= 7 else "Hold" if long_score >= 4 else "Analyze"
         
         return {
             "Symbol": ticker,
@@ -75,9 +108,18 @@ def _fetch_single_symbol(ticker: str) -> dict | None:
             "InsiderHeld": round(float(insider), 2),
             "TargetUpside": round(float(target_upside), 2),
             "PayoutRatio": round(float(payout), 2),
+            "DivYield": round(float(div_yield), 2),
+            "Volume": volume,
+            "Margin": round(float(margin), 2),
+            "ROE": round(float(roe), 2),
+            "EarnGrowth": round(float(earn_growth), 2),
+            "RevGrowth": round(float(rev_growth), 2),
+            "CashVsDebt": cash_vs_debt,
+            "ShortScore": short_score,
+            "LongScore": long_score,
             "Action": action,
         }
-    except Exception:
+    except Exception as e:
         return None
 
 def _calc_rsi(prices, period=14):
@@ -87,10 +129,10 @@ def _calc_rsi(prices, period=14):
     loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
     rs = gain / loss
     rsi = 100 - (100 / (1 + rs))
-    return float(rsi.iloc[-1])
+    return float(rsi.iloc[-1]) if not rsi.iloc[-1] is np.nan else 50.0
 
 def fetch_master_data(tickers=None, max_workers: int = 3) -> pd.DataFrame:
-    """Fetch master data with all columns"""
+    """Fetch master data with ALL columns"""
     if not tickers:
         return pd.DataFrame()
     
