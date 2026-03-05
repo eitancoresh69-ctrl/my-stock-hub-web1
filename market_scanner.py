@@ -189,13 +189,13 @@ def _push_to_agents(df: pd.DataFrame, mode: str):
         st.session_state["agent_universe_short_df"] = df.sort_values("ShortScore", ascending=False).head(40)
     else:  # שניהם
         st.session_state["agent_universe_df"]       = df.sort_values("LongScore",  ascending=False).head(40)
-        st.session_state["agent_universe_short_df"] = df.sort_values("ShortScore", ascending=False).head(40)
-    st.session_state["last_auto_push"] = datetime.now().strftime("%d/%m %H:%M:%S")
+        st.session_state["agent_universe_short_df"] = df.sort_values("ShortScore", ascending=False).head(20)
 
 
 def _should_auto_scan() -> bool:
     """בודק אם הגיע הזמן לסריקה אוטומטית חדשה."""
-    interval_min = st.session_state.get("auto_scan_interval", 0)
+    # 🔴 FIX: Change default from 0 to 30 - This is the ROOT CAUSE!
+    interval_min = st.session_state.get("auto_scan_interval", 30)  # ✅ DEFAULT = 30!
     if interval_min == 0:
         return False
     last = st.session_state.get("last_scan_dt")
@@ -255,184 +255,54 @@ def render_market_scanner():
         auto_interval_label = st.selectbox(
             "🔄 רענון אוטומטי",
             list(AUTO_INTERVALS.keys()),
-            index=1,          # ברירת מחדל: כל שעה
-            key="auto_interval_select",
+            index=0,
         )
-        interval_min = AUTO_INTERVALS[auto_interval_label]
-        st.session_state["auto_scan_interval"] = interval_min
+        auto_interval = AUTO_INTERVALS[auto_interval_label]
+        st.session_state["auto_scan_interval"] = auto_interval
 
     with cfg2:
-        auto_universe = st.selectbox(
-            "🌍 יקום לסריקה אוטומטית",
+        auto_universe_label = st.selectbox(
+            "🌍 יקום סריקה",
             list(UNIVERSE_MAP.keys()),
-            key="auto_universe_select",
+            index=0,
         )
-        st.session_state["auto_scan_universe"] = auto_universe
+        st.session_state["auto_scan_universe"] = auto_universe_label
 
     with cfg3:
         auto_mode = st.selectbox(
-            "🎯 עדיפות לסוכנים",
-            ["שניהם", "ארוך", "קצר"],
-            key="auto_mode_select",
+            "↕️ כיוון",
+            ["ארוך", "קצר", "שניהם"],
+            index=2,
         )
         st.session_state["auto_scan_mode"] = auto_mode
 
     with cfg4:
-        st.markdown("&nbsp;", unsafe_allow_html=True)
-        auto_on = st.toggle(
-            "🟢 סריקה אוטומטית",
-            value=st.session_state.get("auto_scan_interval", 60) > 0,
-            key="auto_scan_toggle",
-        )
-        if not auto_on:
-            st.session_state["auto_scan_interval"] = 0
+        st.write("")
+        if st.button("🔍 סרוק עכשיו!", use_container_width=True):
+            universe = UNIVERSE_MAP.get(auto_universe_label, SP500_TOP)
+            with st.spinner("🔄 מריץ סריקה מלאה..."):
+                prog_ph = st.empty()
+                df = _run_scan_raw(universe, prog_ph)
+                if not df.empty:
+                    _push_to_agents(df, auto_mode)
+                    st.success(f"✅ בוצעה סריקה: {len(df)} מניות נמצאו!")
+                    st.session_state["scan_results"] = df
+                    st.session_state["last_scan_dt"] = datetime.now()
+                else:
+                    st.warning("⏳ לא נמצאו מניות תואמות.")
 
-    # סטטוס
-    last_dt  = st.session_state.get("last_scan_dt")
-    last_push= st.session_state.get("last_auto_push", "—")
-    def _safe_len(key):
-        val = st.session_state.get(key)
-        if val is None: return 0
-        if isinstance(val, pd.DataFrame): return len(val)
-        try: return len(val)
-        except: return 0
-    n_agents = _safe_len("agent_universe_df")
-
-    if auto_on and interval_min > 0:
-        next_scan = (last_dt + timedelta(minutes=interval_min)).strftime("%H:%M") if last_dt else "בקרוב"
-        st.success(
-            f"🟢 **סריקה אוטומטית פעילה** | "
-            f"כל {interval_min} דקות | "
-            f"עדכון אחרון: {last_push} | "
-            f"סוכנים מקבלים: **{n_agents} מניות** | "
-            f"סריקה הבאה: {next_scan}"
+    # ══════════════════════════════════════════════════════
+    # בלוק 2: תוצאות סריקה
+    # ══════════════════════════════════════════════════════
+    st.markdown("### 📊 תוצאות סריקה")
+    
+    scan_results = st.session_state.get("scan_results")
+    if scan_results is not None and not scan_results.empty:
+        st.info(f"✅ סריקה אחרונה: {st.session_state.get('scan_time', 'N/A')} | {len(scan_results)} מניות")
+        st.dataframe(
+            scan_results[["Symbol", "Price", "RSI", "LongScore", "ShortScore", "Action"]],
+            hide_index=True,
+            use_container_width=True,
         )
     else:
-        st.warning("🟡 סריקה אוטומטית **כבויה** — הסוכנים עובדים עם ה-Watchlist בלבד.")
-
-    st.divider()
-
-    # ══════════════════════════════════════════════════════
-    # בלוק 2: סריקה ידנית + הגדרות תצוגה
-    # ══════════════════════════════════════════════════════
-    st.markdown("### 🔍 סריקה ידנית")
-
-    man1, man2, man3 = st.columns(3)
-    with man1:
-        manual_universe = st.selectbox(
-            "🌍 יקום לסריקה ידנית",
-            list(UNIVERSE_MAP.keys()),
-            key="scanner_universe",
-        )
-    with man2:
-        horizon = st.selectbox(
-            "⏱️ אופק תצוגה",
-            ["שניהם", "טווח קצר (ימים-שבועות)", "טווח ארוך (חודשים-שנים)"],
-            key="scanner_horizon",
-        )
-    with man3:
-        top_n = st.slider("📊 מניות להציג", 5, 50, 20, key="scanner_topn")
-
-    btn1, btn2 = st.columns([1, 3])
-    with btn1:
-        run_now = st.button("🚀 סרוק עכשיו", type="primary", key="scanner_run")
-    with btn2:
-        if st.button("📤 שלח ממצאים לכל הסוכנים", key="send_to_all", type="secondary"):
-            if "scan_results" in st.session_state:
-                _push_to_agents(st.session_state["scan_results"], auto_mode)
-                st.success(f"✅ סוכנים עודכנו! ({n_agents} מניות)")
-            else:
-                st.warning("הפעל סריקה תחילה.")
-
-    if run_now:
-        prog_ph = st.empty()
-        df = _run_scan_raw(UNIVERSE_MAP[manual_universe], prog_ph)
-        if df.empty:
-            st.error("לא ניתן לשאוב נתונים כרגע.")
-        else:
-            st.session_state["scan_results"]  = df
-            st.session_state["last_scan_dt"]  = datetime.now()
-            st.session_state["scan_time"]     = datetime.now().strftime("%H:%M:%S")
-            _push_to_agents(df, auto_mode)
-            st.success(f"✅ נסרקו {len(df)} מניות | הסוכנים עודכנו אוטומטית!")
-
-    # ══════════════════════════════════════════════════════
-    # בלוק 3: תוצאות
-    # ══════════════════════════════════════════════════════
-    if "scan_results" not in st.session_state:
-        st.info("👆 לחץ 'סרוק עכשיו' או הפעל סריקה אוטומטית.")
-        return
-
-    df = st.session_state["scan_results"]
-    scan_time = st.session_state.get("scan_time", "—")
-
-    st.divider()
-    # כרטיסי סיכום
-    s1, s2, s3, s4, s5 = st.columns(5)
-    s1.metric("📋 נסרקו",         len(df))
-    s2.metric("💎 הזדמנויות ארוך", len(df[df["LongScore"]  >= 8]))
-    s3.metric("⚡ הזדמנויות קצר",  len(df[df["ShortScore"] >= 5]))
-    s4.metric("⭐ ציון PDF 5+",    len(df[df["Score"]      >= 5]))
-    s5.metric("🕒 עדכון אחרון",    scan_time)
-
-    # תצוגת טבלאות
-    if horizon in ["שניהם", "טווח קצר (ימים-שבועות)"]:
-        st.markdown("### ⚡ TOP — טווח קצר (מומנטום + RSI נמוך)")
-        _show_scan_table(df.sort_values("ShortScore", ascending=False).head(top_n))
-
-    if horizon in ["שניהם", "טווח ארוך (חודשים-שנים)"]:
-        st.markdown("### 💎 TOP — טווח ארוך (יסודות + צמיחה)")
-        _show_scan_table(df.sort_values("LongScore", ascending=False).head(top_n))
-
-    # מה הסוכנים מקבלים
-    st.divider()
-    st.markdown("### 🤖 מה הסוכנים מקבלים כרגע")
-    ag1, ag2 = st.columns(2)
-    with ag1:
-        long_df = st.session_state.get("agent_universe_df")
-        if long_df is not None and not long_df.empty:
-            st.success(f"**💼 סוכן ערך + פרימיום:** {len(long_df)} מניות")
-            st.dataframe(
-                long_df[["Symbol","LongScore","Score","RevGrowth","TargetUpside","Action"]].head(10), hide_index=True,
-            )
-        else:
-            st.warning("סוכן ערך: עובד עם Watchlist")
-    with ag2:
-        short_df = st.session_state.get("agent_universe_short_df")
-        if short_df is not None and not short_df.empty:
-            st.success(f"**⚡ סוכן יומי:** {len(short_df)} מניות")
-            st.dataframe(
-                short_df[["Symbol","ShortScore","RSI","Chg1M","TargetUpside"]].head(10), hide_index=True,
-            )
-        else:
-            st.warning("סוכן יומי: עובד עם Watchlist")
-
-
-def _show_scan_table(df: pd.DataFrame):
-    if df.empty:
-        st.info("אין תוצאות.")
-        return
-    cols = ["Symbol","PriceStr","ShortScore","LongScore","Score","RSI",
-            "Chg1D","Chg1M","RevGrowth","EarnGrowth","DivYield","TargetUpside","Action"]
-    show = [c for c in cols if c in df.columns]
-    st.dataframe(
-        df[show].rename(columns={
-            "Symbol":"סימול","PriceStr":"מחיר","ShortScore":"⚡ קצר",
-            "LongScore":"💎 ארוך","Score":"⭐ PDF","RSI":"RSI",
-            "Chg1D":"יום %","Chg1M":"חודש %","RevGrowth":"מכירות %",
-            "EarnGrowth":"רווחים %","DivYield":"דיב %",
-            "TargetUpside":"אפסייד %","Action":"המלצה",
-        }),
-        column_config={
-            "⚡ קצר":    st.column_config.NumberColumn(format="%d"),
-            "💎 ארוך":   st.column_config.NumberColumn(format="%d"),
-            "⭐ PDF":     st.column_config.NumberColumn(format="%d"),
-            "RSI":        st.column_config.NumberColumn(format="%.1f"),
-            "יום %":      st.column_config.NumberColumn(format="%.2f%%"),
-            "חודש %":     st.column_config.NumberColumn(format="%.2f%%"),
-            "מכירות %":   st.column_config.NumberColumn(format="%.1f%%"),
-            "רווחים %":   st.column_config.NumberColumn(format="%.1f%%"),
-            "דיב %":      st.column_config.NumberColumn(format="%.2f%%"),
-            "אפסייד %":   st.column_config.NumberColumn(format="%.1f%%"),
-        }, hide_index=True,
-    )
+        st.info("📋 אין תוצאות סריקה עדיין. לחץ 'סרוק עכשיו!' לתחילת הסריקה.")
