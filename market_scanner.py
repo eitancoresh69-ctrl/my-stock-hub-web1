@@ -162,7 +162,7 @@ def _run_scan_raw(universe: list, progress_placeholder) -> pd.DataFrame:
     """סורק במקביל ומחזיר DataFrame. progress_placeholder = st.empty()"""
     results, total, done = [], len(universe), 0
     prog = progress_placeholder.progress(0, text="🔍 מתחיל סריקה...")
-    with ThreadPoolExecutor(max_workers=20) as ex:
+    with ThreadPoolExecutor(max_workers=4) as ex:
         futures = {ex.submit(_scan_single, t): t for t in universe}
         for fut in as_completed(futures):
             done += 1
