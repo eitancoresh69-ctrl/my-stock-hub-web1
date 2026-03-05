@@ -103,7 +103,6 @@ def _fetch_single_symbol(ticker: str) -> dict | None:
         action = "Strong Buy" if long_score >= 10 else "Buy" if long_score >= 7 else "Hold" if long_score >= 4 else "Analyze"
         
         return {
-            return {
         "Symbol": ticker,
         "Price": float(price),
         "Change": round(float(change), 2),
