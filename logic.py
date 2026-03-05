@@ -1,4 +1,4 @@
-# logic.py - TRULY FINAL - WITH ALL COLUMNS TRADERS NEED
+# logic.py - WITH DaysToEarnings column
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -13,11 +13,10 @@ except:
     HAS_REALTIME = False
 
 def _fetch_single_symbol(ticker: str) -> dict | None:
-    """Fetch ALL columns that traders expect"""
+    """Fetch ALL columns including DaysToEarnings"""
     try:
         time.sleep(0.2)
         
-        # Get price
         if HAS_REALTIME:
             price = get_live_price_smart(ticker)
         else:
@@ -40,13 +39,11 @@ def _fetch_single_symbol(ticker: str) -> dict | None:
         close = hist["Close"]
         volume = int(hist["Volume"].iloc[-1]) if len(hist) > 0 else 0
         
-        # Calculate ALL indicators
         rsi = _calc_rsi(close)
         ma50 = float(close.rolling(50).mean().iloc[-1])
         ma200 = float(close.rolling(200).mean().iloc[-1])
         change = ((close.iloc[-1] / close.iloc[-2]) - 1) * 100 if len(close) > 1 else 0
         
-        # Financial metrics
         currency = "ILS" if str(ticker).endswith(".TA") else "USD"
         price_str = f"{currency}{price:,.2f}"
         
@@ -55,7 +52,6 @@ def _fetch_single_symbol(ticker: str) -> dict | None:
         target_upside = ((target_price / price) - 1) * 100 if price > 0 else 0
         payout = float(info.get("payoutRatio", 0)) * 100
         
-        # MORE columns traders need
         div_yield = float(info.get("dividendYield", 0)) * 100 if info.get("dividendYield") else 0
         margin = float(info.get("profitMargins", 0)) * 100 if info.get("profitMargins") else 0
         roe = float(info.get("returnOnEquity", 0)) * 100 if info.get("returnOnEquity") else 0
@@ -66,7 +62,18 @@ def _fetch_single_symbol(ticker: str) -> dict | None:
         debt = float(info.get("totalDebt", 0)) if info.get("totalDebt") else 0
         cash_vs_debt = "OK" if cash > debt else "Risk"
         
-        # Calculate scores
+        # CRITICAL: DaysToEarnings - when is next earnings?
+        earnings_date = info.get("earningsDate")
+        if earnings_date:
+            try:
+                days_to_earnings = (earnings_date - datetime.now()).days
+                if days_to_earnings < 0:
+                    days_to_earnings = 365  # Next quarter
+            except:
+                days_to_earnings = 180
+        else:
+            days_to_earnings = 180  # Default: assume 6 months
+        
         score = 0
         if rev_growth >= 10: score += 1
         if earn_growth >= 10: score += 1
@@ -118,6 +125,7 @@ def _fetch_single_symbol(ticker: str) -> dict | None:
             "ShortScore": short_score,
             "LongScore": long_score,
             "Action": action,
+            "DaysToEarnings": int(days_to_earnings),  # ADDED!
         }
     except Exception as e:
         return None
