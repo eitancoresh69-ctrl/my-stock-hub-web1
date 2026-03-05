@@ -1,4 +1,4 @@
-# scheduler_agents.py - FIXED - No st.session_state in background threads!
+# scheduler_agents.py - FIXED - No unicode arrows
 import threading
 import time
 import pandas as pd
@@ -6,7 +6,6 @@ import numpy as np
 from datetime import datetime
 from storage import load, save
 
-# ✅ Import fetch_master_data directly - NOT st.session_state!
 try:
     from logic import fetch_master_data
     HAS_LOGIC = True
@@ -25,7 +24,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 
 class UltraAdvancedScheduler:
-    """Autonomous agents that DON'T use st.session_state"""
+    """Autonomous agents without session_state dependency"""
     
     def __init__(self):
         self.running = False
@@ -45,15 +44,12 @@ class UltraAdvancedScheduler:
         return val
 
     def run_val_agent(self):
-        """
-        ✅ FIXED - Gets data from fetch_master_data, NOT st.session_state!
-        """
+        """Value agent - gets data from fetch_master_data"""
         if self.is_processing:
             return
         self.is_processing = True
         
         try:
-            # ✅ Get data from logic, not session_state!
             if not HAS_LOGIC:
                 self.is_processing = False
                 return
@@ -71,14 +67,12 @@ class UltraAdvancedScheduler:
                     symbol = row['Symbol']
                     price = float(row['Price'])
                     
-                    # Check portfolio
                     new_port = []
                     for item in portfolio:
-                        if item['📌'] == symbol:
-                            # Check profit target
-                            profit = ((price / item['💰']) - 1) * 100
-                            if profit >= 20:  # Sell on profit
-                                cash += price * item['🔢']
+                        if item['Stock'] == symbol:
+                            profit = ((price / item['BuyPrice']) - 1) * 100
+                            if profit >= 20:
+                                cash += price * item['Quantity']
                                 continue
                         new_port.append(item)
                     
@@ -89,28 +83,27 @@ class UltraAdvancedScheduler:
             save("val_portfolio", portfolio)
             save("val_cash_ils", self._safe_val(cash))
             self.last_runs["val_agent"] = datetime.now().isoformat()
-        except Exception as e:
+        except:
             pass
         finally:
             self.is_processing = False
 
     def run_day_agent(self):
-        """Daily scanning agent"""
+        """Daily agent"""
         try:
             if not HAS_LOGIC:
                 return
             
-            # Get current data
-            df = fetch_master_data(self.usa[:5])  # Quick scan
+            df = fetch_master_data(self.usa[:5])
             if not df.empty:
                 save("day_trades_log", df.to_dict("records")[:20])
             
             self.last_runs["day_agent"] = datetime.now().isoformat()
-        except Exception as e:
+        except:
             pass
 
     def run_ml_agent(self):
-        """ML analysis"""
+        """ML agent"""
         try:
             save("ml_accuracy", 0.92)
             save("ml_runs", load("ml_runs", 0) + 1)
@@ -128,17 +121,14 @@ class UltraAdvancedScheduler:
             try:
                 now = time.time()
                 
-                # Val agent every 6 hours
                 if now - last_val > 6 * 3600:
                     self.run_val_agent()
                     last_val = now
                 
-                # Day agent every hour
                 if now - last_day > 3600:
                     self.run_day_agent()
                     last_day = now
                 
-                # ML agent every 12 hours
                 if now - last_ml > 12 * 3600:
                     self.run_ml_agent()
                     last_ml = now
@@ -162,7 +152,6 @@ class UltraAdvancedScheduler:
             "thread_alive": self.thread.is_alive() if self.thread else False
         }
 
-# Global scheduler
 _global_scheduler = None
 
 def get_scheduler():
