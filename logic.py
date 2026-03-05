@@ -1,9 +1,9 @@
-# logic.py - FIXED WITH MISSING COLUMNS
+# logic.py - FIXED - No Unicode arrows
 import streamlit as st
 import pandas as pd
 import numpy as np
 import yfinance as yf
-import time  # ✅ For rate limit protection
+import time
 from datetime import datetime, timedelta
 
 try:
@@ -15,11 +15,9 @@ except:
 EMPTY_COLUMNS = ["Symbol", "Price", "Change", "RSI", "MA50", "MA200", "Score", "InsiderHeld", "TargetUpside", "PayoutRatio"]
 
 def _fetch_single_symbol(ticker: str) -> dict | None:
-    """
-    ✅ FIXED - Now returns InsiderHeld, TargetUpside, PayoutRatio
-    """
+    """Fetch single symbol data with all required columns"""
     try:
-        time.sleep(0.2)  # ✅ Rate limit protection
+        time.sleep(0.2)  # Rate limit protection
         
         # Get price
         if HAS_REALTIME:
@@ -45,11 +43,11 @@ def _fetch_single_symbol(ticker: str) -> dict | None:
         # Calculate indicators
         close = hist["Close"]
         rsi = _calc_rsi(close)
-        ma50 = close.rolling(50).mean().iloc[-1]
-        ma200 = close.rolling(200).mean().iloc[-1]
+        ma50 = float(close.rolling(50).mean().iloc[-1])
+        ma200 = float(close.rolling(200).mean().iloc[-1])
         change = ((close.iloc[-1] / close.iloc[-2]) - 1) * 100 if len(close) > 1 else 0
         
-        # ✅ MISSING COLUMNS - NOW INCLUDED!
+        # Missing columns - ADD THESE
         insider_held = float(info.get("heldPercentInsiders", 0)) * 100 if info.get("heldPercentInsiders") else 0
         target_price = float(info.get("targetMeanPrice", price)) if info.get("targetMeanPrice") else price
         target_upside = ((target_price / price) - 1) * 100 if price > 0 else 0
@@ -72,15 +70,15 @@ def _fetch_single_symbol(ticker: str) -> dict | None:
             "MA50": round(float(ma50), 2),
             "MA200": round(float(ma200), 2),
             "Score": score,
-            "InsiderHeld": round(float(insider_held), 2),  # ✅ ADDED
-            "TargetUpside": round(float(target_upside), 2),  # ✅ ADDED
-            "PayoutRatio": round(float(payout_ratio), 2),  # ✅ ADDED
+            "InsiderHeld": round(float(insider_held), 2),
+            "TargetUpside": round(float(target_upside), 2),
+            "PayoutRatio": round(float(payout_ratio), 2),
         }
-    except Exception as e:
+    except Exception:
         return None
 
 def _calc_rsi(prices, period=14):
-    """Calculate RSI"""
+    """Calculate RSI indicator"""
     delta = prices.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
@@ -89,16 +87,14 @@ def _calc_rsi(prices, period=14):
     return float(rsi.iloc[-1])
 
 def fetch_master_data(tickers=None, max_workers: int = 3) -> pd.DataFrame:
-    """
-    ✅ FIXED - No cache, uses max_workers=3 for rate limit protection
-    """
+    """Fetch data for multiple tickers with rate limiting"""
     if not tickers:
         return pd.DataFrame(columns=EMPTY_COLUMNS)
     
     if isinstance(tickers, str):
         tickers = [tickers]
     
-    tickers = list(set(tickers))  # Remove duplicates
+    tickers = list(set(tickers))
     
     results = []
     for ticker in tickers:
