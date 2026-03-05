@@ -71,3 +71,67 @@ def run_market_scanner():
 # קריאה
 if __name__ != "__main__":
     run_market_scanner()
+
+
+# ✅ REQUIRED FUNCTIONS - חיוני שיהיה בקובץ!
+
+def _should_auto_scan():
+    """בדוק אם עבר מספיק זמן מהסריקה האחרונה"""
+    last_scan = st.session_state.get("last_scan_dt")
+    if not last_scan:
+        return True
+    elapsed = (datetime.now() - last_scan).total_seconds() / 60
+    interval = st.session_state.get("auto_scan_interval_min", 30)
+    return elapsed >= interval
+
+
+def _push_to_agents(df, mode):
+    """דחוף נתונים לסוכנים"""
+    try:
+        from storage import save
+        if mode in ["שניהם", "סוכנים"]:
+            save("scan_results", df.to_dict("records"))
+    except:
+        pass
+
+
+def maybe_auto_scan():
+    """קוראים לזה מapp.py - חיוני!"""
+    if not _should_auto_scan():
+        return
+    universe_name = st.session_state.get("auto_scan_universe", "S&P500 Top 100")
+    universe = UNIVERSE_MAP.get(universe_name, SP500_TOP)
+    mode = st.session_state.get("auto_scan_mode", "שניהם")
+
+    placeholder = st.empty()
+    with placeholder.container():
+        st.info(f"🔄 סריקה אוטומטית — {universe_name}")
+        prog_ph = st.empty()
+        df = _run_scan_raw(universe, prog_ph)
+
+    placeholder.empty()
+
+    if not df.empty:
+        st.session_state["scan_results"] = df
+        st.session_state["last_scan_dt"] = datetime.now()
+        st.session_state["scan_time"] = datetime.now().strftime("%H:%M:%S")
+        _push_to_agents(df, mode)
+
+
+def render_market_scanner():
+    """ממשק סורק שוק"""
+    st.markdown("## 📊 סורק שוק")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        universe_name = st.selectbox("🌍 בחר יקום:", list(UNIVERSE_MAP.keys()))
+    with col2:
+        st.info(f"📈 {len(UNIVERSE_MAP[universe_name])} מניות")
+    
+    if st.button("🔍 סרוק עכשיו"):
+        universe = UNIVERSE_MAP[universe_name]
+        with st.spinner("🔄 סורק..."):
+            df = _run_scan_raw(universe, st.empty())
+            if not df.empty:
+                st.dataframe(df[["Symbol", "Price", "RSI", "Score"]], hide_index=True)
+                st.success(f"✅ סרוק - {len(df)} מניות")
