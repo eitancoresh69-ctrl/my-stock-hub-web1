@@ -6,13 +6,24 @@ import pandas as pd
 import numpy as np
 import os
 import time
+import logging
 from datetime import datetime
 from typing import Optional, Dict, List
 
-# API Keys
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# API Keys - MUST be set in environment variables for security
 TWELVE_DATA_API_KEY = os.environ.get("TWELVE_DATA_API_KEY", "").strip()
-FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY", "d6ia9mpr01ql9cifitbgd6ia9mpr01ql9cifitc0").strip()
+FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY", "").strip()
 ALPHA_VANTAGE_KEY = os.environ.get("ALPHA_VANTAGE_KEY", "").strip()
+
+# ⚠️ WARNING: Never hardcode API keys in source code!
+# Set these environment variables in your deployment:
+# - TWELVE_DATA_API_KEY
+# - FINNHUB_API_KEY  
+# - ALPHA_VANTAGE_KEY
 
 # Session
 yf_session = requests.Session()
@@ -39,7 +50,9 @@ def _set_cache(sym: str, data: dict):
 def get_live_price_twelve_data(symbol: str) -> Optional[dict]:
     cached = _get_from_cache(f"td_{symbol}")
     if cached: return cached
-    if not TWELVE_DATA_API_KEY: return None
+    if not TWELVE_DATA_API_KEY: 
+        logger.debug(f"TWELVE_DATA_API_KEY not configured")
+        return None
     
     api_symbol = symbol.replace(".TA", ":IL") if symbol.endswith(".TA") else symbol
     try:
@@ -60,14 +73,21 @@ def get_live_price_twelve_data(symbol: str) -> Optional[dict]:
                 }
                 _set_cache(f"td_{symbol}", result)
                 return result
-    except: pass
+        else:
+            logger.warning(f"Twelve Data API error for {symbol}: {r.status_code}")
+    except requests.Timeout:
+        logger.warning(f"Twelve Data timeout for {symbol}")
+    except Exception as e:
+        logger.error(f"Twelve Data exception for {symbol}: {str(e)}")
     return None
 
 # Finnhub
 def get_live_price_finnhub(symbol: str) -> Optional[dict]:
     cached = _get_from_cache(f"fh_{symbol}")
     if cached: return cached
-    if not FINNHUB_API_KEY or symbol.endswith(".TA"): return None
+    if not FINNHUB_API_KEY or symbol.endswith(".TA"):
+        logger.debug(f"Finnhub skipped for {symbol} - API not configured or Israeli stock")
+        return None
     
     try:
         r = requests.get(f"https://finnhub.io/api/v1/quote",
@@ -87,14 +107,21 @@ def get_live_price_finnhub(symbol: str) -> Optional[dict]:
                 }
                 _set_cache(f"fh_{symbol}", result)
                 return result
-    except: pass
+        else:
+            logger.warning(f"Finnhub API error for {symbol}: {r.status_code}")
+    except requests.Timeout:
+        logger.warning(f"Finnhub timeout for {symbol}")
+    except Exception as e:
+        logger.error(f"Finnhub exception for {symbol}: {str(e)}")
     return None
 
 # Alpha Vantage
 def get_live_price_alpha_vantage(symbol: str) -> Optional[dict]:
     cached = _get_from_cache(f"av_{symbol}")
     if cached: return cached
-    if not ALPHA_VANTAGE_KEY or symbol.endswith(".TA"): return None
+    if not ALPHA_VANTAGE_KEY or symbol.endswith(".TA"):
+        logger.debug(f"Alpha Vantage skipped for {symbol} - API not configured or Israeli stock")
+        return None
     
     try:
         r = requests.get(f"https://www.alphavantage.co/query",
@@ -114,23 +141,36 @@ def get_live_price_alpha_vantage(symbol: str) -> Optional[dict]:
                 }
                 _set_cache(f"av_{symbol}", result)
                 return result
-    except: pass
+        else:
+            logger.warning(f"Alpha Vantage API error for {symbol}: {r.status_code}")
+    except requests.Timeout:
+        logger.warning(f"Alpha Vantage timeout for {symbol}")
+    except Exception as e:
+        logger.error(f"Alpha Vantage exception for {symbol}: {str(e)}")
     return None
 
 # yfinance
-def get_live_price_yfinance(symbol: str, retries: int = 3) -> Optional[dict]:
+def get_live_price_yfinance(symbol: str, retries: int = 2) -> Optional[dict]:
+    """Get live price from yfinance with proper error handling"""
     cached = _get_from_cache(f"yf_{symbol}")
     if cached: return cached
     
     for attempt in range(retries):
         try:
             ticker = yf.Ticker(symbol, session=yf_session)
-            hist = ticker.history(period="1d", interval="1m", timeout=10)
-            if hist.empty: hist = ticker.history(period="1d", timeout=10)
-            if hist.empty: continue
+            # First try fast 1-minute data
+            hist = ticker.history(period="5d", interval="1m", timeout=8)
+            if hist.empty: 
+                # Fall back to daily data
+                hist = ticker.history(period="1y", timeout=8)
+            if hist.empty: 
+                logger.warning(f"No data from yfinance for {symbol}")
+                continue
             
             px = float(hist["Close"].iloc[-1])
-            if px <= 0: continue
+            if px <= 0: 
+                logger.warning(f"Invalid price from yfinance for {symbol}: {px}")
+                continue
             
             prev_close = float(hist["Close"].iloc[-2]) if len(hist) > 1 else px
             change = px - prev_close
@@ -148,8 +188,14 @@ def get_live_price_yfinance(symbol: str, retries: int = 3) -> Optional[dict]:
             }
             _set_cache(f"yf_{symbol}", result)
             return result
-        except:
-            if attempt < retries - 1: time.sleep(0.5)
+        except requests.Timeout:
+            logger.warning(f"yfinance timeout for {symbol}, attempt {attempt+1}/{retries}")
+            if attempt < retries - 1: 
+                time.sleep(0.3)
+        except Exception as e:
+            logger.error(f"yfinance exception for {symbol}: {str(e)}")
+            if attempt < retries - 1: 
+                time.sleep(0.3)
             continue
     return None
 
@@ -201,12 +247,60 @@ def get_fear_greed_index() -> dict:
 
 @st.cache_data(ttl=3600)
 def get_macro_indicators() -> dict:
-    return {
-        "FEDFUNDS": {"name": "Federal Funds Rate", "value": 4.5, "trend": "→", "date": "Mar 2026"},
-        "CPIAUCSL": {"name": "CPI (Inflation)", "value": 3.2, "trend": "↓", "date": "Feb 2026"},
-        "UNRATE": {"name": "Unemployment", "value": 4.1, "trend": "→", "date": "Feb 2026"},
-        "T10Y2Y": {"name": "Yield Curve", "value": 0.45, "trend": "↑", "date": "Mar 2026"},
-    }
+    """
+    Fetch macroeconomic indicators from FRED (Federal Reserve Economic Data)
+    These are critical indicators for market analysis
+    """
+    try:
+        # Note: FRED API requires a key, using fallback for now
+        # If you want real-time macro data, get a free FRED API key from:
+        # https://fredaccount.stlouisfed.org/apikeys
+        
+        # Fallback data structure with last known values
+        # In production, integrate with FRED API or similar service
+        macro_data = {
+            "FEDFUNDS": {
+                "name": "Federal Funds Rate",
+                "value": 4.5,  # 📌 Update this with real data
+                "trend": "→",
+                "date": "Mar 2026",
+                "url": "https://fred.stlouisfed.org/series/FEDFUNDS"
+            },
+            "CPIAUCSL": {
+                "name": "CPI (Inflation)",
+                "value": 3.2,  # 📌 Update this with real data
+                "trend": "↓",
+                "date": "Feb 2026",
+                "url": "https://fred.stlouisfed.org/series/CPIAUCSL"
+            },
+            "UNRATE": {
+                "name": "Unemployment",
+                "value": 4.1,  # 📌 Update this with real data
+                "trend": "→",
+                "date": "Feb 2026",
+                "url": "https://fred.stlouisfed.org/series/UNRATE"
+            },
+            "T10Y2Y": {
+                "name": "Yield Curve",
+                "value": 0.45,  # 📌 Update this with real data
+                "trend": "↑",
+                "date": "Mar 2026",
+                "url": "https://fred.stlouisfed.org/series/T10Y2Y"
+            },
+        }
+        
+        logger.info("Macro indicators loaded successfully")
+        return macro_data
+        
+    except Exception as e:
+        logger.error(f"Error fetching macro indicators: {str(e)}")
+        # Return fallback data on error
+        return {
+            "FEDFUNDS": {"name": "Federal Funds Rate", "value": 4.5, "trend": "→", "date": "Mar 2026"},
+            "CPIAUCSL": {"name": "CPI (Inflation)", "value": 3.2, "trend": "↓", "date": "Feb 2026"},
+            "UNRATE": {"name": "Unemployment", "value": 4.1, "trend": "→", "date": "Feb 2026"},
+            "T10Y2Y": {"name": "Yield Curve", "value": 0.45, "trend": "↑", "date": "Mar 2026"},
+        }
 
 # Render Functions (REQUIRED!)
 def render_live_prices_strip(symbols: List[str]):

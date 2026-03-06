@@ -4,7 +4,11 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import time
+import logging
 from datetime import datetime, timedelta
+
+# Setup logging
+logger = logging.getLogger(__name__)
 
 try:
     from realtime_data import get_live_price_smart
@@ -12,10 +16,12 @@ try:
 except:
     HAS_REALTIME = False
 
-def _fetch_single_symbol(ticker: str) -> dict | None:
+# Performance optimization: cache single symbol data for 60 seconds
+@st.cache_data(ttl=60)
+def _fetch_single_symbol_cached(ticker: str) -> dict | None:
     """Fetch ALL 28 columns that traders need"""
     try:
-        time.sleep(0.2)
+        time.sleep(0.05)  # Reduced from 0.2 seconds for faster UI response
         
         if HAS_REALTIME:
             price = get_live_price_smart(ticker)
@@ -208,7 +214,7 @@ def _calc_momentum(prices, period=10):
     return float(momentum)
 
 def fetch_master_data(tickers=None, max_workers: int = 3) -> pd.DataFrame:
-    """Fetch master data with ALL 28 columns"""
+    """Fetch master data with ALL 28 columns - with caching for performance"""
     if not tickers:
         return pd.DataFrame()
     
@@ -220,10 +226,11 @@ def fetch_master_data(tickers=None, max_workers: int = 3) -> pd.DataFrame:
     results = []
     for ticker in tickers:
         try:
-            result = _fetch_single_symbol(ticker)
+            result = _fetch_single_symbol_cached(ticker)
             if result:
                 results.append(result)
-        except:
+        except Exception as e:
+            logger.error(f"Error fetching {ticker}: {str(e)}")
             pass
     
     if not results:
