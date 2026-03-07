@@ -135,6 +135,20 @@ def _fetch_single_symbol_cached(ticker: str) -> dict | None:
         # Target for long
         target = target_upside if target_upside > 0 else 15
         
+        # AI Action Recommendation
+        if score >= 5:
+            action = "קנייה חזקה 💎"
+            ai_logic = f"ציון {score}/5: גדילה חזקה, רווחיות, איזון נקי"
+        elif score >= 3:
+            action = "קנייה 📈"
+            ai_logic = f"ציון {score}/5: בעל כמה מהתכונות החיוביות"
+        elif score >= 1:
+            action = "החזק ⚖️"
+            ai_logic = f"ציון {score}/5: נייטרלי או ממתין לשיפור"
+        else:
+            action = "בבדיקה 🔍"
+            ai_logic = "ציון 0/5: יש לבדוק את הנתונים"
+        
         return {
             # Basic
             "Symbol": ticker,
@@ -183,6 +197,8 @@ def _fetch_single_symbol_cached(ticker: str) -> dict | None:
             # Other
             "Score": score,
             "DaysToEarnings": int(days_to_earnings),
+            "Action": action,
+            "AI_Logic": ai_logic,
         }
     except Exception as e:
         return None
