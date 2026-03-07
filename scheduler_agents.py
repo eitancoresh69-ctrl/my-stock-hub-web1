@@ -44,7 +44,7 @@ class UltraAdvancedScheduler:
         return val
 
     def run_val_agent(self):
-        """Value agent - gets data from fetch_master_data"""
+        """Value agent - selects quality stocks and allocates budget"""
         if self.is_processing:
             return
         self.is_processing = True
@@ -54,6 +54,7 @@ class UltraAdvancedScheduler:
                 self.is_processing = False
                 return
             
+            # Get market data
             df = fetch_master_data(self.usa)
             if df.empty:
                 self.is_processing = False
@@ -62,6 +63,7 @@ class UltraAdvancedScheduler:
             portfolio = load("val_portfolio", [])
             cash = load("val_cash_ils", 100000.0)
             
+            # First: Sell winners (>20% profit)
             for idx, row in df.iterrows():
                 try:
                     symbol = row['Symbol']
@@ -69,21 +71,67 @@ class UltraAdvancedScheduler:
                     
                     new_port = []
                     for item in portfolio:
-                        if item['Stock'] == symbol:
-                            profit = ((price / item['BuyPrice']) - 1) * 100
-                            if profit >= 20:
-                                cash += price * item['Quantity']
-                                continue
+                        if item.get('Stock') == symbol:
+                            buy_price = float(item.get('BuyPrice', price))
+                            quantity = float(item.get('Quantity', 0))
+                            if quantity > 0 and buy_price > 0:
+                                profit = ((price / buy_price) - 1) * 100
+                                if profit >= 20:
+                                    cash += price * quantity
+                                    continue
                         new_port.append(item)
                     
                     portfolio = new_port
                 except:
                     pass
             
+            # Second: BUY new stocks (if cash available and portfolio is light)
+            # Only add stocks if portfolio has less than 5 holdings
+            if cash > 1000 and len(portfolio) < 5:
+                try:
+                    # Filter high-quality stocks: Score ≥ 4, reasonable RSI
+                    buy_candidates = df[
+                        (df['Score'] >= 4) & 
+                        (df['RSI'] < 70) &
+                        (df['RSI'] > 30)
+                    ].nlargest(3, 'Score')  # Top 3 by score
+                    
+                    existing_symbols = set(p.get('Stock', '') for p in portfolio)
+                    
+                    for idx, row in buy_candidates.iterrows():
+                        try:
+                            symbol = row['Symbol']
+                            if symbol in existing_symbols:
+                                continue
+                                
+                            price = float(row.get('Price', 0))
+                            
+                            if price <= 0:
+                                continue
+                            
+                            # Allocate 15% of available cash per position
+                            allocation = cash * 0.15
+                            quantity = allocation / price
+                            
+                            if quantity > 0:
+                                portfolio.append({
+                                    'Stock': symbol,
+                                    'BuyPrice': float(price),
+                                    'Quantity': float(quantity),
+                                    'BuyDate': datetime.now().isoformat(),
+                                    'Score': int(row.get('Score', 0))
+                                })
+                                cash -= allocation
+                                existing_symbols.add(symbol)
+                        except Exception as e:
+                            pass
+                except Exception as e:
+                    pass
+            
             save("val_portfolio", portfolio)
             save("val_cash_ils", self._safe_val(cash))
             self.last_runs["val_agent"] = datetime.now().isoformat()
-        except:
+        except Exception as e:
             pass
         finally:
             self.is_processing = False
