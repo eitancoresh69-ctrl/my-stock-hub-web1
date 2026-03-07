@@ -13,7 +13,12 @@ def _get_agent_df(df_all: pd.DataFrame, prefer_short: bool = False) -> pd.DataFr
                                     else "agent_universe_df")
     if scan_df is not None and not scan_df.empty:
         have = [c for c in needed if c in scan_df.columns]
-        return scan_df[have].copy()
+        missing = [c for c in needed if c not in scan_df.columns]
+        
+        if missing:
+            st.warning(f"⚠️ Missing columns in scan data: {', '.join(missing)}")
+        
+        return scan_df[have].copy() if have else pd.DataFrame()
     return df_all
 
 
@@ -247,8 +252,11 @@ def render_premium_agents(df_all):
             desc="אסטרטגיה: מנהלים שמחזיקים מניות — סימן לאמון בחברה.",
             run_key="ins_run", sell_key="ins_sell", reset_key="ins_reset",
             df_all=df_long, usd=usd,
-            filter_fn=lambda d: d[(d["InsiderHeld"] >= 2) & (d["TargetUpside"] > 10)],
-            reason_fn=lambda r: f"הנהלה {r['InsiderHeld']:.1f}% | אפסייד +{r['TargetUpside']:.1f}%",
+            filter_fn=lambda d: d[
+                (d.get("InsiderHeld", pd.Series([0]*len(d))) >= 2) & 
+                (d.get("TargetUpside", pd.Series([0]*len(d))) > 10)
+            ] if "InsiderHeld" in d.columns and "TargetUpside" in d.columns else pd.DataFrame(),
+            reason_fn=lambda r: f"הנהלה {r.get('InsiderHeld', 0):.1f}% | אפסייד +{r.get('TargetUpside', 0):.1f}%",
         )
 
     with t3:
