@@ -29,19 +29,31 @@ def render_pro_tools(df_all, portfolio_df):
         st.markdown("### 🕵️ סורק כסף חכם")
         if not df_all.empty:
             smart = df_all.copy()
-            smart["AI"] = smart.apply(lambda r: _smart_label(r["TargetUpside"], r["InsiderHeld"]), axis=1)
-            smart = smart[(smart["TargetUpside"] > 5) | (smart["InsiderHeld"] > 2)].sort_values(
-                "TargetUpside", ascending=False)
-            st.dataframe(
-                smart[["Symbol", "PriceStr", "TargetUpside", "InsiderHeld", "AI"]],
-                column_config={
-                    "Symbol":      "סימול",
-                    "PriceStr":    "מחיר",
-                    "TargetUpside": st.column_config.NumberColumn("אנליסטים %", format="+%.1f%%"),
-                    "InsiderHeld":  st.column_config.NumberColumn("הנהלה %", format="%.2f%%"),
-                    "AI":           st.column_config.TextColumn("ניתוח AI", width="large"),
-                }, hide_index=True,
-            )
+            
+            # Check if required columns exist
+            missing_cols = []
+            if "TargetUpside" not in smart.columns:
+                missing_cols.append("TargetUpside")
+            if "InsiderHeld" not in smart.columns:
+                missing_cols.append("InsiderHeld")
+            
+            if missing_cols:
+                st.error(f"❌ שגיאה: עמודות חסרות: {', '.join(missing_cols)}")
+                st.info("💡 זו בעיה בטעינת הנתונים. בדוק ש-logic.py מחזיר את כל העמודות הנדרשות.")
+            else:
+                smart["AI"] = smart.apply(lambda r: _smart_label(r["TargetUpside"], r["InsiderHeld"]), axis=1)
+                smart = smart[(smart["TargetUpside"] > 5) | (smart["InsiderHeld"] > 2)].sort_values(
+                    "TargetUpside", ascending=False)
+                st.dataframe(
+                    smart[["Symbol", "PriceStr", "TargetUpside", "InsiderHeld", "AI"]],
+                    column_config={
+                        "Symbol":      "סימול",
+                        "PriceStr":    "מחיר",
+                        "TargetUpside": st.column_config.NumberColumn("אנליסטים %", format="+%.1f%%"),
+                        "InsiderHeld":  st.column_config.NumberColumn("הנהלה %", format="%.2f%%"),
+                        "AI":           st.column_config.TextColumn("ניתוח AI", width="large"),
+                    }, hide_index=True,
+                )
 
     with t2:
         st.markdown("### 🩻 פיזור סיכונים")
