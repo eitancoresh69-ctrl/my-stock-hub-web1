@@ -104,7 +104,12 @@ def render_smart_alerts(df_all):
     with t3:
         st.markdown("### 🏛️ החזקות בעלי עניין")
         if not high_ins.empty:
-            df_ins = high_ins[["Symbol","PriceStr","InsiderHeld","Score","Action"]].copy()
+            # Build column list safely
+            cols_to_show = ["Symbol","PriceStr","InsiderHeld","Score"]
+            if "Action" in high_ins.columns:
+                cols_to_show.append("Action")
+            
+            df_ins = high_ins[cols_to_show].copy()
             df_ins["InsiderHeld"] = df_ins["InsiderHeld"].apply(lambda x: f"{x:.1f}%")
             st.dataframe(df_ins.sort_values("InsiderHeld", ascending=False), hide_index=True)
             st.info("💡 אחזקת insider גבוהה = האמונה של ההנהלה במניה. "
