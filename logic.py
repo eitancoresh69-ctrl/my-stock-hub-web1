@@ -178,7 +178,7 @@ def _fetch_single_symbol_cached(ticker: str) -> dict | None:
             
             # Valuation
             "FairValue": round(float(fair_value), 2),
-            "target": round(float(target), 2),
+            "TargetUpside": round(float(target), 2),
             
             # Other
             "Score": score,
